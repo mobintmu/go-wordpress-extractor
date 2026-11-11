@@ -23,8 +23,9 @@ import (
 //
 //	POST /api/v1/extract      API key in X-API-Key
 //	GET  /api/v1/sites        API key in X-API-Key
+//	GET  /metrics             API key in X-API-Key
 //	GET  /health, /ready      public
-//	GET  /swagger/*, /metrics operator credentials (Basic)
+//	GET  /swagger/*           operator credentials (Basic)
 //
 // Swagger docs are generated from the annotations with:
 //
@@ -38,6 +39,10 @@ func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, s
 	v1.POST("/extract", auth, ex.Handle)
 	v1.GET("/sites", auth, st.List)
 
+	// Failed scrapes are not counted in extract_rejected_total, which
+	// describes client API traffic.
+	engine.GET("/metrics", apikey.Middleware(keys, nil), MetricsHandler(m))
+
 	// Swagger UI and its doc.json are served at /swagger/index.html and
 	// /swagger/doc.json. Host is left empty so the UI calls the server it
 	// was loaded from.
@@ -48,13 +53,12 @@ func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, s
 		docs.SwaggerInfo.Schemes = []string{"https"}
 	}
 	if !cfg.OpsEnabled() {
-		log.Printf("ℹ️  Swagger UI and /metrics are off (they return 404). Set APP_OPS_USER and APP_OPS_PASSWORD_HASH to turn them on.")
+		log.Printf("ℹ️  Swagger UI is off (it returns 404). Set APP_OPS_USER and APP_OPS_PASSWORD_HASH to turn it on.")
 	} else {
-		log.Printf("✅ Swagger UI: /swagger/index.html and /metrics (operator login required, user %q, pepper fingerprint %s)",
+		log.Printf("✅ Swagger UI: /swagger/index.html (operator login required, user %q, pepper fingerprint %s)",
 			cfg.OpsUser, apikey.PepperFingerprint(cfg.APIKeyPepper))
 	}
 	ops := engine.Group("/", OpsAuth(cfg))
-	ops.GET("/metrics", MetricsHandler(m))
 	ops.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	engine.NoRoute(notFound)
@@ -66,10 +70,9 @@ func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, s
 //	@Description	Requests by outcome, site, failure code, and price state; duration; active requests; rejections.
 //	@Tags			Operations
 //	@Produce		plain
-//	@Security		OpsBasicAuth
+//	@Security		ApiKeyAuth
 //	@Success		200	{string}	string				"Metrics in the Prometheus text format"
-//	@Failure		401	{object}	extract.APIError	"UNAUTHORIZED: operator credentials are missing or wrong."
-//	@Failure		404	{object}	extract.APIError	"NOT_FOUND: operator endpoints are off."
+//	@Failure		401	{object}	extract.APIError	"UNAUTHORIZED: the API key is missing, unknown, revoked, or expired."
 //	@Router			/metrics [get]
 func MetricsHandler(m *metrics.Metrics) gin.HandlerFunc {
 	return func(c *gin.Context) {

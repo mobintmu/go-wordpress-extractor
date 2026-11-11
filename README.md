@@ -7,8 +7,9 @@ There is no database and no Redis. Site configs and API keys are files that are 
 ```text
 POST /api/v1/extract   X-API-Key        {"url": "...", "request_id": "..."}
 GET  /api/v1/sites     X-API-Key        enabled sites available for extraction
+GET  /metrics          X-API-Key        Prometheus text metrics
 GET  /health, /ready   public
-GET  /swagger/index.html, /metrics   operator credentials (HTTP Basic); off unless configured
+GET  /swagger/index.html   operator credentials (HTTP Basic); off unless configured
 ```
 
 ## Layout
@@ -132,7 +133,7 @@ docker compose up --build
 | `APP_SITE_CONFIG_DIR` | `configs` | Config root |
 | `APP_API_KEYS_FILE` | `secrets/.env.apikeys` in production, otherwise `secrets/api_keys.json` | Key file |
 | `APP_API_KEY_PEPPER` | none, required (32+ chars) | HMAC secret |
-| `APP_OPS_USER`, `APP_OPS_PASSWORD_HASH` | none | Operator credentials for Swagger UI and `/metrics`; they return 404 when unset |
+| `APP_OPS_USER`, `APP_OPS_PASSWORD_HASH` | none | Operator credentials for Swagger UI; it returns 404 when unset |
 | `APP_TLS_CERT_FILE`, `APP_TLS_KEY_FILE` | none | Serve HTTPS directly |
 | `APP_MAX_REQUEST_DURATION` | `3m` | Hard limit per request |
 | `APP_SITE_WAIT_TIMEOUT` | `30s` | Wait for a busy site's turn before 429 |

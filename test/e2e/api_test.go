@@ -214,7 +214,7 @@ func opsAuthHeader() string {
 func TestOperatorEndpoints(t *testing.T) {
 	t.Run("off by default", func(t *testing.T) {
 		e := Start(t, Options{})
-		for _, p := range []string{"/swagger/doc.json", "/metrics", "/swagger/index.html"} {
+		for _, p := range []string{"/swagger/doc.json", "/swagger/index.html"} {
 			if r := e.Get(p, map[string]string{"Authorization": opsAuthHeader()}); r.Status != 404 {
 				t.Errorf("%s: want 404 when operator credentials are unset, got %d", p, r.Status)
 			}
@@ -222,9 +222,6 @@ func TestOperatorEndpoints(t *testing.T) {
 	})
 
 	e := Start(t, Options{Env: opsEnv(t)})
-	e.Extract(e.Shop.URL(hostShop, "/product/ok/")).Success(t)
-	e.Extract(e.Shop.URL(hostShop, "/product/gone/"))
-	e.Post("/api/v1/extract", "", map[string]any{"url": "x"})
 
 	bad := map[string]map[string]string{
 		"no credentials": nil,
@@ -232,7 +229,7 @@ func TestOperatorEndpoints(t *testing.T) {
 		"wrong user":     {"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte("root:"+opsPassword))},
 		"client api key": {apikey.HeaderName: e.Key},
 	}
-	for _, p := range []string{"/swagger/doc.json", "/metrics", "/swagger/index.html"} {
+	for _, p := range []string{"/swagger/doc.json", "/swagger/index.html"} {
 		for name, h := range bad {
 			t.Run(p+" "+name, func(t *testing.T) {
 				r := e.Get(p, h)
@@ -254,21 +251,43 @@ func TestOperatorEndpoints(t *testing.T) {
 			t.Errorf("swagger ui does not load doc.json: %s", init.Raw)
 		}
 	})
-	t.Run("metrics", func(t *testing.T) {
-		r := e.Get("/metrics", auth)
-		body := string(r.Raw)
-		for _, want := range []string{
-			`extract_requests_total{outcome="success",site="shop",code="",price_state="available"} 1`,
-			`extract_requests_total{outcome="failed",site="shop",code="HTTP_NOT_FOUND",price_state=""} 1`,
-			`extract_rejected_total{reason="unauthorized"} 1`,
-			`extract_request_duration_seconds_count{outcome="success"} 1`,
-			`extract_active_requests 0`,
-		} {
-			if !strings.Contains(body, want) {
-				t.Errorf("metrics missing %q\n%s", want, body)
+}
+
+func TestMetrics(t *testing.T) {
+	e := Start(t, Options{})
+	e.Extract(e.Shop.URL(hostShop, "/product/ok/")).Success(t)
+	e.Extract(e.Shop.URL(hostShop, "/product/gone/"))
+	e.Post("/api/v1/extract", "", map[string]any{"url": "x"})
+
+	bad := map[string]map[string]string{
+		"no key":         nil,
+		"unknown key":    {apikey.HeaderName: "gwp_nope_nope"},
+		"operator login": {"Authorization": opsAuthHeader()},
+	}
+	for name, h := range bad {
+		t.Run(name, func(t *testing.T) {
+			if r := e.Get("/metrics", h); r.Status != 401 {
+				t.Errorf("want 401, got %d", r.Status)
 			}
+		})
+	}
+
+	r := e.Get("/metrics", map[string]string{apikey.HeaderName: e.Key})
+	if r.Status != 200 {
+		t.Fatalf("metrics: %d %s", r.Status, r.Raw)
+	}
+	body := string(r.Raw)
+	for _, want := range []string{
+		`extract_requests_total{outcome="success",site="shop",code="",price_state="available"} 1`,
+		`extract_requests_total{outcome="failed",site="shop",code="HTTP_NOT_FOUND",price_state=""} 1`,
+		`extract_rejected_total{reason="unauthorized"} 1`,
+		`extract_request_duration_seconds_count{outcome="success"} 1`,
+		`extract_active_requests 0`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("metrics missing %q\n%s", want, body)
 		}
-	})
+	}
 }
 
 func TestHTTPS(t *testing.T) {

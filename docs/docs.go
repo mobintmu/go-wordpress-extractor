@@ -138,7 +138,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "OpsBasicAuth": []
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "Requests by outcome, site, failure code, and price state; duration; active requests; rejections.",
@@ -157,13 +157,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "UNAUTHORIZED: operator credentials are missing or wrong.",
-                        "schema": {
-                            "$ref": "#/definitions/ApiError"
-                        }
-                    },
-                    "404": {
-                        "description": "NOT_FOUND: operator endpoints are off.",
+                        "description": "UNAUTHORIZED: the API key is missing, unknown, revoked, or expired.",
                         "schema": {
                             "$ref": "#/definitions/ApiError"
                         }
@@ -753,7 +747,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Product Extraction API",
-	Description:      "Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger UI and /metrics.",
+	Description:      "Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger UI.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -130,7 +130,7 @@ func (cfg *Config) IsProduction() bool  { return cfg.ENV == "production" }
 // TLSEnabled reports whether the server terminates HTTPS itself.
 func (cfg *Config) TLSEnabled() bool { return cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" }
 
-// OpsEnabled reports whether Swagger UI (/swagger/*) and /metrics are served.
+// OpsEnabled reports whether Swagger UI (/swagger/*) is served.
 func (cfg *Config) OpsEnabled() bool { return cfg.OpsUser != "" && cfg.OpsPasswordHash != "" }
 
 // ProxyURL returns the outbound HTTP proxy, or nil to fetch directly.

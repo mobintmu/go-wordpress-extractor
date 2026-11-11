@@ -23,7 +23,7 @@ import (
 //	@description				Client API key: gwp_<id>_<secret>
 
 //	@securityDefinitions.basic	OpsBasicAuth
-//	@description				Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger UI and /metrics.
+//	@description				Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger UI.
 
 func main() {
 	config.LoadEnv()

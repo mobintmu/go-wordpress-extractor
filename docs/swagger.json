@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger UI and /metrics.",
+        "description": "Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger UI.",
         "title": "Product Extraction API",
         "contact": {},
         "version": "1.0"
@@ -131,7 +131,7 @@
             "get": {
                 "security": [
                     {
-                        "OpsBasicAuth": []
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "Requests by outcome, site, failure code, and price state; duration; active requests; rejections.",
@@ -150,13 +150,7 @@
                         }
                     },
                     "401": {
-                        "description": "UNAUTHORIZED: operator credentials are missing or wrong.",
-                        "schema": {
-                            "$ref": "#/definitions/ApiError"
-                        }
-                    },
-                    "404": {
-                        "description": "NOT_FOUND: operator endpoints are off.",
+                        "description": "UNAUTHORIZED: the API key is missing, unknown, revoked, or expired.",
                         "schema": {
                             "$ref": "#/definitions/ApiError"
                         }

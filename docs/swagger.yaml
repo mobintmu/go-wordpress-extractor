@@ -399,7 +399,7 @@ definitions:
 info:
   contact: {}
   description: Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger
-    UI and /metrics.
+    UI.
   title: Product Extraction API
   version: "1.0"
 paths:
@@ -499,15 +499,12 @@ paths:
           schema:
             type: string
         "401":
-          description: 'UNAUTHORIZED: operator credentials are missing or wrong.'
-          schema:
-            $ref: '#/definitions/ApiError'
-        "404":
-          description: 'NOT_FOUND: operator endpoints are off.'
+          description: 'UNAUTHORIZED: the API key is missing, unknown, revoked, or
+            expired.'
           schema:
             $ref: '#/definitions/ApiError'
       security:
-      - OpsBasicAuth: []
+      - ApiKeyAuth: []
       summary: Prometheus metrics
       tags:
       - Operations

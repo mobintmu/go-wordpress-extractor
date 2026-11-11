@@ -145,7 +145,7 @@ func validateProxy(cfg *Config) error {
 
 func validateWarnings(cfg *Config) {
 	if (cfg.OpsUser == "") != (cfg.OpsPasswordHash == "") {
-		log.Printf("⚠️  WARNING: set both APP_OPS_USER and APP_OPS_PASSWORD_HASH. Swagger UI and /metrics stay off")
+		log.Printf("⚠️  WARNING: set both APP_OPS_USER and APP_OPS_PASSWORD_HASH. Swagger UI stays off")
 	}
 	if cfg.IsProduction() && !cfg.TLSEnabled() {
 		log.Printf("⚠️  WARNING: serving plain HTTP in production. API keys travel in a header; use this only on a private network")
