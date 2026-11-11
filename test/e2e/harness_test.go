@@ -29,6 +29,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// repoRoot is the repository root, relative to this package.
+var repoRoot = filepath.Join("..", "..")
+
 const testPepper = "e2e-pepper-0123456789abcdef-0123456789abcdef"
 
 func TestMain(m *testing.M) {

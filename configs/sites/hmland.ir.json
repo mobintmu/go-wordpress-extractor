@@ -1,0 +1,15 @@
+{
+  "$comment": "WoodMart theme on WooCommerce. Prices are shown in rial (ریال). Checked against a live variable product page on 2026-11-11.",
+  "schema_version": 1,
+  "site_id": "hmland",
+  "version": "2026-11-11.1",
+  "enabled": true,
+  "extends": "woodmart",
+  "domains": ["hmland.ir", "www.hmland.ir"],
+
+  "locale": {
+    "price_unit": "rial",
+    "currency_words": ["ریال", "تومان"],
+    "call_for_price_words": ["تماس بگیرید", "استعلام قیمت"]
+  }
+}

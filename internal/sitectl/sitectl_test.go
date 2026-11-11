@@ -88,16 +88,20 @@ func TestFixtureRecordsAndReplays(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	passed, missing := 0, 0
+	passed, others, missing := 0, 0, 0
 	for _, r := range results {
-		if r.Pass {
+		switch {
+		case r.Site == "badomjip" && r.Pass:
 			passed++
-		} else if r.Fixture == "-" {
-			missing++
+		case r.Site != "badomjip":
+			others++
+			if !r.Pass && r.Fixture == "-" {
+				missing++
+			}
 		}
 	}
-	if passed != 1 || missing != 1 {
-		t.Fatalf("want the recorded fixture to pass and hosseinibrothers reported as missing fixtures: %+v", results)
+	if passed != 1 || len(results) != passed+others || others == 0 || missing != others {
+		t.Fatalf("want the recorded fixture to pass and every other site reported as missing fixtures: %+v", results)
 	}
 }
 

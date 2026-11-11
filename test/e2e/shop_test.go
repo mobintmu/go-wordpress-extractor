@@ -40,6 +40,7 @@ type Shop struct {
 	hitTimes  map[string][]time.Time
 	Started   chan string // receives the path when a hanging handler starts
 	Cancelled chan string // receives the path when a hanging request is cancelled
+	pages     map[string]string
 }
 
 // Host names used by the tests.
@@ -62,7 +63,7 @@ const (
 
 // NewShop starts the fake site.
 func NewShop(t *testing.T) *Shop {
-	s := &Shop{t: t, hits: map[string]int{}, hitTimes: map[string][]time.Time{},
+	s := &Shop{t: t, hits: map[string]int{}, hitTimes: map[string][]time.Time{}, pages: map[string]string{},
 		Started: make(chan string, 16), Cancelled: make(chan string, 16)}
 	s.srv = httptest.NewServer(http.HandlerFunc(s.serve))
 	s.tlsSrv = httptest.NewTLSServer(http.HandlerFunc(s.serve))
@@ -115,6 +116,14 @@ func (s *Shop) HitTimes(path string) []time.Time {
 	return append([]time.Time(nil), s.hitTimes[path]...)
 }
 
+// Handle serves body as a 200 HTML page at path (decoded, as in
+// r.URL.Path). Registered pages take precedence over the built-in routes.
+func (s *Shop) Handle(path, body string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pages[path] = body
+}
+
 func (s *Shop) record(path string) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -129,6 +138,13 @@ func (s *Shop) serve(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		w.WriteHeader(status)
 		fmt.Fprint(w, body)
+	}
+	s.mu.Lock()
+	body, ok := s.pages[r.URL.Path]
+	s.mu.Unlock()
+	if ok {
+		html(200, body)
+		return
 	}
 	switch p := r.URL.Path; p {
 	case "/robots.txt":
@@ -323,15 +339,22 @@ func changedLayoutPage() string {
 <div class="main-page-wrapper"><div class="site-content"><article class="new-product"><h1>Example product</h1><p>` + text + `</p></article></div></div></body></html>`
 }
 
-// writeConfigs writes the WooCommerce template from the repository and
-// one site file per test host.
+// writeConfigs writes every template from the repository and one site
+// file per test host.
 func writeConfigs(t *testing.T, dir string, s *Shop, extra map[string]map[string]any) {
 	t.Helper()
 	must(t, os.MkdirAll(filepath.Join(dir, "templates"), 0o755))
 	must(t, os.MkdirAll(filepath.Join(dir, "sites"), 0o755))
-	tpl, err := os.ReadFile(filepath.Join("..", "..", "configs", "templates", "woocommerce.json"))
+	tpls, err := filepath.Glob(filepath.Join(repoRoot, "configs", "templates", "*.json"))
 	must(t, err)
-	must(t, os.WriteFile(filepath.Join(dir, "templates", "woocommerce.json"), tpl, 0o644))
+	if len(tpls) == 0 {
+		t.Fatal("no templates found in configs/templates")
+	}
+	for _, src := range tpls {
+		tpl, err := os.ReadFile(src)
+		must(t, err)
+		must(t, os.WriteFile(filepath.Join(dir, "templates", filepath.Base(src)), tpl, 0o644))
+	}
 
 	site := func(id string, domains []string, overrides map[string]any) map[string]any {
 		m := map[string]any{
