@@ -115,3 +115,36 @@ func TestValidateReportsInvalidFiles(t *testing.T) {
 		t.Fatalf("validate: %d %s", code, out)
 	}
 }
+
+// TestHTMLFileSkipsTheFetcher: --html must use the file, never the network.
+func TestHTMLFileSkipsTheFetcher(t *testing.T) {
+	html := filepath.Join(repoFixtures, "badomjip", "product-sale.html")
+	fixtures := t.TempDir()
+	cli := func(args ...string) (int, string, string) {
+		var out, errOut bytes.Buffer
+		code := CLI{Stdout: &out, Stderr: &errOut, Fetcher: failFetcher{t}}.Run(args)
+		return code, out.String(), errOut.String()
+	}
+	u := "https://badomjip.com/product/premium-almond/"
+	if code, out, errOut := cli("check", "--dir", repoConfigs, "--url", u, "--html", html, "--json"); code != 0 || !strings.Contains(out, `"status": "success"`) {
+		t.Fatalf("check --html: %d %s %s", code, out, errOut)
+	}
+	if code, out, errOut := cli("fixture", "--dir", repoConfigs, "--fixtures", fixtures, "--url", u, "--html", html, "--name", "fromfile"); code != 0 {
+		t.Fatalf("fixture --html: %s %s", out, errOut)
+	}
+	want, _ := os.ReadFile(html)
+	got, err := os.ReadFile(filepath.Join(fixtures, "badomjip", "fromfile.html"))
+	if err != nil || !bytes.Equal(got, want) {
+		t.Fatalf("saved HTML must equal the input file: %v", err)
+	}
+	if code, _, errOut := cli("check", "--dir", repoConfigs, "--url", u, "--html", filepath.Join(fixtures, "missing.html")); code != 1 || errOut == "" {
+		t.Fatalf("missing --html file must fail: %d %s", code, errOut)
+	}
+}
+
+type failFetcher struct{ t *testing.T }
+
+func (f failFetcher) Fetch(_ context.Context, _ *siteconfig.Site, u *url.URL) (*fetch.Page, *diagnose.Failure) {
+	f.t.Errorf("fetcher called for %s although --html was given", u)
+	return nil, nil
+}

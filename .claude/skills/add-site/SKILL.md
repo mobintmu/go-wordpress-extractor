@@ -1,23 +1,26 @@
 ---
 name: add-site
-description: Add a new shop website to the product extractor. Use when the user gives a website URL and a sample product URL and asks to add, support, onboard, or configure that site. Covers detecting the platform and theme, writing configs/sites/<domain>.json, checking it live, saving a fixture, and writing an end-to-end test for the sample product.
+description: Add a new shop website to the product extractor. Use when the user gives a website URL, a sample product URL, and the saved .html file of that product page, and asks to add, support, onboard, or configure that site. Works only from the provided HTML, never fetches the site. Covers detecting the platform and theme, writing configs/sites/<domain>.json, checking it against the HTML, saving a fixture, and writing an end-to-end test for the sample product.
 ---
 
 # Add a new website
 
-The user gives you two things:
+The user gives you three things:
 
 1. **Site URL**, for example `https://hmland.ir/`
 2. **Sample product URL**, for example `https://hmland.ir/product/%da%a9%d8%b1%d9%87-.../`
+3. **HTML file** of that product page, for example `~/Downloads/hmland-product.html` (saved from the browser with "Save page as → Web page, HTML only", or "View source" copied into a file)
 
-If they did not give a sample product URL, ask for one. A home page alone is not enough: every selector is checked against a real product page.
+If any of the three is missing, ask for it. A home page alone is not enough: every selector is checked against a real product page.
+
+**Do not fetch the site.** No `curl`, no `wget`, no web fetch, and never run `sitectl check` or `sitectl fixture` without `--html`. Everything is done from the provided HTML file. The product URL is used only as the page's address: for the `match` regex, the request URL in `sitectl`, and the path in the end-to-end test.
 
 When you finish, these files exist and every test passes:
 
 | File | What it is |
 |---|---|
 | `configs/sites/<domain>.json` | The site config, usually extending a template |
-| `testdata/sites/<site_id>/<fixture>.html` + `.json` | The saved live product page and its expected output |
+| `testdata/sites/<site_id>/<fixture>.html` + `.json` | The provided product page and its expected output |
 | `test/e2e/<site_id>_test.go` | End-to-end test that runs the real config against the saved page through the HTTP service |
 
 Do not commit unless the user asks.
@@ -27,7 +30,8 @@ Names used below:
 - `<domain>`: the host without `www.`, for example `hmland.ir`. Used for the config file name.
 - `<site_id>`: lowercase, `^[a-z0-9][a-z0-9_-]{0,63}$`, usually the domain without the TLD, for example `hmland`. Used for the fixture folder, the test file, and the `site_id` field.
 - `<fixture>`: a short kebab-case name that describes the sample page, for example `peanut-butter-variable` or `raisin-available`.
-- `$SCRATCH`: your scratchpad directory. Keep downloaded HTML there, not in the repo, until `sitectl fixture` saves the real fixture.
+- `$SCRATCH`: your scratchpad directory. Keep a copy of the provided HTML there, not in the repo, until `sitectl fixture` saves the real fixture.
+- `$HTML`: the path of the copy, `$SCRATCH/<site_id>/page.html`. Every command below reads this file.
 
 ## Step 1: Read what already exists
 
@@ -39,21 +43,24 @@ Read these before writing anything. They are short.
 
 Merge rules: a site file deep-merges over its template. Objects merge key by key. **Arrays replace** the template's arrays. So if you set `call_for_price_words`, list every word you want, not only the new ones.
 
-## Step 2: Download the sample page and identify the platform
+## Step 2: Read the provided HTML and identify the platform
+
+Copy the file the user gave you, so the original is never changed:
 
 ```bash
 D=$SCRATCH/<site_id>; mkdir -p $D
-curl -sSL -A "Mozilla/5.0" -o $D/page.html \
-  -w "%{http_code} %{size_download} %{url_effective}\n" "<product url>"
-curl -sS -A "Mozilla/5.0" "<site url>robots.txt" | head -40
-grep -o '<body[^>]*>' $D/page.html
-grep -oE '(wp-content/themes|themes)/[a-zA-Z0-9_-]+' $D/page.html | sort | uniq -c
+cp "<provided html file>" $D/page.html; HTML=$D/page.html
+wc -c $HTML; file $HTML
+grep -o '<title>[^<]*' $HTML
+grep -o '<body[^>]*>' $HTML
+grep -oE '(wp-content/themes|themes)/[a-zA-Z0-9_-]+' $HTML | sort | uniq -c
+grep -o '<link rel="canonical"[^>]*>' $HTML
 ```
 
 Check:
 
-- **HTTP status is 200** and the size is reasonable. A 403, a Cloudflare challenge ("Just a moment..."), or a tiny page with only a `<div id="root">` means the service will not be able to fetch it either. Tell the user and stop.
-- **robots.txt** does not disallow the product path. The service respects robots.txt by default.
+- **It is the real product page.** The size is reasonable (usually 50 KB or more), it is UTF-8 HTML, and the `<title>` and canonical link match the product URL. A Cloudflare challenge ("Just a moment..."), a login page, or a tiny page with only a `<div id="root">` is not usable. Tell the user and ask for another file.
+- **It is the server HTML, not a browser-rendered copy.** "Save page as → Web page, complete" and DevTools "Copy outerHTML" save the page after JavaScript ran, which can add classes and markup that the service will never see. If the file has many `data-*` attributes added by extensions, inline `<style>` from the browser, or a `_files/` folder next to it, mention it to the user. The service extracts from raw server HTML, so selectors that only exist in a rendered copy will fail in production.
 - **Platform and theme**, from the body classes and theme paths:
 
 | Signal | Platform | Template |
@@ -71,10 +78,9 @@ For the chosen template, count each selector's key class in the page. Example fo
 for p in 'class="product_title' 'type-product' '<p class="price' 'woocommerce-product-gallery' \
          'short-description' 'Tabs-panel--description' 'single_add_to_cart_button' \
          'stock out-of-stock' 'canonical'; do
-  echo "== $p: $(grep -c -- "$p" $D/page.html)"; done
-grep -oE '<h1[^>]*>[^<]*' $D/page.html
-grep -oE '<p class="price">.{0,600}' $D/page.html | head -3
-grep -o '<link rel="canonical"[^>]*>' $D/page.html
+  echo "== $p: $(grep -c -- "$p" $HTML)"; done
+grep -oE '<h1[^>]*>[^<]*' $HTML
+grep -oE '<p class="price">.{0,600}' $HTML | head -3
 ```
 
 For each field decide: does the template selector match the right element? If not, find the correct selector in the page and override it in the site config.
@@ -106,13 +112,13 @@ Search the page for phrases like `تماس بگیرید` and `استعلام ق�
 
 ## Step 4: Write the config
 
-File: `configs/sites/<domain>.json`. Keep only what differs from the template. Always set `$comment` with the platform, theme, price unit, and the date you checked the live page.
+File: `configs/sites/<domain>.json`. Keep only what differs from the template. Always set `$comment` with the platform, theme, price unit, and the date you checked the provided page.
 
 Minimal WoodMart example (this is the real hmland.ir config):
 
 ```json
 {
-  "$comment": "WoodMart theme on WooCommerce. Prices are shown in rial (ریال). Checked against a live variable product page on 2026-11-11.",
+  "$comment": "WoodMart theme on WooCommerce. Prices are shown in rial (ریال). Checked against a variable product page on 2026-11-11.",
   "schema_version": 1,
   "site_id": "hmland",
   "version": "2026-11-11.1",
@@ -138,14 +144,16 @@ Rules:
 - `validation.required_fields` defaults to `["title"]`. Add more only if the user asks.
 - Never edit a template to fix one site. Override in the site file. Change a template only if the fix is correct for every site that extends it.
 
-## Step 5: Validate and check live
+## Step 5: Validate and check against the HTML
 
 ```bash
 go run ./cmd/sitectl validate
-go run ./cmd/sitectl check --url "<product url>"
+go run ./cmd/sitectl check --url "<product url>" --html $HTML
 ```
 
-`validate` must print `0 invalid`. `check` must print `SUCCESS` and the product. Read the output field by field and compare it with the page in a browser or with the HTML:
+`--html` makes `check` run the real extraction on the file instead of fetching `--url`. The URL still decides the site (by domain) and must pass `match`. robots.txt and the network are not checked, so mention to the user that the live site was not tried.
+
+`validate` must print `0 invalid`. `check` must print `SUCCESS` and the product. Read the output field by field and compare it with the HTML:
 
 - `title` is the product name, not the site name.
 - `image_url` is the full-size product photo, an absolute URL.
@@ -161,11 +169,11 @@ If the description is very long because it joins article text, mention it to the
 ## Step 6: Save the fixture
 
 ```bash
-go run ./cmd/sitectl fixture --url "<product url>" --name <fixture>
+go run ./cmd/sitectl fixture --url "<product url>" --html $HTML --name <fixture>
 go run ./cmd/sitectl test
 ```
 
-This writes `testdata/sites/<site_id>/<fixture>.html` (the real page) and `<fixture>.json` (the expected output). Open the `.json` and confirm the expected product is correct, because it becomes the truth the tests check against. `sitectl test` must show every fixture `PASS` and `0 failed`. Every enabled site needs at least one fixture. Add `--force` only to replace a fixture on purpose.
+This writes `testdata/sites/<site_id>/<fixture>.html` (a byte-for-byte copy of the provided page) and `<fixture>.json` (the expected output). Open the `.json` and confirm the expected product is correct, because it becomes the truth the tests check against. `sitectl test` must show every fixture `PASS` and `0 failed`. Every enabled site needs at least one fixture. Add `--force` only to replace a fixture on purpose.
 
 ## Step 7: Write the end-to-end test for the sample product
 
@@ -216,7 +224,7 @@ Write one `Test<SiteID>` with these subtests. Use the sample product's real path
 
 | Subtest | How | Assert |
 |---|---|---|
-| Saved live page matches the fixture | Serve the fixture HTML at the sample path | `Success`; `site_id`; `title`, `url`, `image_url`, `description`, `price.currency`, `price.raw`, `price.state` equal the fixture; no warnings |
+| Saved page matches the fixture | Serve the fixture HTML at the sample path | `Success`; `site_id`; `title`, `url`, `image_url`, `description`, `price.currency`, `price.raw`, `price.state` equal the fixture; no warnings |
 | Sample product details | Same page | Exact title, `price.current` in toman, `price.regular` (number or present-and-null), `state` |
 | Canonical URL | Same page | `product.url` starts with `https://<domain>/` (only if the page has a canonical link) |
 | Sale price | Replace the price block with `<del>` regular + `<ins>` current, in the site's markup and unit | Both prices, converted to toman |
@@ -261,22 +269,24 @@ All must pass. Unit tests in `internal/sitectl` read the real `configs/` folder.
 Tell the user:
 
 - The platform and theme you found, the template used, and the price unit.
-- The live result for the sample product: title, price in toman (and the original number and unit on the page), state.
+- The result for the sample product from the provided HTML: title, price in toman (and the original number and unit on the page), state.
 - The files you added or changed, as links.
 - The test results, including the failure check from Step 7.
-- Anything to decide: a very long description, a selector you were unsure about, or fixtures worth adding (out-of-stock, sale, or call-for-price pages from the real site).
+- That the live site was not fetched, so robots.txt, blocking (403 or Cloudflare), and differences between the saved file and what the server sends were not checked. Suggest running `sitectl check --url "<product url>"` once without `--html` when the network allows it.
+- Anything to decide: a very long description, a selector you were unsure about, or fixtures worth adding (out-of-stock, sale, or call-for-price pages from the real site, provided as HTML files).
 - That nothing is committed.
 
 ## Checklist
 
-- [ ] Sample page fetched with HTTP 200, not blocked by robots.txt or a challenge
+- [ ] Site URL, product URL, and HTML file received; HTML copied to `$SCRATCH`, nothing fetched
+- [ ] HTML is the real product page (not a challenge, login, or empty JS shell)
 - [ ] Platform and template identified
 - [ ] Every selector checked against the real page
 - [ ] Price unit and call-for-price words set from the page
 - [ ] `configs/sites/<domain>.json` written with `$comment` and a dated `version`
 - [ ] `sitectl validate` → 0 invalid
-- [ ] `sitectl check` → SUCCESS, every field correct
-- [ ] Fixture saved and its `.json` reviewed; `sitectl test` → 0 failed
+- [ ] `sitectl check --html` → SUCCESS, every field correct
+- [ ] Fixture saved with `sitectl fixture --html` and its `.json` reviewed; `sitectl test` → 0 failed
 - [ ] `test/e2e/<site_id>_test.go` written for the sample product, using the real config and fixture
 - [ ] Test shown to fail when the config is broken, then restored
 - [ ] `gofmt`, `go vet`, `go test -race ./...` all pass

@@ -1,0 +1,27 @@
+{
+  "url": "https://www.sherwin-williams.com/homeowners/products/emerald-interior-acrylic-latex-paint?colorPartNumber=SW6617\u0026colorType=PALETTE",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Emerald Interior Acrylic Latex Paint",
+      "url": "https://www.sherwin-williams.com/homeowners/products/emerald-interior-acrylic-latex-paint",
+      "image_url": "https://sherwin.scene7.com/is/image/sw/paint_template-1?layer=comp\u0026wid=250\u0026fmt=jpeg\u0026qlt=92%2c0\u0026op_sharpen=0\u0026resMode=sharp2\u0026op_usm=0.0%2c0.0%2c0%2c0\u0026iccEmbed=0\u0026printRes=150\u0026_tparam_layer_1_src=sw/650131485-Emerald-Interior-Acrylic-Latex-Paint-Matte-Extra-White-1-Gallon_parent",
+      "description": "This acrylic latex paint offers exceptional washability and coverage with a formula that hides dark colors, resists water streaking, and helps prevent stains from penetrating. This interior paint and primer in one contains anti-microbial agents* that inhibit the growth of mold and mildew on the paint surface and transforms walls with a beautiful finish that speaks for itself. Available in the Designer Color Collection. The Designer Color Collection makes finding the just-right white easier than ever, with our brightest, purest whites and the exquisite colors designers have been asking for. Available in select products. *This product contains agents which inhibit the growth of mold and mildew on the surface of this paint film",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-11T02:06:23Z"
+}

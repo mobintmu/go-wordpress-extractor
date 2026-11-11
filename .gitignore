@@ -10,3 +10,4 @@ secrets/
 *.csv
 coverage.html
 sec.txt
+sample/

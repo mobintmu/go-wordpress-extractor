@@ -32,9 +32,12 @@ const usage = `Usage: sitectl <command> [flags]
 
 Commands:
   validate                 Check schema and references for all files
-  check    --url <url>     Run a real extraction on one product page
-  fixture  --url <url> --name <name>
+  check    --url <url> [--html <file>]
+                           Run a real extraction on one product page
+  fixture  --url <url> --name <name> [--html <file>]
                            Save the page's HTML and expected output for testing
+
+  --html reads the page from a saved file instead of fetching --url.
   test                     Run all fixtures offline
   coverage                 List sites with status, version, template, fixtures
 
@@ -42,7 +45,7 @@ Common flags: --dir configs  --fixtures testdata/sites  --json
 `
 
 // CLI runs sitectl. Fetcher is used by check and fixture; nil means the
-// production fetcher.
+// production fetcher. The --html flag overrides both.
 type CLI struct {
 	Stdout  io.Writer
 	Stderr  io.Writer
@@ -245,17 +248,27 @@ func (r *recorder) Fetch(ctx context.Context, site *siteconfig.Site, u *url.URL)
 	return p, f
 }
 
-func (c CLI) live(dir, rawURL string) (*extract.Response, *fetch.Page, error) {
+func (c CLI) live(dir, rawURL, htmlPath string) (*extract.Response, *fetch.Page, error) {
 	target, err := extract.ValidateURL(rawURL)
 	if err != nil {
 		return nil, nil, err
+	}
+	var f extract.Fetcher = c.Fetcher
+	if htmlPath != "" {
+		body, err := os.ReadFile(htmlPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(body) == 0 {
+			return nil, nil, fmt.Errorf("%s is empty", htmlPath)
+		}
+		f = fileFetcher{body: body}
 	}
 	entries, err := siteconfig.LoadDir(dir)
 	if err != nil {
 		return nil, nil, err
 	}
 	lim := newLimiter()
-	f := c.Fetcher
 	if f == nil {
 		opts := fetch.DefaultOptions()
 		if opts.Proxy, err = config.ProxyURLFromEnv(); err != nil {
@@ -277,13 +290,14 @@ func (c CLI) live(dir, rawURL string) (*extract.Response, *fetch.Page, error) {
 func (c CLI) check(args []string) error {
 	fs, cm := c.flags("check")
 	u := fs.String("url", "", "product page URL")
+	html := fs.String("html", "", "read the page from this HTML file instead of fetching --url")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *u == "" {
 		return errors.New("--url is required")
 	}
-	resp, _, err := c.live(*cm.dir, *u)
+	resp, _, err := c.live(*cm.dir, *u, *html)
 	if err != nil {
 		return err
 	}
@@ -308,6 +322,7 @@ func (c CLI) fixture(args []string) error {
 	u := fs.String("url", "", "product page URL")
 	name := fs.String("name", "", "fixture name, for example product-sale")
 	force := fs.Bool("force", false, "overwrite an existing fixture")
+	html := fs.String("html", "", "read the page from this HTML file instead of fetching --url")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -317,7 +332,7 @@ func (c CLI) fixture(args []string) error {
 	if strings.ContainsAny(*name, `/\.`) {
 		return errors.New("--name must not contain '/', '\\' or '.'")
 	}
-	resp, page, err := c.live(*cm.dir, *u)
+	resp, page, err := c.live(*cm.dir, *u, *html)
 	if err != nil {
 		return err
 	}

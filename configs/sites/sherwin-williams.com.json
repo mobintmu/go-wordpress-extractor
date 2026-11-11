@@ -1,0 +1,30 @@
+{
+  "$comment": "IBM/HCL WebSphere Commerce (/wcsstore/) with AngularJS and inlined AEM fragments (US store). The server HTML has no price, stock, or gallery <img> src for the main product: <sw-product-pricing> and the image carousel are filled by JavaScript, so price is not configured and every product returns price.state 'unknown' with a PRICE_MISSING warning. The only server-side product image is og:image in <head>, so root is the whole document, anchored on the product title. Product URLs are /<segment>/products/<slug>; colour is a query string. Checked against a saved (curl) paint product page on 2026-11-11.",
+  "schema_version": 1,
+  "site_id": "sherwin-williams",
+  "version": "2026-11-11.1",
+  "enabled": true,
+  "domains": ["sherwin-williams.com", "www.sherwin-williams.com"],
+
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": ["$", "USD"],
+    "call_for_price_words": ["Call for price"]
+  },
+
+  "pages": {
+    "product": {
+      "match": ["^/[a-z-]+/products/[a-z0-9][a-z0-9-]*/?$"],
+      "root": "html:has(h2.pdp__title)",
+      "fields": {
+        "title": { "selector": "h2.pdp__title", "pick": "first" },
+        "image_url": { "selector": "meta[property='og:image']", "attr": ["content"], "pick": "first" },
+        "description": { "selector": "div.pdp__description", "pick": "first" }
+      }
+    }
+  },
+
+  "validation": {
+    "required_fields": ["title"]
+  }
+}
