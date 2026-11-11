@@ -53,6 +53,26 @@ func (l *Limiter) TryAcquire() (func(), bool) {
 // Active returns the number of requests holding an instance slot.
 func (l *Limiter) Active() int { return len(l.global) }
 
+// Capacity returns the most requests this instance runs at once.
+func (l *Limiter) Capacity() int { return cap(l.global) }
+
+// PerSite returns the most requests that run at once for one site.
+func (l *Limiter) PerSite() int { return l.perSite }
+
+// SitesActive returns, for each site with a running extraction, how many
+// of its slots are taken. Idle sites are left out.
+func (l *Limiter) SitesActive() map[string]int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := map[string]int{}
+	for id, s := range l.sites {
+		if n := len(s.slots); n > 0 {
+			out[id] = n
+		}
+	}
+	return out
+}
+
 func (l *Limiter) site(id string) *site {
 	l.mu.Lock()
 	defer l.mu.Unlock()

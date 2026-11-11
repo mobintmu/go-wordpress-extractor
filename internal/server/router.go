@@ -5,13 +5,17 @@ import (
 	"crypto/subtle"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"go-wordpress/docs"
 	"go-wordpress/internal/apikey"
 	"go-wordpress/internal/config"
 	"go-wordpress/internal/extract"
 	"go-wordpress/internal/health"
+	"go-wordpress/internal/limiter"
 	"go-wordpress/internal/metrics"
+	"go-wordpress/internal/server/drain"
 	"go-wordpress/internal/sites"
 
 	"github.com/gin-gonic/gin"
@@ -23,14 +27,15 @@ import (
 //
 //	POST /api/v1/extract      API key in X-API-Key
 //	GET  /api/v1/sites        API key in X-API-Key
-//	GET  /metrics             API key in X-API-Key
+//	GET  /api/v1/active       API key in X-API-Key
+//	GET  /metrics             API key in X-API-Key (JSON, or Prometheus text)
 //	GET  /health, /ready      public
 //	GET  /swagger/*           operator credentials (Basic)
 //
 // Swagger docs are generated from the annotations with:
 //
 //	swag init --parseInternal -g cmd/server/main.go -o docs
-func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, st *sites.Handler, keys *apikey.Store, m *metrics.Metrics, cfg *config.Config) {
+func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, st *sites.Handler, keys *apikey.Store, m *metrics.Metrics, lim *limiter.Limiter, d *drain.State, cfg *config.Config) {
 	engine.GET("/health", h.Handle)
 	engine.GET("/ready", h.Ready)
 
@@ -38,10 +43,11 @@ func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, s
 	auth := apikey.Middleware(keys, func() { m.Reject("unauthorized") })
 	v1.POST("/extract", auth, ex.Handle)
 	v1.GET("/sites", auth, st.List)
+	v1.GET("/active", auth, ActiveHandler(lim))
 
 	// Failed scrapes are not counted in extract_rejected_total, which
 	// describes client API traffic.
-	engine.GET("/metrics", apikey.Middleware(keys, nil), MetricsHandler(m))
+	engine.GET("/metrics", apikey.Middleware(keys, nil), MetricsHandler(m, lim, d))
 
 	// Swagger UI and its doc.json are served at /swagger/index.html and
 	// /swagger/doc.json. Host is left empty so the UI calls the server it
@@ -66,19 +72,86 @@ func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, s
 
 // MetricsHandler godoc
 //
-//	@Summary		Prometheus metrics
-//	@Description	Requests by outcome, site, failure code, and price state; duration; active requests; rejections.
+//	@Summary		Instance load and metrics
+//	@Description	Returns JSON by default: live load (capacity, active, available, busy sites, draining) and the counters since start.
+//	@Description	Clients can poll each instance and send the next request to the one with the most available slots that is not draining.
+//	@Description	Send Accept: text/plain (Prometheus does this) or ?format=prometheus to get the Prometheus text format instead.
 //	@Tags			Operations
+//	@Produce		json
 //	@Produce		plain
 //	@Security		ApiKeyAuth
-//	@Success		200	{string}	string				"Metrics in the Prometheus text format"
-//	@Failure		401	{object}	extract.APIError	"UNAUTHORIZED: the API key is missing, unknown, revoked, or expired."
+//	@Param			format	query		string				false	"Response format"	Enums(json, prometheus)
+//	@Success		200		{object}	metrics.Report		"JSON report, or the Prometheus text format when asked for"
+//	@Failure		401		{object}	extract.APIError	"UNAUTHORIZED: the API key is missing, unknown, revoked, or expired."
 //	@Router			/metrics [get]
-func MetricsHandler(m *metrics.Metrics) gin.HandlerFunc {
+func MetricsHandler(m *metrics.Metrics, lim *limiter.Limiter, d *drain.State) gin.HandlerFunc {
+	instance, _ := os.Hostname()
 	return func(c *gin.Context) {
-		c.Header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-		c.Status(http.StatusOK)
-		m.Write(c.Writer)
+		c.Header("Cache-Control", "no-store")
+		if wantsPrometheus(c) {
+			c.Header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+			c.Status(http.StatusOK)
+			m.Write(c.Writer)
+			return
+		}
+		r := m.Snapshot()
+		r.Instance = instance
+		r.Load = load(lim, d)
+		c.JSON(http.StatusOK, r)
+	}
+}
+
+func load(lim *limiter.Limiter, d *drain.State) metrics.Load {
+	l := metrics.Load{
+		Draining:     d.Draining(),
+		Capacity:     lim.Capacity(),
+		Active:       lim.Active(),
+		PerSiteLimit: lim.PerSite(),
+		SitesActive:  lim.SitesActive(),
+	}
+	l.Available = max(l.Capacity-l.Active, 0)
+	if l.Capacity > 0 {
+		l.Utilization = float64(l.Active) / float64(l.Capacity)
+	}
+	return l
+}
+
+// wantsPrometheus picks the text format for ?format=prometheus, or when
+// the Accept header names text/plain or OpenMetrics and not JSON, as
+// Prometheus scrapers send.
+func wantsPrometheus(c *gin.Context) bool {
+	switch c.Query("format") {
+	case "prometheus", "text":
+		return true
+	case "json":
+		return false
+	}
+	accept := c.GetHeader("Accept")
+	if strings.Contains(accept, "application/json") {
+		return false
+	}
+	return strings.Contains(accept, "text/plain") || strings.Contains(accept, "application/openmetrics-text")
+}
+
+// ActiveResponse is the body of GET /api/v1/active.
+type ActiveResponse struct {
+	ExtractActiveRequests int `json:"extract_active_requests" binding:"required" example:"0"`
+} //@name ActiveRequests
+
+// ActiveHandler godoc
+//
+//	@Summary		Number of extractions running now
+//	@Description	Returns how many extraction requests this instance is processing at this moment.
+//	@Tags			Operations
+//	@Produce		json
+//	@Security		ApiKeyAuth
+//	@Success		200	{object}	ActiveResponse
+//	@Failure		401	{object}	extract.APIError	"UNAUTHORIZED: the API key is missing, unknown, revoked, or expired."
+//	@Router			/api/v1/active [get]
+func ActiveHandler(lim *limiter.Limiter) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		c.JSON(http.StatusOK, ActiveResponse{ExtractActiveRequests: lim.Active()})
 	}
 }
 

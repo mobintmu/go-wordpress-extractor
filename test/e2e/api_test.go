@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"sync"
@@ -254,11 +255,100 @@ func TestOperatorEndpoints(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
-	e := Start(t, Options{})
+	e := Start(t, Options{Env: map[string]string{"APP_MAX_CONCURRENT_REQUESTS": "4"}})
 	e.Extract(e.Shop.URL(hostShop, "/product/ok/")).Success(t)
 	e.Extract(e.Shop.URL(hostShop, "/product/gone/"))
 	e.Post("/api/v1/extract", "", map[string]any{"url": "x"})
+	key := map[string]string{apikey.HeaderName: e.Key}
 
+	t.Run("json by default", func(t *testing.T) {
+		r := e.Get("/metrics", key)
+		if r.Status != 200 || !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			t.Fatalf("got %d %q\n%s", r.Status, r.Header.Get("Content-Type"), r.Raw)
+		}
+		if r.At("load.draining") != false || r.Int("load.capacity") != 4 || r.Int("load.active") != 0 ||
+			r.Int("load.available") != 4 || r.Int("load.per_site_limit") != 1 {
+			t.Errorf("load: %v", r.At("load"))
+		}
+		if r.Str("instance") == "" || r.Str("generated_at") == "" || r.Str("started_at") == "" {
+			t.Errorf("missing instance or timestamps: %s", r.Raw)
+		}
+		if r.Int("rejected.unauthorized") != 1 {
+			t.Errorf("rejected: %v", r.At("rejected"))
+		}
+		if r.Int("durations.success.count") != 1 || len(r.At("durations.success.buckets").([]any)) == 0 {
+			t.Errorf("durations: %v", r.At("durations"))
+		}
+		want := map[string]bool{"success|shop||available|1": false, "failed|shop|HTTP_NOT_FOUND||1": false}
+		for _, v := range r.At("requests").([]any) {
+			q := v.(map[string]any)
+			k := strings.Join([]string{q["outcome"].(string), q["site_id"].(string), q["code"].(string), q["price_state"].(string), string(q["count"].(json.Number))}, "|")
+			if _, ok := want[k]; ok {
+				want[k] = true
+			}
+		}
+		for k, seen := range want {
+			if !seen {
+				t.Errorf("requests missing %s: %v", k, r.At("requests"))
+			}
+		}
+	})
+
+	prom := []string{
+		`extract_requests_total{outcome="success",site="shop",code="",price_state="available"} 1`,
+		`extract_requests_total{outcome="failed",site="shop",code="HTTP_NOT_FOUND",price_state=""} 1`,
+		`extract_rejected_total{reason="unauthorized"} 1`,
+		`extract_request_duration_seconds_count{outcome="success"} 1`,
+		`extract_active_requests 0`,
+	}
+	for name, req := range map[string]struct {
+		path   string
+		accept string
+	}{
+		"prometheus scraper": {"/metrics", "application/openmetrics-text;version=1.0.0,text/plain;version=0.0.4;q=0.5,*/*;q=0.1"},
+		"format query":       {"/metrics?format=prometheus", ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := map[string]string{apikey.HeaderName: e.Key}
+			if req.accept != "" {
+				h["Accept"] = req.accept
+			}
+			r := e.Get(req.path, h)
+			if !strings.HasPrefix(r.Header.Get("Content-Type"), "text/plain") {
+				t.Fatalf("content type %q", r.Header.Get("Content-Type"))
+			}
+			for _, want := range prom {
+				if !strings.Contains(string(r.Raw), want) {
+					t.Errorf("metrics missing %q\n%s", want, r.Raw)
+				}
+			}
+		})
+	}
+
+	t.Run("live load", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			e.ExtractCtx(ctx, e.Shop.URL(hostHang, "/product/hang/")) //nolint:errcheck
+		}()
+		waitFor(t, e.Shop.Started, "/product/hang/")
+		if r := e.Get("/api/v1/active", key); r.Status != 200 || r.Int("extract_active_requests") != 1 {
+			t.Errorf("/api/v1/active while busy: %d %s", r.Status, r.Raw)
+		}
+		r := e.Get("/metrics", key)
+		if r.Int("load.active") != 1 || r.Int("load.available") != 3 || r.Int("load.sites_active.hang") != 1 {
+			t.Errorf("load while busy: %v", r.At("load"))
+		}
+		cancel()
+		<-done
+		eventually(t, func() bool { return e.Get("/metrics", key).Int("load.active") == 0 })
+		if r := e.Get("/api/v1/active", key); r.Int("extract_active_requests") != 0 {
+			t.Errorf("/api/v1/active when idle: %s", r.Raw)
+		}
+	})
+
+	// Last, so these 401s do not change the counters checked above.
 	bad := map[string]map[string]string{
 		"no key":         nil,
 		"unknown key":    {apikey.HeaderName: "gwp_nope_nope"},
@@ -266,27 +356,12 @@ func TestMetrics(t *testing.T) {
 	}
 	for name, h := range bad {
 		t.Run(name, func(t *testing.T) {
-			if r := e.Get("/metrics", h); r.Status != 401 {
-				t.Errorf("want 401, got %d", r.Status)
+			for _, p := range []string{"/metrics", "/api/v1/active"} {
+				if r := e.Get(p, h); r.Status != 401 {
+					t.Errorf("%s: want 401, got %d", p, r.Status)
+				}
 			}
 		})
-	}
-
-	r := e.Get("/metrics", map[string]string{apikey.HeaderName: e.Key})
-	if r.Status != 200 {
-		t.Fatalf("metrics: %d %s", r.Status, r.Raw)
-	}
-	body := string(r.Raw)
-	for _, want := range []string{
-		`extract_requests_total{outcome="success",site="shop",code="",price_state="available"} 1`,
-		`extract_requests_total{outcome="failed",site="shop",code="HTTP_NOT_FOUND",price_state=""} 1`,
-		`extract_rejected_total{reason="unauthorized"} 1`,
-		`extract_request_duration_seconds_count{outcome="success"} 1`,
-		`extract_active_requests 0`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("metrics missing %q\n%s", want, body)
-		}
 	}
 }
 

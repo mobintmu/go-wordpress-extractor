@@ -8,6 +8,37 @@
     },
     "basePath": "/",
     "paths": {
+        "/api/v1/active": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns how many extraction requests this instance is processing at this moment.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Number of extractions running now",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ActiveRequests"
+                        }
+                    },
+                    "401": {
+                        "description": "UNAUTHORIZED: the API key is missing, unknown, revoked, or expired.",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/extract": {
             "post": {
                 "security": [
@@ -134,19 +165,32 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Requests by outcome, site, failure code, and price state; duration; active requests; rejections.",
+                "description": "Returns JSON by default: live load (capacity, active, available, busy sites, draining) and the counters since start.\nClients can poll each instance and send the next request to the one with the most available slots that is not draining.\nSend Accept: text/plain (Prometheus does this) or ?format=prometheus to get the Prometheus text format instead.",
                 "produces": [
+                    "application/json",
                     "text/plain"
                 ],
                 "tags": [
                     "Operations"
                 ],
-                "summary": "Prometheus metrics",
+                "summary": "Instance load and metrics",
+                "parameters": [
+                    {
+                        "enum": [
+                            "json",
+                            "prometheus"
+                        ],
+                        "type": "string",
+                        "description": "Response format",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Metrics in the Prometheus text format",
+                        "description": "JSON report, or the Prometheus text format when asked for",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/MetricsReport"
                         }
                     },
                     "401": {
@@ -185,6 +229,18 @@
         }
     },
     "definitions": {
+        "ActiveRequests": {
+            "type": "object",
+            "required": [
+                "extract_active_requests"
+            ],
+            "properties": {
+                "extract_active_requests": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
         "ApiError": {
             "type": "object",
             "required": [
@@ -480,6 +536,185 @@
                 "truncated": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "MetricsBucket": {
+            "type": "object",
+            "required": [
+                "count",
+                "le_seconds"
+            ],
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "example": 40
+                },
+                "le_seconds": {
+                    "type": "number",
+                    "example": 5
+                }
+            }
+        },
+        "MetricsHistogram": {
+            "type": "object",
+            "required": [
+                "avg_seconds",
+                "buckets",
+                "count",
+                "sum_seconds"
+            ],
+            "properties": {
+                "avg_seconds": {
+                    "type": "number",
+                    "example": 3.13
+                },
+                "buckets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/MetricsBucket"
+                    }
+                },
+                "count": {
+                    "type": "integer",
+                    "example": 42
+                },
+                "sum_seconds": {
+                    "type": "number",
+                    "example": 131.4
+                }
+            }
+        },
+        "MetricsLoad": {
+            "type": "object",
+            "required": [
+                "active",
+                "available",
+                "capacity",
+                "draining",
+                "per_site_limit",
+                "sites_active",
+                "utilization"
+            ],
+            "properties": {
+                "active": {
+                    "description": "Active is the number of extractions running now.",
+                    "type": "integer",
+                    "example": 3
+                },
+                "available": {
+                    "description": "Available is Capacity minus Active; 0 means the next request gets 429.",
+                    "type": "integer",
+                    "example": 5
+                },
+                "capacity": {
+                    "description": "Capacity is the most extractions this instance runs at once.",
+                    "type": "integer",
+                    "example": 8
+                },
+                "draining": {
+                    "description": "Draining is true while the instance shuts down; send nothing to it.",
+                    "type": "boolean",
+                    "example": false
+                },
+                "per_site_limit": {
+                    "description": "PerSiteLimit is the most extractions that run at once for one site.",
+                    "type": "integer",
+                    "example": 1
+                },
+                "sites_active": {
+                    "description": "SitesActive maps each busy site_id to its running extractions.\nA site at PerSiteLimit makes new requests for it wait or get 429.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "utilization": {
+                    "description": "Utilization is Active divided by Capacity, from 0 to 1.",
+                    "type": "number",
+                    "example": 0.375
+                }
+            }
+        },
+        "MetricsReport": {
+            "type": "object",
+            "required": [
+                "durations",
+                "generated_at",
+                "instance",
+                "load",
+                "rejected",
+                "requests",
+                "started_at"
+            ],
+            "properties": {
+                "durations": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/MetricsHistogram"
+                    }
+                },
+                "generated_at": {
+                    "type": "string",
+                    "example": "2026-11-11T08:00:00Z"
+                },
+                "instance": {
+                    "type": "string",
+                    "example": "extractor-1"
+                },
+                "load": {
+                    "$ref": "#/definitions/MetricsLoad"
+                },
+                "rejected": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/MetricsRequestCount"
+                    }
+                },
+                "started_at": {
+                    "type": "string",
+                    "example": "2026-11-11T07:00:00Z"
+                }
+            }
+        },
+        "MetricsRequestCount": {
+            "type": "object",
+            "required": [
+                "count",
+                "outcome"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": ""
+                },
+                "count": {
+                    "type": "integer",
+                    "example": 42
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": [
+                        "success",
+                        "failed",
+                        "cancelled"
+                    ],
+                    "example": "success"
+                },
+                "price_state": {
+                    "type": "string",
+                    "example": "available"
+                },
+                "site_id": {
+                    "type": "string",
+                    "example": "hmland"
                 }
             }
         },

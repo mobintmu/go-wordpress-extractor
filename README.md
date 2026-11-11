@@ -7,7 +7,8 @@ There is no database and no Redis. Site configs and API keys are files that are 
 ```text
 POST /api/v1/extract   X-API-Key        {"url": "...", "request_id": "..."}
 GET  /api/v1/sites     X-API-Key        enabled sites available for extraction
-GET  /metrics          X-API-Key        Prometheus text metrics
+GET  /api/v1/active    X-API-Key        {"extract_active_requests": N}, extractions running now
+GET  /metrics          X-API-Key        instance load + counters as JSON; Prometheus text for Accept: text/plain
 GET  /health, /ready   public
 GET  /swagger/index.html   operator credentials (HTTP Basic); off unless configured
 ```

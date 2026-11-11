@@ -20,6 +20,7 @@ type Metrics struct {
 	rejected  map[string]uint64    // reason
 	durations map[string]*histogram
 	active    func() int
+	started   time.Time
 }
 
 type histogram struct {
@@ -34,6 +35,7 @@ func New() *Metrics {
 		requests:  map[[4]string]uint64{},
 		rejected:  map[string]uint64{},
 		durations: map[string]*histogram{},
+		started:   time.Now().UTC(),
 	}
 }
 

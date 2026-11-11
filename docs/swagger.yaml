@@ -1,5 +1,13 @@
 basePath: /
 definitions:
+  ActiveRequests:
+    properties:
+      extract_active_requests:
+        example: 0
+        type: integer
+    required:
+    - extract_active_requests
+    type: object
   ApiError:
     properties:
       code:
@@ -222,6 +230,144 @@ definitions:
     - reason
     - truncated
     type: object
+  MetricsBucket:
+    properties:
+      count:
+        example: 40
+        type: integer
+      le_seconds:
+        example: 5
+        type: number
+    required:
+    - count
+    - le_seconds
+    type: object
+  MetricsHistogram:
+    properties:
+      avg_seconds:
+        example: 3.13
+        type: number
+      buckets:
+        items:
+          $ref: '#/definitions/MetricsBucket'
+        type: array
+      count:
+        example: 42
+        type: integer
+      sum_seconds:
+        example: 131.4
+        type: number
+    required:
+    - avg_seconds
+    - buckets
+    - count
+    - sum_seconds
+    type: object
+  MetricsLoad:
+    properties:
+      active:
+        description: Active is the number of extractions running now.
+        example: 3
+        type: integer
+      available:
+        description: Available is Capacity minus Active; 0 means the next request
+          gets 429.
+        example: 5
+        type: integer
+      capacity:
+        description: Capacity is the most extractions this instance runs at once.
+        example: 8
+        type: integer
+      draining:
+        description: Draining is true while the instance shuts down; send nothing
+          to it.
+        example: false
+        type: boolean
+      per_site_limit:
+        description: PerSiteLimit is the most extractions that run at once for one
+          site.
+        example: 1
+        type: integer
+      sites_active:
+        additionalProperties:
+          type: integer
+        description: |-
+          SitesActive maps each busy site_id to its running extractions.
+          A site at PerSiteLimit makes new requests for it wait or get 429.
+        type: object
+      utilization:
+        description: Utilization is Active divided by Capacity, from 0 to 1.
+        example: 0.375
+        type: number
+    required:
+    - active
+    - available
+    - capacity
+    - draining
+    - per_site_limit
+    - sites_active
+    - utilization
+    type: object
+  MetricsReport:
+    properties:
+      durations:
+        additionalProperties:
+          $ref: '#/definitions/MetricsHistogram'
+        type: object
+      generated_at:
+        example: "2026-11-11T08:00:00Z"
+        type: string
+      instance:
+        example: extractor-1
+        type: string
+      load:
+        $ref: '#/definitions/MetricsLoad'
+      rejected:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      requests:
+        items:
+          $ref: '#/definitions/MetricsRequestCount'
+        type: array
+      started_at:
+        example: "2026-11-11T07:00:00Z"
+        type: string
+    required:
+    - durations
+    - generated_at
+    - instance
+    - load
+    - rejected
+    - requests
+    - started_at
+    type: object
+  MetricsRequestCount:
+    properties:
+      code:
+        example: ""
+        type: string
+      count:
+        example: 42
+        type: integer
+      outcome:
+        enum:
+        - success
+        - failed
+        - cancelled
+        example: success
+        type: string
+      price_state:
+        example: available
+        type: string
+      site_id:
+        example: hmland
+        type: string
+    required:
+    - count
+    - outcome
+    type: object
   Partial:
     properties:
       product:
@@ -403,6 +549,27 @@ info:
   title: Product Extraction API
   version: "1.0"
 paths:
+  /api/v1/active:
+    get:
+      description: Returns how many extraction requests this instance is processing
+        at this moment.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ActiveRequests'
+        "401":
+          description: 'UNAUTHORIZED: the API key is missing, unknown, revoked, or
+            expired.'
+          schema:
+            $ref: '#/definitions/ApiError'
+      security:
+      - ApiKeyAuth: []
+      summary: Number of extractions running now
+      tags:
+      - Operations
   /api/v1/extract:
     post:
       consumes:
@@ -489,15 +656,26 @@ paths:
       - Operations
   /metrics:
     get:
-      description: Requests by outcome, site, failure code, and price state; duration;
-        active requests; rejections.
+      description: |-
+        Returns JSON by default: live load (capacity, active, available, busy sites, draining) and the counters since start.
+        Clients can poll each instance and send the next request to the one with the most available slots that is not draining.
+        Send Accept: text/plain (Prometheus does this) or ?format=prometheus to get the Prometheus text format instead.
+      parameters:
+      - description: Response format
+        enum:
+        - json
+        - prometheus
+        in: query
+        name: format
+        type: string
       produces:
+      - application/json
       - text/plain
       responses:
         "200":
-          description: Metrics in the Prometheus text format
+          description: JSON report, or the Prometheus text format when asked for
           schema:
-            type: string
+            $ref: '#/definitions/MetricsReport'
         "401":
           description: 'UNAUTHORIZED: the API key is missing, unknown, revoked, or
             expired.'
@@ -505,7 +683,7 @@ paths:
             $ref: '#/definitions/ApiError'
       security:
       - ApiKeyAuth: []
-      summary: Prometheus metrics
+      summary: Instance load and metrics
       tags:
       - Operations
   /ready:
