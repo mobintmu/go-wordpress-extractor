@@ -3,8 +3,11 @@ package config
 import (
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -32,6 +35,11 @@ type Config struct {
 	SiteWaitTimeout       time.Duration
 	MaxConcurrentRequests int
 	MaxConcurrentPerSite  int
+
+	// ProxyHost and ProxyPort name an HTTP proxy that every outbound page
+	// fetch goes through. When ProxyHost is empty, pages are fetched directly.
+	ProxyHost string
+	ProxyPort int
 
 	// ReloadInterval is how often site configs and the API key file are
 	// checked for changes.
@@ -63,8 +71,12 @@ func NewConfig() (*Config, error) {
 	if err := ValidateConfig(cfg); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
-	log.Printf("✅ Loaded config: env=%s port=%d sites=%s keys=%s tls=%t ops=%t",
-		cfg.ENV, cfg.HTTPPort, cfg.SiteConfigDir, cfg.APIKeysFile, cfg.TLSEnabled(), cfg.OpsEnabled())
+	proxy := "direct"
+	if u := cfg.ProxyURL(); u != nil {
+		proxy = u.String()
+	}
+	log.Printf("✅ Loaded config: env=%s port=%d sites=%s keys=%s tls=%t ops=%t proxy=%s",
+		cfg.ENV, cfg.HTTPPort, cfg.SiteConfigDir, cfg.APIKeysFile, cfg.TLSEnabled(), cfg.OpsEnabled(), proxy)
 
 	return cfg, nil
 }
@@ -94,6 +106,8 @@ func buildConfig(v *viper.Viper) *Config {
 		MaxConcurrentRequests: v.GetInt("MAX_CONCURRENT_REQUESTS"),
 		MaxConcurrentPerSite:  v.GetInt("MAX_CONCURRENT_PER_SITE"),
 		ReloadInterval:        v.GetDuration("RELOAD_INTERVAL"),
+		ProxyHost:             v.GetString("PROXY_HOST"),
+		ProxyPort:             v.GetInt("PROXY_PORT"),
 	}
 	if cfg.APIKeysFile == "" {
 		cfg.APIKeysFile = DefaultAPIKeysFile(cfg.ENV)
@@ -118,6 +132,35 @@ func (cfg *Config) TLSEnabled() bool { return cfg.TLSCertFile != "" && cfg.TLSKe
 
 // OpsEnabled reports whether Swagger UI (/swagger/*) and /metrics are served.
 func (cfg *Config) OpsEnabled() bool { return cfg.OpsUser != "" && cfg.OpsPasswordHash != "" }
+
+// ProxyURL returns the outbound HTTP proxy, or nil to fetch directly.
+func (cfg *Config) ProxyURL() *url.URL { return ProxyURL(cfg.ProxyHost, cfg.ProxyPort) }
+
+// ProxyURL builds http://host:port, or returns nil when host is empty.
+func ProxyURL(host string, port int) *url.URL {
+	if host == "" {
+		return nil
+	}
+	return &url.URL{Scheme: "http", Host: net.JoinHostPort(host, strconv.Itoa(port))}
+}
+
+// ProxyURLFromEnv reads APP_PROXY_HOST and APP_PROXY_PORT directly, for
+// tools that do not build a full Config. It returns nil when no proxy is set.
+func ProxyURLFromEnv() (*url.URL, error) {
+	host := os.Getenv("APP_PROXY_HOST")
+	port := 0
+	if v := os.Getenv("APP_PROXY_PORT"); v != "" {
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid APP_PROXY_PORT: %q", v)
+		}
+		port = p
+	}
+	if err := validateProxy(&Config{ProxyHost: host, ProxyPort: port}); err != nil {
+		return nil, err
+	}
+	return ProxyURL(host, port), nil
+}
 
 // ShutdownTimeout is how long running requests may take to finish on stop.
 func (cfg *Config) ShutdownTimeout() time.Duration { return cfg.MaxRequestDuration + 10*time.Second }

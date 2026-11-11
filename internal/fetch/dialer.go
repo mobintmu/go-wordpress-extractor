@@ -148,6 +148,33 @@ func (d *SafeDialer) DialContext(ctx context.Context, network, addr string) (net
 	return nil, lastErr
 }
 
+// CheckDestination resolves host and reports a NotAllowedError when the
+// port is blocked or every address is private or reserved. It is used when
+// requests go through a proxy, which connects to the destination itself.
+func (d *SafeDialer) CheckDestination(ctx context.Context, host string, port int) error {
+	if BlockedPorts[port] {
+		return &NotAllowedError{Host: host, Port: port, Reason: "a blocked port"}
+	}
+	var ips []net.IP
+	if ip := net.ParseIP(host); ip != nil {
+		ips = []net.IP{ip}
+	} else {
+		var err error
+		if ips, err = d.Resolve(ctx, host); err != nil {
+			return err
+		}
+	}
+	if len(ips) == 0 {
+		return &net.DNSError{Err: "no addresses", Name: host, IsNotFound: true}
+	}
+	for _, ip := range ips {
+		if !d.IPAllowed(ip) {
+			return &NotAllowedError{Host: host, Port: port, IP: ip, Reason: "a private, loopback, link-local, or reserved address"}
+		}
+	}
+	return nil
+}
+
 // CheckPort reports a NotAllowedError for a blocked port before any I/O.
 func CheckPort(host string, port int) error {
 	if BlockedPorts[port] {

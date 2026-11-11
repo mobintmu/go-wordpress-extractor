@@ -39,6 +39,9 @@ func TestValidateConfig(t *testing.T) {
 		"site wait":     {func(c *Config) { c.SiteWaitTimeout = 5 * time.Minute }, "SITE_WAIT_TIMEOUT"},
 		"capacity":      {func(c *Config) { c.MaxConcurrentRequests = 0 }, "MAX_CONCURRENT_REQUESTS"},
 		"site capacity": {func(c *Config) { c.MaxConcurrentPerSite = 0 }, "MAX_CONCURRENT_PER_SITE"},
+		"proxy port":    {func(c *Config) { c.ProxyHost = "127.0.0.1" }, "PROXY_PORT"},
+		"proxy no host": {func(c *Config) { c.ProxyPort = 3067 }, "APP_PROXY_HOST is empty"},
+		"proxy url":     {func(c *Config) { c.ProxyHost, c.ProxyPort = "http://127.0.0.1", 3067 }, "PROXY_HOST"},
 	}
 	for name, c := range cases {
 		cfg := valid(t)
@@ -72,5 +75,24 @@ func TestEnvFileFillsEmptyButKeepsRealValues(t *testing.T) {
 	applyEnvFile(map[string]string{"APP_OPS_USER": "admin", "APP_HTTP_PORT": "4000", "APP_SITE_WAIT_TIMEOUT": "10s"})
 	if os.Getenv("APP_OPS_USER") != "admin" || os.Getenv("APP_HTTP_PORT") != "5000" || os.Getenv("APP_SITE_WAIT_TIMEOUT") != "10s" {
 		t.Fatalf("got user=%q port=%q wait=%q", os.Getenv("APP_OPS_USER"), os.Getenv("APP_HTTP_PORT"), os.Getenv("APP_SITE_WAIT_TIMEOUT"))
+	}
+}
+
+func TestProxyURL(t *testing.T) {
+	cfg := valid(t)
+	if cfg.ProxyURL() != nil {
+		t.Fatal("no proxy configured, want direct")
+	}
+	cfg.ProxyHost, cfg.ProxyPort = "127.0.0.1", 3067
+	if err := ValidateConfig(cfg); err != nil {
+		t.Fatalf("valid proxy rejected: %v", err)
+	}
+	if got := cfg.ProxyURL().String(); got != "http://127.0.0.1:3067" {
+		t.Fatalf("ProxyURL = %s", got)
+	}
+	t.Setenv("APP_PROXY_HOST", "127.0.0.1")
+	t.Setenv("APP_PROXY_PORT", "3067")
+	if u, err := ProxyURLFromEnv(); err != nil || u.String() != "http://127.0.0.1:3067" {
+		t.Fatalf("ProxyURLFromEnv = %v, %v", u, err)
 	}
 }

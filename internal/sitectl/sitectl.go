@@ -257,7 +257,11 @@ func (c CLI) live(dir, rawURL string) (*extract.Response, *fetch.Page, error) {
 	lim := newLimiter()
 	f := c.Fetcher
 	if f == nil {
-		f = fetch.New(fetch.DefaultOptions(), lim, zap.NewNop())
+		opts := fetch.DefaultOptions()
+		if opts.Proxy, err = config.ProxyURLFromEnv(); err != nil {
+			return nil, nil, err
+		}
+		f = fetch.New(opts, lim, zap.NewNop())
 	}
 	rec := &recorder{next: f}
 	svc := extract.NewServiceWith(staticSnapshot{siteconfig.NewSnapshot(entries)}, rec, lim, zap.NewNop())

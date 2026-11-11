@@ -27,6 +27,8 @@ services:
       APP_SITE_WAIT_TIMEOUT: ${APP_SITE_WAIT_TIMEOUT:-30s}
       APP_MAX_CONCURRENT_REQUESTS: ${APP_MAX_CONCURRENT_REQUESTS:-20}
       APP_MAX_CONCURRENT_PER_SITE: ${APP_MAX_CONCURRENT_PER_SITE:-1}
+      APP_PROXY_HOST: ${APP_PROXY_HOST:-}
+      APP_PROXY_PORT: ${APP_PROXY_PORT:-}
     # The key file is mounted, not passed with --env-file: environment
     # variables are fixed at start, so a revoked key would stay valid.
     # The service re-reads both mounts every 30 seconds.

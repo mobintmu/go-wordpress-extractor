@@ -138,6 +138,7 @@ docker compose up --build
 | `APP_MAX_CONCURRENT_REQUESTS` | `20` | Per-instance capacity |
 | `APP_MAX_CONCURRENT_PER_SITE` | `1` | Per-site capacity |
 | `APP_RELOAD_INTERVAL` | `30s` | How often config and key files are checked |
+| `APP_PROXY_HOST`, `APP_PROXY_PORT` | none (direct) | HTTP proxy for every page fetch, for example `127.0.0.1` and `3067`. Destinations are still checked for blocked ports and private addresses before being sent to the proxy. `sitectl` reads the same variables |
 
 ## Swagger
 

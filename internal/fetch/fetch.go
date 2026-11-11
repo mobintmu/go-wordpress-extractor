@@ -37,6 +37,9 @@ type Options struct {
 	Resolver     Resolver
 	AllowedNets  []*net.IPNet
 	TLSConfig    *tls.Config
+	// Proxy, when set, is an HTTP proxy that every request goes through.
+	// When nil, pages are fetched directly.
+	Proxy *url.URL
 }
 
 // DefaultOptions returns production settings.
@@ -206,6 +209,14 @@ func (f *Fetcher) collector(ctx context.Context, site *siteconfig.Site, page *Pa
 		ForceAttemptHTTP2:     true,
 		ExpectContinueTimeout: time.Second,
 	}
+	if f.opts.Proxy != nil {
+		// The proxy is trusted operator configuration, so it is dialed
+		// directly even on a loopback or private address. Each destination
+		// is still checked (blocked port, private address) before the
+		// request is handed to the proxy.
+		transport.Proxy = f.proxyFor
+		transport.DialContext = f.dialProxy
+	}
 	jar, _ := cookiejar.New(nil)
 	c.SetClient(&http.Client{
 		Transport: &throttled{base: transport, ctx: ctx, limiter: f.limiter, siteID: site.SiteID, delay: site.Delay()},
@@ -260,6 +271,45 @@ func (f *Fetcher) collector(ctx context.Context, site *siteconfig.Site, page *Pa
 		a.body = r.Body
 	})
 	return c, transport
+}
+
+// proxyError means the configured proxy could not be reached.
+type proxyError struct {
+	addr string
+	err  error
+}
+
+func (e *proxyError) Error() string { return "proxy " + e.addr + ": " + e.err.Error() }
+func (e *proxyError) Unwrap() error { return e.err }
+
+// proxyFor checks the destination of req and returns the configured proxy.
+func (f *Fetcher) proxyFor(req *http.Request) (*url.URL, error) {
+	if err := f.dialer.CheckDestination(req.Context(), req.URL.Hostname(), portOf(req.URL)); err != nil {
+		return nil, err
+	}
+	return f.opts.Proxy, nil
+}
+
+// dialProxy connects to the configured proxy and nowhere else.
+func (f *Fetcher) dialProxy(ctx context.Context, network, addr string) (net.Conn, error) {
+	if addr != f.opts.Proxy.Host {
+		return nil, &NotAllowedError{Host: addr, Reason: "not the configured proxy"}
+	}
+	conn, err := f.dialer.dialer.DialContext(ctx, network, addr)
+	if err != nil {
+		return nil, &proxyError{addr: addr, err: err}
+	}
+	return conn, nil
+}
+
+func portOf(u *url.URL) int {
+	if p, err := strconv.Atoi(u.Port()); err == nil {
+		return p
+	}
+	if u.Scheme == "https" {
+		return 443
+	}
+	return 80
 }
 
 // throttled spaces requests to one site and ties every request, including
@@ -319,6 +369,7 @@ func classifyError(ctx context.Context, err error, page *Page) *diagnose.Failure
 	}
 	var notAllowed *NotAllowedError
 	var redir *redirectError
+	var proxyErr *proxyError
 	var dnsErr *net.DNSError
 	var certInvalid x509.CertificateInvalidError
 	var hostErr x509.HostnameError
@@ -334,6 +385,9 @@ func classifyError(ctx context.Context, err error, page *Page) *diagnose.Failure
 			"The site's robots.txt disallows %s for this user agent.", page.RequestedURL)
 	case errors.As(err, &notAllowed):
 		return diagnose.New(diagnose.URLNotAllowed, diagnose.ConfidenceHigh, "%s.", capitalize(notAllowed.Error()))
+	case errors.As(err, &proxyErr) && !(errors.As(err, &netErr) && netErr.Timeout()):
+		return diagnose.New(diagnose.ConnectionFailed, diagnose.ConfidenceHigh,
+			"The outbound proxy %s could not be reached: %s.", proxyErr.addr, rootMessage(proxyErr.err))
 	case errors.As(err, &redir):
 		return diagnose.New(diagnose.RedirectNotAllowed, diagnose.ConfidenceHigh,
 			"The site redirected to %s, which is not one of the site's configured domains.", redir.target)

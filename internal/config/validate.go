@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -23,6 +24,7 @@ func ValidateConfig(cfg *Config) error {
 		validateTLS,
 		validateDurations,
 		validateConcurrency,
+		validateProxy,
 	}
 	for _, check := range checks {
 		if err := check(cfg); err != nil {
@@ -121,6 +123,22 @@ func validateConcurrency(cfg *Config) error {
 	}
 	if cfg.MaxConcurrentPerSite < 1 {
 		return fmt.Errorf("invalid MAX_CONCURRENT_PER_SITE: %d. Expected at least 1", cfg.MaxConcurrentPerSite)
+	}
+	return nil
+}
+
+func validateProxy(cfg *Config) error {
+	if cfg.ProxyHost == "" {
+		if cfg.ProxyPort != 0 {
+			return fmt.Errorf("APP_PROXY_PORT is set but APP_PROXY_HOST is empty. Set both, or neither to fetch directly")
+		}
+		return nil
+	}
+	if strings.ContainsAny(cfg.ProxyHost, "/@ ") || (strings.Contains(cfg.ProxyHost, ":") && net.ParseIP(cfg.ProxyHost) == nil) {
+		return fmt.Errorf("invalid PROXY_HOST: %q. Expected a host name or IP address only, for example 127.0.0.1", cfg.ProxyHost)
+	}
+	if cfg.ProxyPort <= 0 || cfg.ProxyPort > 65535 {
+		return fmt.Errorf("invalid PROXY_PORT: %d. Expected value between 1 and 65535. Set APP_PROXY_PORT", cfg.ProxyPort)
 	}
 	return nil
 }

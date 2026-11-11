@@ -30,7 +30,7 @@ func AppOptions() fx.Option {
 			limiter.New,
 			apikey.NewStore,
 			siteconfig.NewRegistry,
-			fetch.DefaultOptions,
+			fetchOptions,
 			fetch.New,
 			extract.NewService,
 			extract.NewHandler,
@@ -56,4 +56,11 @@ func NewApp(extra ...fx.Option) *fx.App {
 		fx.StopTimeout(config.MaxRequestDurationFromEnv() + 30*time.Second),
 	}
 	return fx.New(append(opts, extra...)...)
+}
+
+// fetchOptions applies the configured outbound proxy to the fetch defaults.
+func fetchOptions(cfg *config.Config) fetch.Options {
+	o := fetch.DefaultOptions()
+	o.Proxy = cfg.ProxyURL()
+	return o
 }
