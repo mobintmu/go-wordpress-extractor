@@ -22,6 +22,14 @@ func TestLowestPrice(t *testing.T) {
 		{"0 تومان", "toman", -1, false},
 		{"تماس بگیرید", "toman", -1, true},
 		{"99999999999999999999", "toman", -1, true},
+		{"$420.00", "usd", 42000, false},
+		{"$19.99", "usd", 1999, false},
+		{"$1,234.5", "usd", 123450, false},
+		{"$12", "usd", 1200, false},
+		{"$1,250.00 $999.95", "usd", 99995, false},
+		{"$10.00 – $20.00", "usd", 1000, false},
+		{"$0.00", "usd", -1, false},
+		{"Call for price", "usd", -1, true},
 	}
 	for _, c := range cases {
 		got, err := LowestPrice(c.text, c.unit)

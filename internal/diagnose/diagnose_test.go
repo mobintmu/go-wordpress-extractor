@@ -72,6 +72,7 @@ func TestClassifyMissingProductOrder(t *testing.T) {
 	}{
 		{"header beats everything", "<p>" + long + "</p>", http.Header{"Cf-Mitigated": {"challenge"}}, BotProtection},
 		{"captcha markup", `<div class="g-recaptcha"></div>`, nil, BotProtection},
+		{"captcha only in CSS is a layout change", "<style>.g-recaptcha{display:none}</style><article>" + long + "</article>", nil, ""},
 		{"empty", "", nil, EmptyPage},
 		{"almost no text", "<p>hi</p>", nil, EmptyPage},
 		{"app shell", `<div id="__next"></div><script>` + strings.Repeat("x", 6000) + `</script>`, nil, JSRenderedPage},

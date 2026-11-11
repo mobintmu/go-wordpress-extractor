@@ -301,8 +301,10 @@ func Validate(s *Site) error {
 	if s.Locale.PriceUnit == "" {
 		s.Locale.PriceUnit = UnitToman
 	}
-	if s.Locale.PriceUnit != UnitToman && s.Locale.PriceUnit != UnitRial {
-		add("locale.price_unit must be %q or %q", UnitToman, UnitRial)
+	switch s.Locale.PriceUnit {
+	case UnitToman, UnitRial, UnitUSD:
+	default:
+		add("locale.price_unit must be %q, %q, or %q", UnitToman, UnitRial, UnitUSD)
 	}
 
 	// Product page.
@@ -334,6 +336,16 @@ func Validate(s *Site) error {
 	checkSelector("pages.product.price_area", p.PriceArea, false)
 	checkSelector("pages.product.availability.out_of_stock", p.Availability.OutOfStock, false)
 	checkSelector("pages.product.availability.order_button", p.Availability.OrderButton, false)
+	if sp := p.Specs; sp != nil {
+		checkSelector("pages.product.specs.group", sp.Group, false)
+		checkSelector("pages.product.specs.title", sp.Title, false)
+		checkSelector("pages.product.specs.row", sp.Row, true)
+		checkSelector("pages.product.specs.name", sp.Name, true)
+		checkSelector("pages.product.specs.value", sp.Value, true)
+		if sp.Title != "" && sp.Group == "" {
+			add("pages.product.specs.title needs pages.product.specs.group")
+		}
+	}
 	if len(p.Fields) == 0 {
 		add("pages.product.fields must define at least title")
 	}

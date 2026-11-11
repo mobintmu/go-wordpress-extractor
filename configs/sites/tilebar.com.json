@@ -1,0 +1,56 @@
+{
+  "$comment": "Magento 2 with the custom Betanet 'tilebar' theme (US store). Prices are in US dollars ($420.00) and are returned in cents with currency USD; one price is per kit or box, not per tile. The add-to-cart button is rendered 'disabled' and enabled by JavaScript, so order_button does not filter on it. robots.txt sets Crawl-delay: 30. Specs come from the Specifications tab (hidden rows such as SKU are skipped). Checked against a live simple product page on 2026-11-11.",
+  "schema_version": 1,
+  "site_id": "tilebar",
+  "version": "2026-11-11.2",
+  "enabled": true,
+  "domains": ["tilebar.com", "www.tilebar.com"],
+
+  "fetch": {
+    "delay_ms": 30000
+  },
+
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": ["$", "USD"],
+    "call_for_price_words": ["Call for price", "Request a quote"]
+  },
+
+  "pages": {
+    "product": {
+      "match": ["^/product/[^/]+\\.html$"],
+      "root": "div.column.main",
+      "price_area": ".product-info-main .product-view__prices .price-info__coverage-price",
+      "fields": {
+        "title": { "selector": "h1.page-title span.base", "pick": "first" },
+        "image_url": {
+          "selector": "div.gallery-placeholder.product-image a.cloud-zoom, div.gallery-placeholder.product-image img",
+          "attr": ["href", "src"],
+          "pick": "first"
+        },
+        "price_current": { "selector": ".product-info-main .product-view__prices span[data-price-type='finalPrice'] .price", "pick": "first" },
+        "price_regular": { "selector": ".product-info-main .product-view__prices span[data-price-type='oldPrice'] .price", "pick": "first" },
+        "description": {
+          "selector": "div.description.z-format-wrapper .z-block-content, div.description.z-format-wrapper p.z-block-description",
+          "pick": "join",
+          "separator": "\n"
+        }
+      },
+      "availability": {
+        "out_of_stock": ".product-info-main div.stock.unavailable",
+        "order_button": "#product-addtocart-button"
+      },
+      "specs": {
+        "group": "div.description-spec div.specs",
+        "title": "h3.spec-title",
+        "row": "ul.specs__definitions li:not(.no-display)",
+        "name": ".specs__definitions__label",
+        "value": ".specs__definitions__value"
+      }
+    }
+  },
+
+  "validation": {
+    "required_fields": ["title"]
+  }
+}

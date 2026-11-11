@@ -12,6 +12,7 @@ import (
 	"go-wordpress/internal/extract"
 	"go-wordpress/internal/health"
 	"go-wordpress/internal/metrics"
+	"go-wordpress/internal/sites"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -21,18 +22,21 @@ import (
 // RegisterRoutes wires every endpoint:
 //
 //	POST /api/v1/extract      API key in X-API-Key
+//	GET  /api/v1/sites        API key in X-API-Key
 //	GET  /health, /ready      public
 //	GET  /swagger/*, /metrics operator credentials (Basic)
 //
 // Swagger docs are generated from the annotations with:
 //
 //	swag init --parseInternal -g cmd/server/main.go -o docs
-func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, keys *apikey.Store, m *metrics.Metrics, cfg *config.Config) {
+func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, st *sites.Handler, keys *apikey.Store, m *metrics.Metrics, cfg *config.Config) {
 	engine.GET("/health", h.Handle)
 	engine.GET("/ready", h.Ready)
 
 	v1 := engine.Group("/api/v1")
-	v1.POST("/extract", apikey.Middleware(keys, func() { m.Reject("unauthorized") }), ex.Handle)
+	auth := apikey.Middleware(keys, func() { m.Reject("unauthorized") })
+	v1.POST("/extract", auth, ex.Handle)
+	v1.GET("/sites", auth, st.List)
 
 	// Swagger UI and its doc.json are served at /swagger/index.html and
 	// /swagger/doc.json. Host is left empty so the UI calls the server it

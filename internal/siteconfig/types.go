@@ -32,6 +32,13 @@ const (
 const (
 	UnitToman = "toman"
 	UnitRial  = "rial"
+	UnitUSD   = "usd"
+)
+
+// Output currencies, as returned in price.currency.
+const (
+	CurrencyIRT = "IRT" // toman; used for toman and rial sites
+	CurrencyUSD = "USD" // amounts are in cents
 )
 
 // Site is one site's merged and validated configuration.
@@ -66,6 +73,14 @@ type Locale struct {
 	CallForPriceWords []string `json:"call_for_price_words"`
 }
 
+// Currency is the price.currency returned for this locale's price unit.
+func (l Locale) Currency() string {
+	if l.PriceUnit == UnitUSD {
+		return CurrencyUSD
+	}
+	return CurrencyIRT
+}
+
 // Pages holds the page types the service reads. Only product pages exist.
 type Pages struct {
 	Product ProductPage `json:"product"`
@@ -78,6 +93,21 @@ type ProductPage struct {
 	PriceArea    string           `json:"price_area"`
 	Fields       map[string]Field `json:"fields"`
 	Availability Availability     `json:"availability"`
+	Specs        *Specs           `json:"specs"`
+}
+
+// Specs reads optional name/value pairs, such as a specifications table.
+// Every selector is searched inside the one before it: group inside the
+// product root, title and row inside a group, name and value inside a row.
+type Specs struct {
+	// Elements that each hold one group of rows. Empty means the product
+	// root is a single group without a title.
+	Group string `json:"group"`
+	// The group's heading, inside a group. Optional.
+	Title string `json:"title"`
+	Row   string `json:"row"`
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 // Field describes how one value is read inside the root element.

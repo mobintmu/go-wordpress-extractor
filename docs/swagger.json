@@ -77,6 +77,37 @@
                 }
             }
         },
+        "/api/v1/sites": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns every site whose config is valid and enabled, sorted by site_id. Disabled and invalid configs are left out.\nThe list follows config hot reloads; loaded_at is when the current configs were loaded.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Extraction"
+                ],
+                "summary": "List websites available for extraction",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SiteList"
+                        }
+                    },
+                    "401": {
+                        "description": "UNAUTHORIZED: the API key is missing, unknown, revoked, or expired.",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "produces": [
@@ -481,15 +512,16 @@
             ],
             "properties": {
                 "currency": {
-                    "description": "Always IRT, meaning toman.",
+                    "description": "IRT means the amounts are toman; USD means the amounts are US cents.",
                     "type": "string",
                     "enum": [
-                        "IRT"
+                        "IRT",
+                        "USD"
                     ],
                     "example": "IRT"
                 },
                 "current": {
-                    "description": "Price in toman. The lowest price when the page shows a range. Null when no price is available, never 0.",
+                    "description": "Price in toman (IRT) or cents (USD). The lowest price when the page shows a range. Null when no price is available, never 0.",
                     "type": "integer",
                     "x-nullable": true,
                     "example": 400000
@@ -500,7 +532,7 @@
                     "example": "500,000 تومان 400,000 تومان"
                 },
                 "regular": {
-                    "description": "Regular price in toman, before any sale. The lowest value when the page shows a range.",
+                    "description": "Regular price before any sale, in the same unit as current. The lowest value when the page shows a range.",
                     "type": "integer",
                     "x-nullable": true,
                     "example": 500000
@@ -538,6 +570,13 @@
                 "price": {
                     "$ref": "#/definitions/Price"
                 },
+                "specs": {
+                    "description": "Name/value pairs from the page's specifications, in page order. Only\nset when the site config defines pages.product.specs and the page has\nat least one pair.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Spec"
+                    }
+                },
                 "title": {
                     "type": "string",
                     "example": "Example product"
@@ -564,6 +603,94 @@
                 "selector": {
                     "type": "string",
                     "example": "div.main-page-wrapper"
+                }
+            }
+        },
+        "Site": {
+            "type": "object",
+            "required": [
+                "currency",
+                "domains",
+                "site_id",
+                "template",
+                "version"
+            ],
+            "properties": {
+                "currency": {
+                    "type": "string",
+                    "enum": [
+                        "IRT",
+                        "USD"
+                    ],
+                    "example": "IRT"
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "hmland.ir",
+                        "www.hmland.ir"
+                    ]
+                },
+                "site_id": {
+                    "type": "string",
+                    "example": "hmland"
+                },
+                "template": {
+                    "type": "string",
+                    "example": "woodmart"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "2026-11-11.1"
+                }
+            }
+        },
+        "SiteList": {
+            "type": "object",
+            "required": [
+                "count",
+                "loaded_at",
+                "sites"
+            ],
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "loaded_at": {
+                    "type": "string",
+                    "example": "2026-11-11T08:00:00Z"
+                },
+                "sites": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Site"
+                    }
+                }
+            }
+        },
+        "Spec": {
+            "type": "object",
+            "required": [
+                "name",
+                "value"
+            ],
+            "properties": {
+                "group": {
+                    "description": "The heading of the group the pair is in, when the page groups them.",
+                    "type": "string",
+                    "example": "Details"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Finish"
+                },
+                "value": {
+                    "type": "string",
+                    "example": "Honed"
                 }
             }
         },

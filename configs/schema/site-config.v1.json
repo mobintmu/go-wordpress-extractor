@@ -35,7 +35,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "price_unit": { "enum": ["toman", "rial"], "default": "toman" },
+        "price_unit": { "enum": ["toman", "rial", "usd"], "default": "toman", "description": "toman and rial sites return toman (currency IRT; rial is divided by 10). usd sites return cents (currency USD)." },
         "currency_words": { "type": "array", "items": { "type": "string" } },
         "call_for_price_words": { "type": "array", "items": { "type": "string" } }
       }
@@ -68,6 +68,19 @@
               "properties": {
                 "out_of_stock": { "type": "string" },
                 "order_button": { "type": "string" }
+              }
+            },
+            "specs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["row", "name", "value"],
+              "description": "Optional name/value pairs returned as product.specs. Each selector is searched inside the previous one: group in root, title and row in group, name and value in row. Missing specs never fail a request.",
+              "properties": {
+                "group": { "type": "string", "description": "Elements that each hold one titled group of rows. Empty means the root is one untitled group" },
+                "title": { "type": "string", "description": "Group heading inside group. Needs group" },
+                "row": { "type": "string", "minLength": 1, "description": "One name/value pair" },
+                "name": { "type": "string", "minLength": 1 },
+                "value": { "type": "string", "minLength": 1 }
               }
             }
           }

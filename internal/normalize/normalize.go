@@ -89,20 +89,52 @@ func Prices(text string) ([]int64, error) {
 	return out, nil
 }
 
-// LowestPrice returns the lowest positive number in text, converted to
-// toman. A text with only zeros yields (nil, nil): zero is never a price.
+// usdRe matches a US dollar amount: optional comma thousands groups and
+// an optional fraction of one or two digits ("1,234.50", "19.9", "420").
+var usdRe = regexp.MustCompile(`\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?`)
+
+// usdCents returns every dollar amount in text, in cents.
+func usdCents(text string) ([]int64, error) {
+	matches := usdRe.FindAllString(Digits(text), -1)
+	if len(matches) == 0 {
+		return nil, ErrNoPrice
+	}
+	out := make([]int64, 0, len(matches))
+	for _, m := range matches {
+		whole, frac, _ := strings.Cut(strings.ReplaceAll(m, ",", ""), ".")
+		frac = (frac + "00")[:2]
+		w, err := strconv.ParseInt(whole, 10, 64)
+		if err != nil || w > (math.MaxInt64-99)/100 {
+			return nil, errors.New("price number out of range: " + m)
+		}
+		f, _ := strconv.ParseInt(frac, 10, 64)
+		out = append(out, w*100+f)
+	}
+	return out, nil
+}
+
+// LowestPrice returns the lowest positive amount in text, in the output
+// unit for the site's price unit: toman for "toman" and "rial" (rial is
+// divided by 10), and cents for "usd". A text with only zeros yields
+// (nil, nil): zero is never a price.
 func LowestPrice(text, unit string) (*int64, error) {
-	nums, err := Prices(text)
+	var nums []int64
+	var err error
+	if unit == "usd" {
+		nums, err = usdCents(text)
+	} else {
+		nums, err = Prices(text)
+	}
 	if err != nil {
 		return nil, err
 	}
 	var lowest *int64
 	for _, n := range nums {
-		if n <= 0 {
-			continue
-		}
 		if unit == "rial" {
 			n /= 10
+		}
+		if n <= 0 {
+			continue
 		}
 		if lowest == nil || n < *lowest {
 			v := n

@@ -6,6 +6,7 @@ There is no database and no Redis. Site configs and API keys are files that are 
 
 ```text
 POST /api/v1/extract   X-API-Key        {"url": "...", "request_id": "..."}
+GET  /api/v1/sites     X-API-Key        enabled sites available for extraction
 GET  /health, /ready   public
 GET  /swagger/index.html, /metrics   operator credentials (HTTP Basic); off unless configured
 ```

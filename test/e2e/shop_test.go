@@ -109,6 +109,17 @@ func (s *Shop) Hits(path string) int {
 	return s.hits[path]
 }
 
+// TotalHits returns how many requests the shop received on any path.
+func (s *Shop) TotalHits() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for _, c := range s.hits {
+		n += c
+	}
+	return n
+}
+
 // HitTimes returns when path was requested.
 func (s *Shop) HitTimes(path string) []time.Time {
 	s.mu.Lock()

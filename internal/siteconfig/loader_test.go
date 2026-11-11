@@ -116,6 +116,18 @@ func TestDefaults(t *testing.T) {
 	}
 }
 
+func TestPriceUnitCurrency(t *testing.T) {
+	for unit, want := range map[string]string{"toman": "IRT", "rial": "IRT", "usd": "USD"} {
+		e := load(t, fixture{"sites/s.test.json": site(t, map[string]any{"locale": map[string]any{"price_unit": unit}}), "templates/.keep.json": "{}"})[0]
+		if e.Err != nil {
+			t.Fatalf("%s: %v", unit, e.Err)
+		}
+		if got := e.Site.Locale.Currency(); got != want {
+			t.Errorf("%s: currency = %s, want %s", unit, got, want)
+		}
+	}
+}
+
 func TestInvalidSites(t *testing.T) {
 	cases := map[string]struct {
 		file string
@@ -129,7 +141,10 @@ func TestInvalidSites(t *testing.T) {
 		"unknown field name":        {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"sku": map[string]any{"selector": "x"}}}}}), "not a known field"},
 		"required without selector": {site(t, map[string]any{"validation": map[string]any{"required_fields": []string{"image_url"}}}), "has no selector"},
 		"bad pick":                  {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1", "pick": "all"}}}}}), "pick must be"},
-		"bad unit":                  {site(t, map[string]any{"locale": map[string]any{"price_unit": "usd"}}), "price_unit"},
+		"specs without row":         {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"name": "dt", "value": "dd"}}}}), "specs.row is required"},
+		"specs bad selector":        {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"row": "li[", "name": "dt", "value": "dd"}}}}), "specs.row: invalid selector"},
+		"specs title without group": {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"title": "h3", "row": "li", "name": "dt", "value": "dd"}}}}), "specs.title needs"},
+		"bad unit":                  {site(t, map[string]any{"locale": map[string]any{"price_unit": "eur"}}), "price_unit"},
 		"bad domain":                {site(t, map[string]any{"domains": []string{"not a host"}}), "not a valid hostname"},
 		"bad ranges":                {site(t, map[string]any{"fetch": map[string]any{"timeout_seconds": 500, "retries": 9, "delay_ms": -1}}), "timeout_seconds"},
 	}

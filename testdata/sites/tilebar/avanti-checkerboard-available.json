@@ -1,0 +1,137 @@
+{
+  "url": "https://www.tilebar.com/product/avanti-checkerboard-verde-green-and-crema-marfil-beige-12x12-tumbled-marble-tile.html",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Avanti Verde Green and Crema Marfil Beige 12x12 Tumbled Marble Checkerboard Tile",
+      "url": "https://www.tilebar.com/product/avanti-checkerboard-verde-green-and-crema-marfil-beige-12x12-tumbled-marble-tile.html",
+      "image_url": "https://aicdn.speedsize.com/e0ef94ef-bbea-450b-a400-575c3145c135/www.tilebar.com/media/catalog/product/1/0/10-gb1-msckbrdvgcm12x12.jpg",
+      "description": "This kit features two premium marble types: classic Verde Green and understated Crema Marfil Beige. Each tile’s classic square shape and tumbled finish enhance its warm, vintage look. Combined, the checkered pattern adds an instantly polished look to entryways, bathroom, and kitchens.\nFew materials age quite as beautifully as premium marble.\nThese two marble strains are of the highest quality.\nThe Avanti collection is an ode to Victorian-era marble flooring. Crafted from premium, highly curated natural stone, a tumbled finish softens and antiques the marble’s surface, for all the patina with none of the wait. Classic checkerboard patterns—whether grid, diamond, or offset—invigorate traditional and modern spaces alike, while hand-clipped mosaics in matching stones play a complementary sidekick for larger projects.\nMarble checkerboard flooring is as timeless as it comes. Originally gaining popularity as flooring in European cathedrals in the Middle Ages, its heyday was Victorian-era England, gracing ballrooms, grand corridors, and stately municipal buildings. It then spread on a global scale, becoming so ubiquitous it’s now synonymous with the vintage American diner aesthetic. Today, it looks fresh, clean, and eternally stylish once more in premium marbles and sophisticated color combinations.",
+      "price": {
+        "current": 42000,
+        "regular": null,
+        "currency": "USD",
+        "raw": "$420.00 / Kit (20 sq ft)",
+        "state": "available"
+      },
+      "specs": [
+        {
+          "group": "Key Specs",
+          "name": "Colorway",
+          "value": "Green, Beige"
+        },
+        {
+          "group": "Key Specs",
+          "name": "Commercial",
+          "value": "Wall, Floor"
+        },
+        {
+          "group": "Key Specs",
+          "name": "Finish",
+          "value": "Tumbled"
+        },
+        {
+          "group": "Key Specs",
+          "name": "Item Size",
+          "value": "12\" x 12\""
+        },
+        {
+          "group": "Key Specs",
+          "name": "Material",
+          "value": "Crema Marfil, Verde Green"
+        },
+        {
+          "group": "Key Specs",
+          "name": "Residential",
+          "value": "Wall, Floor"
+        },
+        {
+          "group": "Details",
+          "name": "Available Sizes",
+          "value": "12x12\", Mosaic"
+        },
+        {
+          "group": "Details",
+          "name": "Coverage",
+          "value": "1"
+        },
+        {
+          "group": "Details",
+          "name": "Frost Resistant",
+          "value": "No"
+        },
+        {
+          "group": "Details",
+          "name": "Location",
+          "value": "Backsplash, Bathroom, Indoor, Kitchen, Outdoor, Shower"
+        },
+        {
+          "group": "Details",
+          "name": "Look",
+          "value": "Checkerboard"
+        },
+        {
+          "group": "Details",
+          "name": "Outdoor Use",
+          "value": "Wall | Floor"
+        },
+        {
+          "group": "Details",
+          "name": "Patterns",
+          "value": "Checkerboard"
+        },
+        {
+          "group": "Details",
+          "name": "Pieces Per Box",
+          "value": "20"
+        },
+        {
+          "group": "Details",
+          "name": "Recommended Grout Joint",
+          "value": "1/8\""
+        },
+        {
+          "group": "Details",
+          "name": "Sq Ft Per Box",
+          "value": "20"
+        },
+        {
+          "group": "Details",
+          "name": "Stone Type",
+          "value": "Multi Marble"
+        },
+        {
+          "group": "Details",
+          "name": "Style",
+          "value": "Art Deco, Classic, Checkerboard, Traditional"
+        },
+        {
+          "group": "Details",
+          "name": "Tile Thickness",
+          "value": "9.5 mm"
+        },
+        {
+          "group": "Details",
+          "name": "Tile Use",
+          "value": "Backsplash, Bathroom Floor, Bathroom Wall, Commercial Floor, Floor Tile, Kitchen Floor, Kitchen Wall, Outdoor Floor, Outdoor Wall, Shower Floor, Shower Wall, Wall Tile"
+        },
+        {
+          "group": "Details",
+          "name": "Weight",
+          "value": "111.1 lbs"
+        },
+        {
+          "group": "Details",
+          "name": "Recommended Grout",
+          "value": "Laticrete Permacolor Sauterne Grout- 8lb"
+        },
+        {
+          "group": "Dimensions",
+          "name": "Sample Size",
+          "value": "2 Pieces of 6\" x 6\""
+        }
+      ]
+    }
+  },
+  "saved_at": "2026-11-11T01:20:40Z"
+}

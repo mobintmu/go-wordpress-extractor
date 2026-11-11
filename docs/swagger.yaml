@@ -234,14 +234,16 @@ definitions:
   Price:
     properties:
       currency:
-        description: Always IRT, meaning toman.
+        description: IRT means the amounts are toman; USD means the amounts are US
+          cents.
         enum:
         - IRT
+        - USD
         example: IRT
         type: string
       current:
-        description: Price in toman. The lowest price when the page shows a range.
-          Null when no price is available, never 0.
+        description: Price in toman (IRT) or cents (USD). The lowest price when the
+          page shows a range. Null when no price is available, never 0.
         example: 400000
         type: integer
         x-nullable: true
@@ -250,8 +252,8 @@ definitions:
         example: 500,000 تومان 400,000 تومان
         type: string
       regular:
-        description: Regular price in toman, before any sale. The lowest value when
-          the page shows a range.
+        description: Regular price before any sale, in the same unit as current. The
+          lowest value when the page shows a range.
         example: 500000
         type: integer
         x-nullable: true
@@ -282,6 +284,14 @@ definitions:
         x-nullable: true
       price:
         $ref: '#/definitions/Price'
+      specs:
+        description: |-
+          Name/value pairs from the page's specifications, in page order. Only
+          set when the site config defines pages.product.specs and the page has
+          at least one pair.
+        items:
+          $ref: '#/definitions/Spec'
+        type: array
       title:
         example: Example product
         type: string
@@ -305,6 +315,71 @@ definitions:
     required:
     - matches
     - selector
+    type: object
+  Site:
+    properties:
+      currency:
+        enum:
+        - IRT
+        - USD
+        example: IRT
+        type: string
+      domains:
+        example:
+        - hmland.ir
+        - www.hmland.ir
+        items:
+          type: string
+        type: array
+      site_id:
+        example: hmland
+        type: string
+      template:
+        example: woodmart
+        type: string
+      version:
+        example: 2026-11-11.1
+        type: string
+    required:
+    - currency
+    - domains
+    - site_id
+    - template
+    - version
+    type: object
+  SiteList:
+    properties:
+      count:
+        example: 1
+        type: integer
+      loaded_at:
+        example: "2026-11-11T08:00:00Z"
+        type: string
+      sites:
+        items:
+          $ref: '#/definitions/Site'
+        type: array
+    required:
+    - count
+    - loaded_at
+    - sites
+    type: object
+  Spec:
+    properties:
+      group:
+        description: The heading of the group the pair is in, when the page groups
+          them.
+        example: Details
+        type: string
+      name:
+        example: Finish
+        type: string
+      value:
+        example: Honed
+        type: string
+    required:
+    - name
+    - value
     type: object
   Warning:
     properties:
@@ -376,6 +451,28 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Extract one product from a product page
+      tags:
+      - Extraction
+  /api/v1/sites:
+    get:
+      description: |-
+        Returns every site whose config is valid and enabled, sorted by site_id. Disabled and invalid configs are left out.
+        The list follows config hot reloads; loaded_at is when the current configs were loaded.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SiteList'
+        "401":
+          description: 'UNAUTHORIZED: the API key is missing, unknown, revoked, or
+            expired.'
+          schema:
+            $ref: '#/definitions/ApiError'
+      security:
+      - ApiKeyAuth: []
+      summary: List websites available for extraction
       tags:
       - Extraction
   /health:

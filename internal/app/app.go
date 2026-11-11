@@ -13,6 +13,7 @@ import (
 	"go-wordpress/internal/server"
 	"go-wordpress/internal/server/drain"
 	"go-wordpress/internal/siteconfig"
+	"go-wordpress/internal/sites"
 	"go-wordpress/pkg/logger"
 
 	"go.uber.org/fx"
@@ -34,6 +35,7 @@ func AppOptions() fx.Option {
 			fetch.New,
 			extract.NewService,
 			extract.NewHandler,
+			sites.NewHandler,
 			health.New,
 			server.NewGinEngine,
 			server.CreateHTTPServer,

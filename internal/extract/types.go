@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go-wordpress/internal/diagnose"
+	"go-wordpress/internal/siteconfig"
 )
 
 // Result statuses.
@@ -23,8 +24,11 @@ const (
 	PriceUnknown      = "unknown"
 )
 
-// Currency is always toman.
-const CurrencyIRT = "IRT"
+// Output currencies. IRT amounts are toman; USD amounts are cents.
+const (
+	CurrencyIRT = siteconfig.CurrencyIRT
+	CurrencyUSD = siteconfig.CurrencyUSD
+)
 
 // Warning codes.
 const (
@@ -92,16 +96,28 @@ type Product struct {
 	ImageURL    *string `json:"image_url" format:"uri" extensions:"x-nullable" example:"https://badomjip.com/wp-content/uploads/example.jpg"`
 	Description *string `json:"description" extensions:"x-nullable" example:"First paragraph.\nSecond paragraph."`
 	Price       Price   `json:"price"`
+	// Name/value pairs from the page's specifications, in page order. Only
+	// set when the site config defines pages.product.specs and the page has
+	// at least one pair.
+	Specs []Spec `json:"specs,omitempty"`
 } //@name Product
 
-// Price holds prices in toman.
+// Spec is one name/value pair from the product's specifications.
+type Spec struct {
+	// The heading of the group the pair is in, when the page groups them.
+	Group string `json:"group,omitempty" example:"Details"`
+	Name  string `json:"name" binding:"required" example:"Finish"`
+	Value string `json:"value" binding:"required" example:"Honed"`
+} //@name Spec
+
+// Price holds prices as integers in the unit named by Currency.
 type Price struct {
-	// Price in toman. The lowest price when the page shows a range. Null when no price is available, never 0.
+	// Price in toman (IRT) or cents (USD). The lowest price when the page shows a range. Null when no price is available, never 0.
 	Current *int64 `json:"current" extensions:"x-nullable" example:"400000"`
-	// Regular price in toman, before any sale. The lowest value when the page shows a range.
+	// Regular price before any sale, in the same unit as current. The lowest value when the page shows a range.
 	Regular *int64 `json:"regular" extensions:"x-nullable" example:"500000"`
-	// Always IRT, meaning toman.
-	Currency string `json:"currency" enums:"IRT" example:"IRT"`
+	// IRT means the amounts are toman; USD means the amounts are US cents.
+	Currency string `json:"currency" enums:"IRT,USD" example:"IRT"`
 	// Text as it appeared on the page.
 	Raw string `json:"raw" example:"500,000 تومان 400,000 تومان"`
 	// out_of_stock means the product cannot be ordered.

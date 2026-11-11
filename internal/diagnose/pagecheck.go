@@ -27,7 +27,9 @@ var blockMarkers = []string{
 	"cf-challenge",
 	"Attention Required! | Cloudflare",
 	"Just a moment...",
-	"g-recaptcha",
+	// The class attribute, not the bare name: normal pages hide the widget
+	// with CSS such as ".g-recaptcha{display:none}" (tilebar.com does).
+	`class="g-recaptcha`,
 	"h-captcha",
 	"hcaptcha.com",
 	"challenges.cloudflare.com/turnstile",

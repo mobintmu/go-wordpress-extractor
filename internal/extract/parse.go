@@ -88,7 +88,7 @@ func parsePage(in PageInput) parsed {
 	}
 
 	// normalize.
-	prod := &Product{Price: Price{Currency: CurrencyIRT, State: PriceUnknown}}
+	prod := &Product{Price: Price{Currency: in.Site.Locale.Currency(), State: PriceUnknown}}
 	prod.Title = normalize.Text(pick(values[siteconfig.FieldTitle], p.Fields[siteconfig.FieldTitle], " "))
 	if img := pick(values[siteconfig.FieldImageURL], p.Fields[siteconfig.FieldImageURL], " "); img != "" {
 		prod.ImageURL = &img
@@ -105,6 +105,9 @@ func parsePage(in PageInput) parsed {
 		}
 	}
 	prod.URL = productURL(in)
+	if p.Specs != nil {
+		prod.Specs = readSpecs(el, *p.Specs)
+	}
 
 	currentText := normalize.Text(pick(values[siteconfig.FieldPriceCurrent], p.Fields[siteconfig.FieldPriceCurrent], " "))
 	regularText := normalize.Text(pick(values[siteconfig.FieldPriceRegular], p.Fields[siteconfig.FieldPriceRegular], " "))
@@ -251,6 +254,33 @@ func readField(el *goquery.Selection, f siteconfig.Field, base *url.URL, isURL, 
 			out = append(out, strings.TrimSpace(v))
 			return
 		}
+	})
+	return out
+}
+
+// readSpecs returns the name/value pairs under el. Rows without a name or
+// a value are skipped.
+func readSpecs(el *goquery.Selection, sp siteconfig.Specs) []Spec {
+	var out []Spec
+	read := func(group *goquery.Selection, title string) {
+		group.Find(sp.Row).Each(func(_ int, row *goquery.Selection) {
+			name := normalize.Text(nodesText(row.Find(sp.Name).First(), false))
+			value := normalize.Text(nodesText(row.Find(sp.Value).First(), false))
+			if name != "" && value != "" {
+				out = append(out, Spec{Group: title, Name: name, Value: value})
+			}
+		})
+	}
+	if sp.Group == "" {
+		read(el, "")
+		return out
+	}
+	el.Find(sp.Group).Each(func(_ int, g *goquery.Selection) {
+		title := ""
+		if sp.Title != "" {
+			title = normalize.Text(nodesText(g.Find(sp.Title).First(), false))
+		}
+		read(g, title)
 	})
 	return out
 }
