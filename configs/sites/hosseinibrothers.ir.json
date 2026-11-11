@@ -1,0 +1,32 @@
+{
+  "$comment": "PrestaShop with the Panda (stsb_) Elementor theme. Selectors checked against a live product page on 2026-11-11. Product URLs are /<category>/<product> with no trailing slash; category URLs end in '/', info pages are /content/*.html.",
+  "schema_version": 1,
+  "site_id": "hosseinibrothers",
+  "version": "2026-11-11.2",
+  "enabled": true,
+  "extends": "prestashop",
+  "domains": ["hosseinibrothers.ir", "www.hosseinibrothers.ir"],
+
+  "pages": {
+    "product": {
+      "match": ["^/(?:[^/]+/)+[^/.]+$"],
+      "root": "body#product",
+      "price_area": ".all-product-setion-price .price-product-page",
+      "fields": {
+        "title": { "selector": "h1.stsb_pro_name", "pick": "first" },
+        "image_url": { "selector": "img.stsb_pro_gallery_item", "attr": ["data-src", "src"], "pick": "first" },
+        "price_current": { "selector": ".all-product-setion-price .stsb_pm_price", "pick": "first" },
+        "price_regular": { "selector": ".all-product-setion-price .stsb_pm_old_price", "pick": "first" },
+        "description": {
+          "selector": ".stsb_pro_summary .stsb_read_more_box p, .stsb_pro_description .stsb_read_more_box p",
+          "pick": "join",
+          "separator": "\n"
+        }
+      },
+      "availability": {
+        "out_of_stock": "",
+        "order_button": "button[data-button-action='add-to-cart']:not([disabled])"
+      }
+    }
+  }
+}

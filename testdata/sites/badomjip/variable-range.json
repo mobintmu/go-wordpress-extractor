@@ -1,0 +1,19 @@
+{
+  "url": "https://badomjip.com/product/hazelnut/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "فندق",
+      "url": "https://badomjip.com/product/hazelnut/",
+      "image_url": "https://badomjip.com/wp-content/uploads/hazelnut.jpg",
+      "description": "فندق تازه.",
+      "price": {
+        "current": 200000,
+        "regular": 250000,
+        "currency": "IRT",
+        "raw": "۲۵۰٬۰۰۰ تومان – ۴۸۰٬۰۰۰ تومان ۲۰۰٬۰۰۰ تومان – ۴۰۰٬۰۰۰ تومان",
+        "state": "available"
+      }
+    }
+  }
+}

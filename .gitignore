@@ -1,0 +1,11 @@
+sonar_command.txt
+.scannerwork/
+report.json
+coverage.out
+.env
+.env.production
+
+# API key files and handover CSVs: never commit
+secrets/
+*.csv
+coverage.html

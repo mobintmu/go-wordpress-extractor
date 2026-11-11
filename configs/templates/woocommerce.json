@@ -1,0 +1,45 @@
+{
+  "$comment": "Shared selectors for WooCommerce product pages. Sites and theme templates override what differs.",
+  "schema_version": 1,
+  "fetch": {
+    "user_agent": "ProductExtractor/1.0",
+    "delay_ms": 1000,
+    "timeout_seconds": 30,
+    "retries": 2,
+    "respect_robots_txt": true
+  },
+  "locale": {
+    "price_unit": "toman",
+    "currency_words": ["تومان"],
+    "call_for_price_words": ["تماس بگیرید", "استعلام قیمت", "Call for price"]
+  },
+  "pages": {
+    "product": {
+      "match": ["^/product/"],
+      "root": "div.product.type-product",
+      "price_area": "p.price",
+      "fields": {
+        "title": { "selector": "h1.product_title", "pick": "first" },
+        "image_url": {
+          "selector": "div.woocommerce-product-gallery img",
+          "attr": ["data-large_image", "data-src", "src"],
+          "pick": "first"
+        },
+        "price_current": { "selector": "p.price ins .amount, p.price > .amount", "pick": "join", "separator": " " },
+        "price_regular": { "selector": "p.price del .amount", "pick": "join", "separator": " " },
+        "description": {
+          "selector": "div.woocommerce-product-details__short-description p, div.woocommerce-Tabs-panel--description p",
+          "pick": "join",
+          "separator": "\n"
+        }
+      },
+      "availability": {
+        "out_of_stock": "p.stock.out-of-stock",
+        "order_button": "button.single_add_to_cart_button"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": ["title"]
+  }
+}

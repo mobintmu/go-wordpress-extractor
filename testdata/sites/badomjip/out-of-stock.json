@@ -1,0 +1,26 @@
+{
+  "url": "https://www.badomjip.com/product/akbari-pistachio/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "پسته اکبری",
+      "url": "https://www.badomjip.com/product/akbari-pistachio/",
+      "image_url": "https://www.badomjip.com/wp-content/uploads/2026/09/pistachio.jpg",
+      "description": null,
+      "price": {
+        "current": 1200000,
+        "regular": null,
+        "currency": "IRT",
+        "raw": "۱,۲۰۰,۰۰۰ تومان",
+        "state": "out_of_stock"
+      }
+    },
+    "warnings": [
+      {
+        "code": "FIELD_MISSING",
+        "field": "description",
+        "message": "The description field was not found on this product page."
+      }
+    ]
+  }
+}

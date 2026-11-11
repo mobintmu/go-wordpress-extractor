@@ -1,0 +1,45 @@
+{
+  "$comment": "Shared selectors for PrestaShop 1.7+ product pages.",
+  "schema_version": 1,
+  "fetch": {
+    "user_agent": "ProductExtractor/1.0",
+    "delay_ms": 1000,
+    "timeout_seconds": 30,
+    "retries": 2,
+    "respect_robots_txt": true
+  },
+  "locale": {
+    "price_unit": "toman",
+    "currency_words": ["تومان"],
+    "call_for_price_words": ["تماس بگیرید", "استعلام قیمت"]
+  },
+  "pages": {
+    "product": {
+      "match": ["^/(?:[^/]+/)*[^/]+\\.html$"],
+      "root": "#main",
+      "price_area": "div.product-prices",
+      "fields": {
+        "title": { "selector": "h1[itemprop='name'], h1.product_name, h1.h1", "pick": "first" },
+        "image_url": {
+          "selector": "img.js-qv-product-cover, div.product-cover img",
+          "attr": ["data-image-large-src", "src"],
+          "pick": "first"
+        },
+        "price_current": { "selector": "div.current-price span[itemprop='price'], div.current-price .price", "pick": "first" },
+        "price_regular": { "selector": "div.product-discount .regular-price", "pick": "first" },
+        "description": {
+          "selector": "div.product-description p, div#description p",
+          "pick": "join",
+          "separator": "\n"
+        }
+      },
+      "availability": {
+        "out_of_stock": "#product-availability .product-unavailable",
+        "order_button": "button.add-to-cart:not([disabled])"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": ["title"]
+  }
+}

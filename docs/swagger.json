@@ -1,0 +1,613 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger UI and /metrics.",
+        "title": "Product Extraction API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/api/v1/extract": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Fetches one product page and returns the product (status success) or the root cause with evidence (status failed).\nBoth results return HTTP 200, so clients must read the status field. Only error.code HTTP_NOT_FOUND means the product is gone.\nEach request responds within APP_MAX_REQUEST_DURATION (3 minutes); set the client timeout to 190 seconds.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Extraction"
+                ],
+                "summary": "Extract one product from a product page",
+                "parameters": [
+                    {
+                        "description": "One product page URL",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ExtractRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Processing ran. Read the status field for the result.",
+                        "schema": {
+                            "$ref": "#/definitions/ExtractResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "INVALID_REQUEST: body is not valid JSON, exceeds 1 MiB, or url is missing. INVALID_URL: url is malformed or not http/https.",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "UNAUTHORIZED: the API key is missing, unknown, revoked, or expired.",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "429": {
+                        "description": "TOO_MANY_REQUESTS: no capacity, or the site already has a running extraction.",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "type": "integer",
+                                "description": "Seconds to wait before retrying."
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "SHUTTING_DOWN: this instance is draining.",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Check that the process is running",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics": {
+            "get": {
+                "security": [
+                    {
+                        "OpsBasicAuth": []
+                    }
+                ],
+                "description": "Requests by outcome, site, failure code, and price state; duration; active requests; rejections.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Prometheus metrics",
+                "responses": {
+                    "200": {
+                        "description": "Metrics in the Prometheus text format",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "UNAUTHORIZED: operator credentials are missing or wrong.",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "NOT_FOUND: operator endpoints are off.",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/ready": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Check that this instance accepts new requests",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/HealthResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "SHUTTING_DOWN: this instance is draining.",
+                        "schema": {
+                            "$ref": "#/definitions/ApiError"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "ApiError": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "INVALID_URL"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "The url must be an absolute http or https URL."
+                }
+            }
+        },
+        "Evidence": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "body_bytes": {
+                    "type": "integer",
+                    "example": 184233
+                },
+                "body_sha256": {
+                    "type": "string",
+                    "example": "9f2c0d7ab1"
+                },
+                "content_type": {
+                    "type": "string",
+                    "example": "text/html; charset=UTF-8"
+                },
+                "failed_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "https://badomjip.com/product/example/"
+                },
+                "field_samples": {
+                    "description": "Raw text found for each field.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "final_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "https://badomjip.com/product/example/"
+                },
+                "html_sample": {
+                    "$ref": "#/definitions/HtmlSample"
+                },
+                "http_status": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "page_title": {
+                    "type": "string",
+                    "example": "Example product - Badomjip"
+                },
+                "redirects": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "response_headers": {
+                    "description": "Allow-listed headers only: server, content-type, retry-after, cf-ray, cf-mitigated, location. Never Set-Cookie.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "selector_trace": {
+                    "description": "Match count for each step of the failing selector path.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SelectorTraceStep"
+                    }
+                }
+            }
+        },
+        "ExtractError": {
+            "type": "object",
+            "required": [
+                "code",
+                "confidence",
+                "message",
+                "owner",
+                "retryable",
+                "root_cause",
+                "stage"
+            ],
+            "properties": {
+                "code": {
+                    "description": "Failure code. New codes can be added over time, so treat unknown codes like INTERNAL_ERROR.\nKnown codes: SITE_NOT_CONFIGURED, SITE_DISABLED, CONFIG_INVALID, NOT_PRODUCT_URL, URL_NOT_ALLOWED,\nDNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,\nSOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,\nUNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,\nREQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR.",
+                    "type": "string",
+                    "example": "SELECTOR_NOT_FOUND"
+                },
+                "confidence": {
+                    "type": "string",
+                    "enum": [
+                        "high",
+                        "medium"
+                    ],
+                    "example": "high"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "The product block was not found on the page."
+                },
+                "owner": {
+                    "type": "string",
+                    "enum": [
+                        "client",
+                        "site_config",
+                        "source_site",
+                        "service"
+                    ],
+                    "example": "site_config"
+                },
+                "retryable": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "root_cause": {
+                    "type": "string",
+                    "example": "The page returned HTTP 200 with real content, but selector 'div.product.type-product' matched 0 elements. The site markup has probably changed."
+                },
+                "stage": {
+                    "type": "string",
+                    "enum": [
+                        "config",
+                        "fetch",
+                        "page_check",
+                        "extract",
+                        "normalize",
+                        "validate"
+                    ],
+                    "example": "extract"
+                },
+                "suggested_action": {
+                    "type": "string",
+                    "example": "Update pages.product.root in configs/sites/badomjip.com.json."
+                }
+            }
+        },
+        "ExtractRequest": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "request_id": {
+                    "description": "Echoed in the response and logs. Generated if missing.",
+                    "type": "string",
+                    "maxLength": 128,
+                    "example": "client-generated-id-123"
+                },
+                "url": {
+                    "description": "One product page, on a domain with a site config.",
+                    "type": "string",
+                    "format": "uri",
+                    "example": "https://badomjip.com/product/example/"
+                }
+            }
+        },
+        "ExtractResponse": {
+            "type": "object",
+            "required": [
+                "duration_ms",
+                "request_id",
+                "status",
+                "url"
+            ],
+            "properties": {
+                "config_version": {
+                    "type": "string",
+                    "example": "2026-11-08.1"
+                },
+                "duration_ms": {
+                    "type": "integer",
+                    "example": 3120
+                },
+                "error": {
+                    "description": "Set on failed.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/ExtractError"
+                        }
+                    ]
+                },
+                "evidence": {
+                    "description": "Set on failed.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Evidence"
+                        }
+                    ]
+                },
+                "finished_at": {
+                    "type": "string",
+                    "example": "2026-11-08T10:00:03Z"
+                },
+                "partial": {
+                    "description": "Set on failed.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Partial"
+                        }
+                    ]
+                },
+                "product": {
+                    "description": "Set on success.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Product"
+                        }
+                    ]
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "client-generated-id-123"
+                },
+                "site_id": {
+                    "description": "Missing when no site config matched.",
+                    "type": "string",
+                    "example": "badomjip"
+                },
+                "started_at": {
+                    "type": "string",
+                    "example": "2026-11-08T10:00:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "success",
+                        "failed"
+                    ],
+                    "example": "success"
+                },
+                "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "https://badomjip.com/product/example/"
+                },
+                "warnings": {
+                    "description": "Set on success; always an array.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Warning"
+                    }
+                }
+            }
+        },
+        "HealthResponse": {
+            "type": "object",
+            "required": [
+                "message"
+            ],
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "OK"
+                }
+            }
+        },
+        "HtmlSample": {
+            "type": "object",
+            "required": [
+                "content",
+                "reason",
+                "truncated"
+            ],
+            "properties": {
+                "content": {
+                    "description": "Untrusted third-party HTML. Escape before displaying.",
+                    "type": "string",
+                    "example": "\u003cdiv class=\"site-content\"\u003e...\u003c/div\u003e"
+                },
+                "original_length": {
+                    "type": "integer",
+                    "example": 48211
+                },
+                "reason": {
+                    "type": "string",
+                    "example": "Deepest element matched by the failing selector path"
+                },
+                "truncated": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "Partial": {
+            "type": "object",
+            "required": [
+                "product"
+            ],
+            "properties": {
+                "product": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Product"
+                        }
+                    ],
+                    "x-nullable": true
+                }
+            }
+        },
+        "Price": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "currency": {
+                    "description": "Always IRT, meaning toman.",
+                    "type": "string",
+                    "enum": [
+                        "IRT"
+                    ],
+                    "example": "IRT"
+                },
+                "current": {
+                    "description": "Price in toman. The lowest price when the page shows a range. Null when no price is available, never 0.",
+                    "type": "integer",
+                    "x-nullable": true,
+                    "example": 400000
+                },
+                "raw": {
+                    "description": "Text as it appeared on the page.",
+                    "type": "string",
+                    "example": "500,000 تومان 400,000 تومان"
+                },
+                "regular": {
+                    "description": "Regular price in toman, before any sale. The lowest value when the page shows a range.",
+                    "type": "integer",
+                    "x-nullable": true,
+                    "example": 500000
+                },
+                "state": {
+                    "description": "out_of_stock means the product cannot be ordered.",
+                    "type": "string",
+                    "enum": [
+                        "available",
+                        "call_for_price",
+                        "out_of_stock",
+                        "unknown"
+                    ],
+                    "example": "available"
+                }
+            }
+        },
+        "Product": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "First paragraph.\nSecond paragraph."
+                },
+                "image_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "x-nullable": true,
+                    "example": "https://badomjip.com/wp-content/uploads/example.jpg"
+                },
+                "price": {
+                    "$ref": "#/definitions/Price"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Example product"
+                },
+                "url": {
+                    "description": "Canonical URL when it is on the site's domains, otherwise the final URL.",
+                    "type": "string",
+                    "format": "uri",
+                    "example": "https://badomjip.com/product/example/"
+                }
+            }
+        },
+        "SelectorTraceStep": {
+            "type": "object",
+            "required": [
+                "matches",
+                "selector"
+            ],
+            "properties": {
+                "matches": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "selector": {
+                    "type": "string",
+                    "example": "div.main-page-wrapper"
+                }
+            }
+        },
+        "Warning": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "FIELD_MISSING"
+                },
+                "field": {
+                    "type": "string",
+                    "example": "image_url"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "The image_url field was not found on this product page."
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "Client API key: gwp_\u003cid\u003e_\u003csecret\u003e",
+            "type": "apiKey",
+            "name": "X-API-Key",
+            "in": "header"
+        },
+        "OpsBasicAuth": {
+            "type": "basic"
+        }
+    },
+    "tags": [
+        {
+            "description": "Product extraction for client applications.",
+            "name": "Extraction"
+        },
+        {
+            "description": "Health, readiness, and operator endpoints.",
+            "name": "Operations"
+        }
+    ]
+}

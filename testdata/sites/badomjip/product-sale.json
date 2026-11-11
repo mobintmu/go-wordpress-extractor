@@ -1,0 +1,19 @@
+{
+  "url": "https://badomjip.com/product/premium-almond/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "بادام درختی ممتاز",
+      "url": "https://badomjip.com/product/premium-almond/",
+      "image_url": "https://badomjip.com/wp-content/uploads/2026/10/almond.jpg",
+      "description": "بادام درختی ممتاز از باغ‌های سامان.\nبسته‌بندی ۵۰۰ گرمی.\nبادام درختی منبع خوبی از پروتئین است.",
+      "price": {
+        "current": 400000,
+        "regular": 500000,
+        "currency": "IRT",
+        "raw": "500,000 تومان 400,000 تومان",
+        "state": "available"
+      }
+    }
+  }
+}

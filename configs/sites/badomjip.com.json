@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "site_id": "badomjip",
+  "version": "2026-11-11.1",
+  "enabled": true,
+  "extends": "woodmart",
+  "domains": ["badomjip.com", "www.badomjip.com"],
+
+  "fetch": {
+    "user_agent": "ProductExtractor/1.0",
+    "delay_ms": 1000,
+    "timeout_seconds": 30,
+    "retries": 2,
+    "respect_robots_txt": true
+  },
+
+  "locale": {
+    "price_unit": "toman",
+    "currency_words": ["تومان"],
+    "call_for_price_words": ["تماس بگیرید"]
+  },
+
+  "validation": {
+    "required_fields": ["title"]
+  }
+}

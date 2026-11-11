@@ -1,0 +1,446 @@
+basePath: /
+definitions:
+  ApiError:
+    properties:
+      code:
+        example: INVALID_URL
+        type: string
+      message:
+        example: The url must be an absolute http or https URL.
+        type: string
+    required:
+    - code
+    - message
+    type: object
+  Evidence:
+    properties:
+      attempts:
+        example: 1
+        type: integer
+      body_bytes:
+        example: 184233
+        type: integer
+      body_sha256:
+        example: 9f2c0d7ab1
+        type: string
+      content_type:
+        example: text/html; charset=UTF-8
+        type: string
+      failed_url:
+        example: https://badomjip.com/product/example/
+        format: uri
+        type: string
+      field_samples:
+        additionalProperties:
+          type: string
+        description: Raw text found for each field.
+        type: object
+      final_url:
+        example: https://badomjip.com/product/example/
+        format: uri
+        type: string
+      html_sample:
+        $ref: '#/definitions/HtmlSample'
+      http_status:
+        example: 200
+        type: integer
+      page_title:
+        example: Example product - Badomjip
+        type: string
+      redirects:
+        items:
+          type: string
+        type: array
+      response_headers:
+        additionalProperties:
+          type: string
+        description: 'Allow-listed headers only: server, content-type, retry-after,
+          cf-ray, cf-mitigated, location. Never Set-Cookie.'
+        type: object
+      selector_trace:
+        description: Match count for each step of the failing selector path.
+        items:
+          $ref: '#/definitions/SelectorTraceStep'
+        type: array
+    type: object
+  ExtractError:
+    properties:
+      code:
+        description: |-
+          Failure code. New codes can be added over time, so treat unknown codes like INTERNAL_ERROR.
+          Known codes: SITE_NOT_CONFIGURED, SITE_DISABLED, CONFIG_INVALID, NOT_PRODUCT_URL, URL_NOT_ALLOWED,
+          DNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,
+          SOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,
+          UNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,
+          REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR.
+        example: SELECTOR_NOT_FOUND
+        type: string
+      confidence:
+        enum:
+        - high
+        - medium
+        example: high
+        type: string
+      message:
+        example: The product block was not found on the page.
+        type: string
+      owner:
+        enum:
+        - client
+        - site_config
+        - source_site
+        - service
+        example: site_config
+        type: string
+      retryable:
+        example: false
+        type: boolean
+      root_cause:
+        example: The page returned HTTP 200 with real content, but selector 'div.product.type-product'
+          matched 0 elements. The site markup has probably changed.
+        type: string
+      stage:
+        enum:
+        - config
+        - fetch
+        - page_check
+        - extract
+        - normalize
+        - validate
+        example: extract
+        type: string
+      suggested_action:
+        example: Update pages.product.root in configs/sites/badomjip.com.json.
+        type: string
+    required:
+    - code
+    - confidence
+    - message
+    - owner
+    - retryable
+    - root_cause
+    - stage
+    type: object
+  ExtractRequest:
+    properties:
+      request_id:
+        description: Echoed in the response and logs. Generated if missing.
+        example: client-generated-id-123
+        maxLength: 128
+        type: string
+      url:
+        description: One product page, on a domain with a site config.
+        example: https://badomjip.com/product/example/
+        format: uri
+        type: string
+    required:
+    - url
+    type: object
+  ExtractResponse:
+    properties:
+      config_version:
+        example: 2026-11-08.1
+        type: string
+      duration_ms:
+        example: 3120
+        type: integer
+      error:
+        allOf:
+        - $ref: '#/definitions/ExtractError'
+        description: Set on failed.
+      evidence:
+        allOf:
+        - $ref: '#/definitions/Evidence'
+        description: Set on failed.
+      finished_at:
+        example: "2026-11-08T10:00:03Z"
+        type: string
+      partial:
+        allOf:
+        - $ref: '#/definitions/Partial'
+        description: Set on failed.
+      product:
+        allOf:
+        - $ref: '#/definitions/Product'
+        description: Set on success.
+      request_id:
+        example: client-generated-id-123
+        type: string
+      site_id:
+        description: Missing when no site config matched.
+        example: badomjip
+        type: string
+      started_at:
+        example: "2026-11-08T10:00:00Z"
+        type: string
+      status:
+        enum:
+        - success
+        - failed
+        example: success
+        type: string
+      url:
+        example: https://badomjip.com/product/example/
+        format: uri
+        type: string
+      warnings:
+        description: Set on success; always an array.
+        items:
+          $ref: '#/definitions/Warning'
+        type: array
+    required:
+    - duration_ms
+    - request_id
+    - status
+    - url
+    type: object
+  HealthResponse:
+    properties:
+      message:
+        example: OK
+        type: string
+    required:
+    - message
+    type: object
+  HtmlSample:
+    properties:
+      content:
+        description: Untrusted third-party HTML. Escape before displaying.
+        example: <div class="site-content">...</div>
+        type: string
+      original_length:
+        example: 48211
+        type: integer
+      reason:
+        example: Deepest element matched by the failing selector path
+        type: string
+      truncated:
+        example: true
+        type: boolean
+    required:
+    - content
+    - reason
+    - truncated
+    type: object
+  Partial:
+    properties:
+      product:
+        allOf:
+        - $ref: '#/definitions/Product'
+        x-nullable: true
+    required:
+    - product
+    type: object
+  Price:
+    properties:
+      currency:
+        description: Always IRT, meaning toman.
+        enum:
+        - IRT
+        example: IRT
+        type: string
+      current:
+        description: Price in toman. The lowest price when the page shows a range.
+          Null when no price is available, never 0.
+        example: 400000
+        type: integer
+        x-nullable: true
+      raw:
+        description: Text as it appeared on the page.
+        example: 500,000 تومان 400,000 تومان
+        type: string
+      regular:
+        description: Regular price in toman, before any sale. The lowest value when
+          the page shows a range.
+        example: 500000
+        type: integer
+        x-nullable: true
+      state:
+        description: out_of_stock means the product cannot be ordered.
+        enum:
+        - available
+        - call_for_price
+        - out_of_stock
+        - unknown
+        example: available
+        type: string
+    required:
+    - state
+    type: object
+  Product:
+    properties:
+      description:
+        example: |-
+          First paragraph.
+          Second paragraph.
+        type: string
+        x-nullable: true
+      image_url:
+        example: https://badomjip.com/wp-content/uploads/example.jpg
+        format: uri
+        type: string
+        x-nullable: true
+      price:
+        $ref: '#/definitions/Price'
+      title:
+        example: Example product
+        type: string
+      url:
+        description: Canonical URL when it is on the site's domains, otherwise the
+          final URL.
+        example: https://badomjip.com/product/example/
+        format: uri
+        type: string
+    required:
+    - url
+    type: object
+  SelectorTraceStep:
+    properties:
+      matches:
+        example: 1
+        type: integer
+      selector:
+        example: div.main-page-wrapper
+        type: string
+    required:
+    - matches
+    - selector
+    type: object
+  Warning:
+    properties:
+      code:
+        example: FIELD_MISSING
+        type: string
+      field:
+        example: image_url
+        type: string
+      message:
+        example: The image_url field was not found on this product page.
+        type: string
+    required:
+    - code
+    - message
+    type: object
+info:
+  contact: {}
+  description: Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger
+    UI and /metrics.
+  title: Product Extraction API
+  version: "1.0"
+paths:
+  /api/v1/extract:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Fetches one product page and returns the product (status success) or the root cause with evidence (status failed).
+        Both results return HTTP 200, so clients must read the status field. Only error.code HTTP_NOT_FOUND means the product is gone.
+        Each request responds within APP_MAX_REQUEST_DURATION (3 minutes); set the client timeout to 190 seconds.
+      parameters:
+      - description: One product page URL
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ExtractRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Processing ran. Read the status field for the result.
+          schema:
+            $ref: '#/definitions/ExtractResponse'
+        "400":
+          description: 'INVALID_REQUEST: body is not valid JSON, exceeds 1 MiB, or
+            url is missing. INVALID_URL: url is malformed or not http/https.'
+          schema:
+            $ref: '#/definitions/ApiError'
+        "401":
+          description: 'UNAUTHORIZED: the API key is missing, unknown, revoked, or
+            expired.'
+          schema:
+            $ref: '#/definitions/ApiError'
+        "429":
+          description: 'TOO_MANY_REQUESTS: no capacity, or the site already has a
+            running extraction.'
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying.
+              type: integer
+          schema:
+            $ref: '#/definitions/ApiError'
+        "503":
+          description: 'SHUTTING_DOWN: this instance is draining.'
+          schema:
+            $ref: '#/definitions/ApiError'
+      security:
+      - ApiKeyAuth: []
+      summary: Extract one product from a product page
+      tags:
+      - Extraction
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/HealthResponse'
+      summary: Check that the process is running
+      tags:
+      - Operations
+  /metrics:
+    get:
+      description: Requests by outcome, site, failure code, and price state; duration;
+        active requests; rejections.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Metrics in the Prometheus text format
+          schema:
+            type: string
+        "401":
+          description: 'UNAUTHORIZED: operator credentials are missing or wrong.'
+          schema:
+            $ref: '#/definitions/ApiError'
+        "404":
+          description: 'NOT_FOUND: operator endpoints are off.'
+          schema:
+            $ref: '#/definitions/ApiError'
+      security:
+      - OpsBasicAuth: []
+      summary: Prometheus metrics
+      tags:
+      - Operations
+  /ready:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/HealthResponse'
+        "503":
+          description: 'SHUTTING_DOWN: this instance is draining.'
+          schema:
+            $ref: '#/definitions/ApiError'
+      summary: Check that this instance accepts new requests
+      tags:
+      - Operations
+securityDefinitions:
+  ApiKeyAuth:
+    description: 'Client API key: gwp_<id>_<secret>'
+    in: header
+    name: X-API-Key
+    type: apiKey
+  OpsBasicAuth:
+    type: basic
+swagger: "2.0"
+tags:
+- description: Product extraction for client applications.
+  name: Extraction
+- description: Health, readiness, and operator endpoints.
+  name: Operations

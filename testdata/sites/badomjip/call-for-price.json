@@ -1,0 +1,19 @@
+{
+  "url": "https://badomjip.com/product/saffron-wholesale/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "زعفران سرگل عمده",
+      "url": "https://badomjip.com/product/saffron-wholesale/",
+      "image_url": "https://badomjip.com/wp-content/uploads/saffron.jpg",
+      "description": "فروش عمده زعفران.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "IRT",
+        "raw": "برای اطلاع از قیمت تماس بگیرید",
+        "state": "call_for_price"
+      }
+    }
+  }
+}

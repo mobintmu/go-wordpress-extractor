@@ -1,0 +1,20 @@
+{
+  "$comment": "WoodMart theme on WooCommerce. Only the selectors that differ from woocommerce.json.",
+  "extends": "woocommerce",
+  "pages": {
+    "product": {
+      "fields": {
+        "image_url": {
+          "selector": "figure.woocommerce-product-gallery__image img, div.woocommerce-product-gallery img",
+          "attr": ["data-large_image", "data-src", "src"],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "div.woocommerce-product-details__short-description p, div.woocommerce-Tabs-panel--description p, div.wd-single-content p",
+          "pick": "join",
+          "separator": "\n"
+        }
+      }
+    }
+  }
+}

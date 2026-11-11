@@ -1,0 +1,90 @@
+# Product extraction service. No database, no Redis.
+#
+# First run:
+#   1. mkdir -p secrets                     (owned by you, not by root)
+#   2. Put APP_API_KEY_PEPPER in .env       (create one with: docker compose run --rm apikey generate-pepper)
+#   3. docker compose run --rm apikey generate --name my-client
+#                                           (prints the key once; writes secrets/.env.apikeys)
+#   4. docker compose up --build
+#
+# Other key commands: list, revoke --id <id>, generate-bulk --count 10 --name-prefix app --plain-output /app/secrets/keys.csv
+# SonarQube is optional: docker compose --profile tools up sonar
+services:
+  extractor:
+    build: .
+    image: go-wordpress-extractor:latest
+    environment:
+      APP_ENV: production
+      APP_HTTP_PORT: "4000"
+      APP_SITE_CONFIG_DIR: /app/configs
+      APP_API_KEYS_FILE: /app/secrets/.env.apikeys
+      APP_API_KEY_PEPPER: ${APP_API_KEY_PEPPER:?set APP_API_KEY_PEPPER to the server pepper}
+      APP_OPS_USER: ${APP_OPS_USER:-}
+      APP_OPS_PASSWORD_HASH: ${APP_OPS_PASSWORD_HASH:-}
+      APP_TLS_CERT_FILE: ${APP_TLS_CERT_FILE:-}
+      APP_TLS_KEY_FILE: ${APP_TLS_KEY_FILE:-}
+      APP_MAX_REQUEST_DURATION: ${APP_MAX_REQUEST_DURATION:-3m}
+      APP_SITE_WAIT_TIMEOUT: ${APP_SITE_WAIT_TIMEOUT:-30s}
+      APP_MAX_CONCURRENT_REQUESTS: ${APP_MAX_CONCURRENT_REQUESTS:-20}
+      APP_MAX_CONCURRENT_PER_SITE: ${APP_MAX_CONCURRENT_PER_SITE:-1}
+    # The key file is mounted, not passed with --env-file: environment
+    # variables are fixed at start, so a revoked key would stay valid.
+    # The service re-reads both mounts every 30 seconds.
+    volumes:
+      - ./configs:/app/configs:ro
+      # create_host_path: false stops Docker from creating a root-owned
+      # ./secrets folder; compose fails clearly if it is missing.
+      - type: bind
+        source: ./secrets
+        target: /app/secrets
+        read_only: true
+        bind:
+          create_host_path: false
+    # The key file has permission 0600, so run as its owner.
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    ports:
+      - "4000:4000"
+    # Longer than APP_MAX_REQUEST_DURATION, so running requests can finish.
+    stop_grace_period: 190s
+    restart: unless-stopped
+
+  # Key management with the same image: docker compose run --rm apikey <command>
+  # It mounts ./secrets writable, so it can create and update the key file.
+  apikey:
+    image: go-wordpress-extractor:latest
+    build: .
+    profiles: ["tools"]
+    entrypoint: ["apikey"]
+    environment:
+      APP_ENV: production
+      APP_API_KEYS_FILE: /app/secrets/.env.apikeys
+      APP_API_KEY_PEPPER: ${APP_API_KEY_PEPPER:-}
+    volumes:
+      - type: bind
+        source: ./secrets
+        target: /app/secrets
+        bind:
+          create_host_path: false
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+
+  sonar:
+    image: sonarqube:latest
+    profiles: ["tools"]
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonar-data:/opt/sonarqube/data
+      - sonar-extensions:/opt/sonarqube/extensions
+      - sonar-logs:/opt/sonarqube/logs
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 2g
+
+volumes:
+  sonar-data:
+  sonar-logs:
+  sonar-extensions:

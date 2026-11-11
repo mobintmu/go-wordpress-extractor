@@ -1,0 +1,11 @@
+.git
+.vscode
+.scannerwork
+secrets
+coverage.out
+report.json
+md
+*.md
+.env
+.env.*
+testdata
