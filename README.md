@@ -1,8 +1,10 @@
-# go-wordpress: product extraction service
+# go-wordpress-extraction: product extraction service
 
 A stateless HTTP service that extracts one product from one product page. A client application sends a product URL with an API key. The service finds that site's parsing rules in a JSON file, fetches the page, and returns either the product or a structured root cause with evidence, in the same response.
 
 There is no database and no Redis. Site configs and API keys are files that are re-read every 30 seconds. The design is in [md/SYNC_EXTRACTION_PROPOSAL.md](md/SYNC_EXTRACTION_PROPOSAL.md).
+
+Because nodes share nothing, you can run as many as you like. Each node reports how busy it is, so the client can act as the dispatcher and spread requests across nodes. See [Run distributed](#run-distributed-client-side-load-balancing).
 
 ```text
 POST /api/v1/extract   X-API-Key        {"url": "...", "request_id": "..."}
@@ -123,6 +125,194 @@ sudo rm -rf secrets && mkdir secrets         # replace the root-owned empty fold
 docker compose run --rm apikey generate --name my-client   # prints the key once
 docker compose up --build
 ```
+
+## Run distributed (client-side load balancing)
+
+The service is stateless, so it can run on many nodes at once: different machines, containers, or exit IPs. The nodes do not talk to each other and share no state. The client is the dispatcher. It asks each node how busy it is and sends each crawl to the node best able to take it.
+
+### Architecture
+
+```mermaid
+flowchart LR
+    subgraph CLIENT["Client application (dispatcher)"]
+        direction TB
+        Q["Crawl queue<br/>product URLs"]
+        LB["Node picker<br/>skip draining / full / site-busy<br/>pick most available"]
+        POLL["Load poller<br/>every 1-5 s"]
+        Q --> LB
+        POLL -. node load table .-> LB
+    end
+
+    subgraph SHARED["Same files on every node (copied, not shared at runtime)"]
+        direction TB
+        CFG[("configs/sites/*.json<br/>parsing rules")]
+        KEYS[("API key file<br/>+ APP_API_KEY_PEPPER")]
+    end
+
+    subgraph NODEA["Node A  (capacity 20)"]
+        direction TB
+        AUTH["API key middleware<br/>X-API-Key"]
+        DRAIN{"draining?"}
+        GL["Instance limiter<br/>APP_MAX_CONCURRENT_REQUESTS"]
+        SL["Per-site limiter<br/>slots + delay_ms spacing"]
+        SVC["Extract service<br/>lookup site, fetch, parse, diagnose"]
+        FETCH["Fetcher<br/>SSRF checks, retries, timeouts"]
+        REG["Site config registry<br/>hot reload every 30 s"]
+        KS["Key store<br/>hot reload every 30 s"]
+        MET["Metrics<br/>counters + live load"]
+        AUTH --> DRAIN --> GL --> SL --> SVC --> FETCH
+        REG --> SVC
+        KS --> AUTH
+        GL -. active / available .-> MET
+        SL -. sites_active .-> MET
+        SVC -. outcome, duration .-> MET
+    end
+
+    NODEB["Node B  (capacity 20)<br/>same components"]
+    NODEC["Node C  (capacity 40)<br/>same components"]
+
+    subgraph EGRESS["Outbound"]
+        direction TB
+        PXA["Proxy A<br/>APP_PROXY_HOST/PORT"]
+        PXB["Proxy B"]
+        PXC["Direct / proxy C"]
+    end
+
+    SITES(["Shop websites<br/>one site config per domain"])
+    PROM["Prometheus<br/>scrapes /metrics as text"]
+
+    LB == "POST /api/v1/extract" ==> AUTH
+    LB == "POST /api/v1/extract" ==> NODEB
+    LB == "POST /api/v1/extract" ==> NODEC
+
+    POLL -- "GET /api/v1/active<br/>GET /metrics (JSON)" --> MET
+    POLL -- "GET /metrics" --> NODEB
+    POLL -- "GET /metrics" --> NODEC
+
+    CFG --> REG
+    KEYS --> KS
+    CFG -.-> NODEB
+    CFG -.-> NODEC
+    KEYS -.-> NODEB
+    KEYS -.-> NODEC
+
+    FETCH --> PXA --> SITES
+    NODEB --> PXB --> SITES
+    NODEC --> PXC --> SITES
+
+    PROM -. "X-API-Key" .-> MET
+    PROM -.-> NODEB
+    PROM -.-> NODEC
+```
+
+- **Client (dispatcher).** It owns the crawl queue and decides which node gets each URL. It is the only part that knows about every node.
+- **Nodes.** They are identical and independent. Each one runs the whole pipeline (auth → drain check → instance limiter → per-site limiter → extract → fetch) and reports its own load. Nodes never call each other.
+- **Shared files.** The site configs and the key file are copied to every node. Each node reloads them on its own every 30 seconds. Nothing is shared at runtime, so there is no single point of failure.
+- **Outbound traffic.** Each node can fetch through its own proxy, so the cluster crawls from several IP addresses.
+
+### One request, end to end
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant D as Client (dispatcher)
+    participant A as Node A
+    participant B as Node B
+    participant S as Shop website
+
+    loop every 1-5 s
+        D->>A: GET /metrics (X-API-Key)
+        A-->>D: load: available 0, sites_active {hmland: 1}
+        D->>B: GET /metrics
+        B-->>D: load: available 5, draining false
+    end
+
+    Note over D: URL is on hmland.ir<br/>A is full, B has 5 free slots → pick B<br/>count B as one busier until the next poll
+
+    D->>B: POST /api/v1/extract {url}
+    B->>B: auth, take instance slot, take hmland slot, wait delay_ms
+    B->>S: GET product page (via B's proxy)
+    S-->>B: HTML
+    B->>B: parse, normalize price, diagnose
+    B-->>D: 200 {status: success, product} or {status: failed, error}
+
+    alt 429 TOO_MANY_REQUESTS (raced another dispatcher)
+        B-->>D: 429 + Retry-After
+        D->>A: retry the same request on the next best node
+    else 503 SHUTTING_DOWN
+        B-->>D: 503
+        Note over D: drop B until GET /ready returns 200
+    end
+```
+
+### Set up the nodes
+
+Every node needs the same:
+
+- `APP_API_KEY_PEPPER`, so one client key works on all nodes.
+- Key file (`APP_API_KEYS_FILE`). Copy it to each node, then compare the checksum each node logs on reload.
+- Site configs (`APP_SITE_CONFIG_DIR`). Use `GET /api/v1/sites` to check that each node serves the same versions.
+
+Limits are per node. `APP_MAX_CONCURRENT_REQUESTS` caps a single node, so the cluster's total capacity is the sum over all nodes. Nodes can have different capacities. Give larger machines a higher value.
+
+### Endpoints for the dispatcher
+
+All of them need the client `X-API-Key` and respond with `Cache-Control: no-store`.
+
+| Endpoint | Returns | Use it for |
+|---|---|---|
+| `GET /api/v1/active` | `{"extract_active_requests": N}` | Cheapest check: how many extractions this node is running now |
+| `GET /metrics` | JSON `load` block plus counters | Full picture: capacity, free slots, busy sites, draining |
+| `GET /ready` | 200, or 503 while draining (public) | Taking a node out of rotation during a deploy |
+
+The `load` block of `GET /metrics`:
+
+```jsonc
+"load": {
+  "draining": false,          // true: the node is shutting down; send it nothing
+  "capacity": 8,              // APP_MAX_CONCURRENT_REQUESTS
+  "active": 3,                // same number as /api/v1/active
+  "available": 5,             // capacity - active; 0 means the next request gets 429
+  "utilization": 0.375,       // active / capacity
+  "per_site_limit": 1,        // APP_MAX_CONCURRENT_PER_SITE
+  "sites_active": {"hmland": 1} // busy sites on this node
+}
+```
+
+`active` includes requests that are waiting for a busy site's slot on this node, not only requests that are fetching.
+
+### Choosing a node
+
+1. Poll every node every 1–5 seconds, and also after each response. Use `/metrics` if the nodes have different capacities. If they are all the same size, `/api/v1/active` is enough.
+2. Remove any node that is `draining`, that fails to answer, or that has `available` at 0.
+3. For a URL on site X, prefer nodes where `sites_active[X]` is below `per_site_limit`. On any other node the request waits up to `APP_SITE_WAIT_TIMEOUT`, then gets a 429.
+4. From the rest, pick the node with the most `available` slots, or the lowest `utilization` when capacities differ. Break ties at random so the dispatchers don't all pick the same node.
+5. Between polls, add one to the chosen node's count yourself, so a burst of requests doesn't all land on one node.
+6. The numbers can change between your poll and your request. On a 429, read `Retry-After` and try another node. On a 503 (`SHUTTING_DOWN`), drop the node until `/ready` returns 200 again.
+
+```go
+func pick(nodes []Node, site string) *Node {
+	var best *Node
+	for i := range nodes {
+		n := &nodes[i]
+		l := n.Load // from the last GET /metrics, plus requests sent since
+		if n.Down || l.Draining || l.Available <= 0 || l.SitesActive[site] >= l.PerSiteLimit {
+			continue
+		}
+		if best == nil || l.Available > best.Load.Available {
+			best = n
+		}
+	}
+	return best // nil: every node is busy; wait and poll again
+}
+```
+
+### Things to know
+
+- **Politeness is per node.** Each node keeps its own `delay_ms` spacing and per-site limit. Three nodes crawling the same site can hit it three times as often. To stay gentle, send each site to one node, or lower the per-site settings.
+- **Retry the same request.** An extraction stores nothing, so you can resend the same request to another node after a 429, a 503, or a network error.
+- **Different exit IPs.** Give each node its own `APP_PROXY_HOST` and `APP_PROXY_PORT` to crawl from different addresses.
+- **Prometheus.** Scrape every node's `/metrics` with the `X-API-Key` header. Prometheus asks for the text format, so it gets the `extract_*` series. Labelled with `instance`, they show load per node.
 
 ## Environment variables
 
