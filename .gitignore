@@ -11,3 +11,5 @@ secrets/
 coverage.html
 sec.txt
 sample/
+# Binaries built by deploy.sh
+bin/
