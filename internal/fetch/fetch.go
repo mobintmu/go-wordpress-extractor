@@ -17,6 +17,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -79,6 +80,10 @@ type Fetcher struct {
 	limiter *limiter.Limiter
 	dialer  *SafeDialer
 	log     *zap.Logger
+
+	// One cookie jar per site, shared by every fetch: see cookieJar.
+	jarsMu sync.Mutex
+	jars   map[string]http.CookieJar
 }
 
 // New builds a fetcher.
@@ -89,7 +94,33 @@ func New(opts Options, lim *limiter.Limiter, log *zap.Logger) *Fetcher {
 	if opts.MaxRedirects <= 0 {
 		opts.MaxRedirects = DefaultOptions().MaxRedirects
 	}
-	return &Fetcher{opts: opts, limiter: lim, dialer: NewSafeDialer(opts.Resolver, opts.AllowedNets), log: log}
+	return &Fetcher{
+		opts:    opts,
+		limiter: lim,
+		dialer:  NewSafeDialer(opts.Resolver, opts.AllowedNets),
+		log:     log,
+		jars:    make(map[string]http.CookieJar),
+	}
+}
+
+// cookieJar returns the site's cookie jar, creating it on first use. A browser
+// keeps the cookies a site sets, so the fetcher does too: the collector is
+// built per request, but the jar outlives it, and a session cookie handed out
+// with the first response is sent back on the retries and on every later fetch
+// of the same site. Jars are per site, so one shop's cookies never reach
+// another's requests.
+func (f *Fetcher) cookieJar(siteID string) http.CookieJar {
+	f.jarsMu.Lock()
+	defer f.jarsMu.Unlock()
+	if f.jars == nil {
+		f.jars = make(map[string]http.CookieJar)
+	}
+	if jar, ok := f.jars[siteID]; ok {
+		return jar
+	}
+	jar, _ := cookiejar.New(nil)
+	f.jars[siteID] = jar
+	return jar
 }
 
 type redirectError struct{ target string }
@@ -187,11 +218,12 @@ func (f *Fetcher) copyAttempt(page *Page, a *attempt) {
 
 // collector builds one Colly collector for this request. A new collector
 // per request keeps URL history and robots.txt caches from leaking
-// between requests.
+// between requests; only the site's cookie jar is shared (see cookieJar).
 func (f *Fetcher) collector(ctx context.Context, site *siteconfig.Site, page *Page, cur **attempt) (*colly.Collector, *http.Transport) {
+	userAgent := site.PickUserAgent()
 	c := colly.NewCollector(
 		colly.StdlibContext(ctx),
-		colly.UserAgent(site.PickUserAgent()),
+		colly.UserAgent(userAgent),
 		colly.AllowURLRevisit(),
 		colly.ParseHTTPErrorResponse(),
 		colly.MaxBodySize(int(f.opts.MaxBodyBytes+1)),
@@ -217,7 +249,7 @@ func (f *Fetcher) collector(ctx context.Context, site *siteconfig.Site, page *Pa
 		transport.Proxy = f.proxyFor
 		transport.DialContext = f.dialProxy
 	}
-	jar, _ := cookiejar.New(nil)
+	jar := f.cookieJar(site.SiteID)
 	c.SetClient(&http.Client{
 		Transport: &throttled{base: transport, ctx: ctx, limiter: f.limiter, siteID: site.SiteID, delay: site.Delay()},
 		Jar:       jar,
@@ -240,9 +272,15 @@ func (f *Fetcher) collector(ctx context.Context, site *siteconfig.Site, page *Pa
 		return nil
 	})
 
+	headers := requestHeaders(site, userAgent)
 	c.OnRequest(func(r *colly.Request) {
-		r.Headers.Set("Accept", "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5")
-		r.Headers.Set("Accept-Language", "fa-IR,fa;q=0.9,en;q=0.7")
+		for name, values := range headers {
+			r.Headers.Del(name)
+			for _, v := range values {
+				r.Headers.Add(name, v)
+			}
+		}
+		r.Headers.Set("User-Agent", userAgent)
 	})
 	c.OnResponseHeaders(func(r *colly.Response) {
 		a := *cur

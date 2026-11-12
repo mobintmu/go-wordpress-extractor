@@ -35,12 +35,13 @@ type Shop struct {
 	TLSPort    string
 	ClosedPort string
 
-	mu        sync.Mutex
-	hits      map[string]int
-	hitTimes  map[string][]time.Time
-	Started   chan string // receives the path when a hanging handler starts
-	Cancelled chan string // receives the path when a hanging request is cancelled
-	pages     map[string]string
+	mu          sync.Mutex
+	hits        map[string]int
+	hitTimes    map[string][]time.Time
+	lastHeaders map[string]http.Header
+	Started     chan string // receives the path when a hanging handler starts
+	Cancelled   chan string // receives the path when a hanging request is cancelled
+	pages       map[string]string
 }
 
 // Host names used by the tests.
@@ -63,8 +64,15 @@ const (
 
 // NewShop starts the fake site.
 func NewShop(t *testing.T) *Shop {
-	s := &Shop{t: t, hits: map[string]int{}, hitTimes: map[string][]time.Time{}, pages: map[string]string{},
-		Started: make(chan string, 16), Cancelled: make(chan string, 16)}
+	s := &Shop{
+		t:           t,
+		hits:        map[string]int{},
+		hitTimes:    map[string][]time.Time{},
+		lastHeaders: map[string]http.Header{},
+		pages:       map[string]string{},
+		Started:     make(chan string, 16),
+		Cancelled:   make(chan string, 16),
+	}
 	s.srv = httptest.NewServer(http.HandlerFunc(s.serve))
 	s.tlsSrv = httptest.NewTLSServer(http.HandlerFunc(s.serve))
 	t.Cleanup(func() {
@@ -127,6 +135,14 @@ func (s *Shop) HitTimes(path string) []time.Time {
 	return append([]time.Time(nil), s.hitTimes[path]...)
 }
 
+// RequestHeaders returns the headers of the last request for path, with the
+// path as the service sent it. Nil when the path was never requested.
+func (s *Shop) RequestHeaders(path string) http.Header {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastHeaders[path].Clone()
+}
+
 // Handle serves body as a 200 HTML page at path (decoded, as in
 // r.URL.Path). Registered pages take precedence over the built-in routes.
 func (s *Shop) Handle(path, body string) {
@@ -135,16 +151,17 @@ func (s *Shop) Handle(path, body string) {
 	s.pages[path] = body
 }
 
-func (s *Shop) record(path string) int {
+func (s *Shop) record(r *http.Request) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.hits[path]++
-	s.hitTimes[path] = append(s.hitTimes[path], time.Now())
-	return s.hits[path]
+	s.hits[r.URL.Path]++
+	s.hitTimes[r.URL.Path] = append(s.hitTimes[r.URL.Path], time.Now())
+	s.lastHeaders[r.URL.Path] = r.Header.Clone()
+	return s.hits[r.URL.Path]
 }
 
 func (s *Shop) serve(w http.ResponseWriter, r *http.Request) {
-	n := s.record(r.URL.Path)
+	n := s.record(r)
 	html := func(status int, body string) {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		w.WriteHeader(status)

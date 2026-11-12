@@ -1,0 +1,45 @@
+{
+  "$comment": "Ferguson Home runs its own storefront: a React app (Relay/Apollo, react-helmet) that is rendered on the server, so the product, price and specification markup is in the HTML while the gallery and the option widgets are rehydrated by JavaScript; window.__APOLLO_STATE__ carries the catalogue. Product URLs are /<slug>/s<productId>, a ?uid=<variantId> query picks one finish (white, white with WonderGliss, ...) and the canonical link drops that query, so product.url is always the plain product URL. Prices are US dollars: span[data-automation=price] holds the current price and sale items add a 'Was' span.strike with the regular one. Stock is plain text ('92 In Stock') and the Add to Cart button is rendered but disabled until an option is chosen, so neither tells an out-of-stock product apart: availability is not configured. The four specification tables (Dimensions and Measurements, Included Components, Characteristics and Features, Warranty and Product Information) are on the page twice, once for wide screens inside div.db-ns and once for narrow screens inside div.dn-ns; only the wide copy is read, which gives every pair once. The description is the overview paragraph of the Details tab; the two later paragraphs in it are the 'Features:' and 'Specifications:' labels of the bullet lists. Category (/<slug>/c<id>), collection and /blackfriday pages do not match. The site sits behind Akamai bot protection and answers 403 to plain clients, so fetch.user_agents lists browser strings and the fetcher then also sends the client hints and Sec-Fetch headers those browsers send. Checked against a saved (curl) Duravit Starck 3 undermount sink page on 2026-11-12.",
+  "schema_version": 1,
+  "site_id": "fergusonhome",
+  "version": "2026-11-12.2",
+  "enabled": true,
+  "domains": ["fergusonhome.com", "www.fergusonhome.com"],
+
+  "fetch": {
+    "user_agents": [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+    ]
+  },
+
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": ["$", "USD"]
+  },
+
+  "pages": {
+    "product": {
+      "match": ["^/[a-z0-9][a-z0-9-]*/s[0-9]+/?$"],
+      "root": "main:has(#pdp-buysection)",
+      "fields": {
+        "title": { "selector": "h1", "pick": "first" },
+        "image_url": { "selector": "#pdp-buysection img[src*='/product/']", "attr": "src", "pick": "first" },
+        "price_current": { "selector": "span[data-automation='price']", "pick": "first" },
+        "price_regular": { "selector": "span.strike", "pick": "first" },
+        "description": { "selector": "#overview p", "pick": "first" }
+      },
+      "specs": {
+        "group": "section#pdp-specs div.page-avoid-p",
+        "title": "h3",
+        "row": "div.db-ns tr",
+        "name": "td:first-child span.font-medium",
+        "value": "td + td"
+      }
+    }
+  },
+
+  "validation": {
+    "required_fields": ["title"]
+  }
+}

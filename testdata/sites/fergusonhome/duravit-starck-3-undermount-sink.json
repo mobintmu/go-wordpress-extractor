@@ -1,0 +1,157 @@
+{
+  "url": "https://www.fergusonhome.com/duravit-030549-0hole/s1666394?uid=3938155",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Duravit Starck 3 20-7/8\" Rectangular Ceramic Undermount Bathroom Sink with Overflow and",
+      "url": "https://www.fergusonhome.com/duravit-030549-0hole/s1666394",
+      "image_url": "https://s3.img-b.com/image/private/t_base,c_lpad,f_auto,dpr_auto,w_450,h_450/product/duravit/duravit-0305490017-3993952.jpg",
+      "description": "Starck 3, designed by Philippe Starck delivers a timeless ceramics range through clear, functional design. WaterSense® certified toilets, wall mounted sinks, and minimalist forms make this a go-to collection for accessible, everyday sophistication.",
+      "price": {
+        "current": 14099,
+        "regular": 16422,
+        "currency": "USD",
+        "raw": "$164.22 $140.99",
+        "state": "available"
+      },
+      "specs": [
+        {
+          "group": "Dimensions and Measurements",
+          "name": "Basin Length",
+          "value": "19.25 in."
+        },
+        {
+          "group": "Dimensions and Measurements",
+          "name": "Basin Width",
+          "value": "14.375 in."
+        },
+        {
+          "group": "Dimensions and Measurements",
+          "name": "Faucet Centers",
+          "value": "0 in."
+        },
+        {
+          "group": "Dimensions and Measurements",
+          "name": "Height",
+          "value": "7.125 in."
+        },
+        {
+          "group": "Dimensions and Measurements",
+          "name": "Length",
+          "value": "20.875 in."
+        },
+        {
+          "group": "Dimensions and Measurements",
+          "name": "Nominal Length",
+          "value": "21 in."
+        },
+        {
+          "group": "Dimensions and Measurements",
+          "name": "Nominal Width",
+          "value": "14 in."
+        },
+        {
+          "group": "Dimensions and Measurements",
+          "name": "Product Weight",
+          "value": "17.9 lbs."
+        },
+        {
+          "group": "Dimensions and Measurements",
+          "name": "Width",
+          "value": "14.375 in."
+        },
+        {
+          "group": "Included Components",
+          "name": "Drain Assembly Included",
+          "value": "No"
+        },
+        {
+          "group": "Included Components",
+          "name": "Faucet Included",
+          "value": "No"
+        },
+        {
+          "group": "Included Components",
+          "name": "Installation Hardware Included",
+          "value": "Yes"
+        },
+        {
+          "group": "Characteristics and Features",
+          "name": "Corner Sink",
+          "value": "No"
+        },
+        {
+          "group": "Characteristics and Features",
+          "name": "Drain Placement",
+          "value": "Center"
+        },
+        {
+          "group": "Characteristics and Features",
+          "name": "Faucet Holes",
+          "value": "0"
+        },
+        {
+          "group": "Characteristics and Features",
+          "name": "Installation Type",
+          "value": "Undermount"
+        },
+        {
+          "group": "Characteristics and Features",
+          "name": "Material",
+          "value": "Ceramic"
+        },
+        {
+          "group": "Characteristics and Features",
+          "name": "Number Of Basins",
+          "value": "1"
+        },
+        {
+          "group": "Characteristics and Features",
+          "name": "Overflow",
+          "value": "Yes"
+        },
+        {
+          "group": "Characteristics and Features",
+          "name": "Sink Shape",
+          "value": "Rectangular"
+        },
+        {
+          "group": "Characteristics and Features",
+          "name": "Theme",
+          "value": "Traditional"
+        },
+        {
+          "group": "Warranty and Product Information",
+          "name": "ADA",
+          "value": "No"
+        },
+        {
+          "group": "Warranty and Product Information",
+          "name": "Approved for Commercial Use",
+          "value": "Yes"
+        },
+        {
+          "group": "Warranty and Product Information",
+          "name": "Collection",
+          "value": "Starck 3"
+        },
+        {
+          "group": "Warranty and Product Information",
+          "name": "Commercial Warranty",
+          "value": "5 Years"
+        },
+        {
+          "group": "Warranty and Product Information",
+          "name": "Country Of Origin",
+          "value": "Germany"
+        },
+        {
+          "group": "Warranty and Product Information",
+          "name": "Manufacturer Warranty",
+          "value": "5 Years"
+        }
+      ]
+    }
+  },
+  "saved_at": "2026-11-12T15:08:30Z"
+}
