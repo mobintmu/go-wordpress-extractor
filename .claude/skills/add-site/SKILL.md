@@ -1,6 +1,6 @@
 ---
 name: add-site
-description: Add a new shop website to the product extractor. Use when the user gives a website URL, a sample product URL, and the saved .html file of that product page, and asks to add, support, onboard, or configure that site. Works only from the provided HTML, never fetches the site. Covers detecting the platform and theme, writing configs/sites/<domain>.json, checking it against the HTML, saving a fixture, and writing an end-to-end test for the sample product.
+description: Add a new shop website to the product extractor. Use when the user gives a website URL, a sample product URL, and the saved .html file of that product page, and asks to add, support, onboard, or configure that site. Works only from the provided HTML, never fetches the site. Covers detecting the platform and theme, writing configs/sites/<domain>.json (including the product specifications/features table when the page has one), checking it against the HTML, saving a fixture, and writing an end-to-end test for the sample product.
 ---
 
 # Add a new website
@@ -13,6 +13,21 @@ The user gives you three things:
 
 If any of the three is missing, ask for it. A home page alone is not enough: every selector is checked against a real product page.
 
+The HTML file must be the page of one product. A product page contains information such as:
+
+- Product name
+- SKU
+- Product description
+- Specifications
+- Dimensions
+- Price
+- Images
+- Availability
+- Reviews
+- Other product metadata
+
+The config extracts only some of it: product name (`title`), images (`image_url`), price (`price_current`, `price_regular`), description (`description`), availability (`availability`), and the specifications table (`specs`). Dimensions are read only when they appear as rows of the specifications table. SKU, reviews and other metadata have no config field, so do not add selectors for them: `additionalProperties` is false, so an unknown key fails validation.
+
 **Do not fetch the site.** No `curl`, no `wget`, no web fetch, and never run `sitectl check` or `sitectl fixture` without `--html`. Everything is done from the provided HTML file. The product URL is used only as the page's address: for the `match` regex, the request URL in `sitectl`, and the path in the end-to-end test.
 
 When you finish, these files exist and every test passes:
@@ -20,6 +35,7 @@ When you finish, these files exist and every test passes:
 | File | What it is |
 |---|---|
 | `configs/sites/<domain>.json` | The site config, usually extending a template |
+| `configs/active_sites.json` | `<domain>` added to the `active` list, so `GET /api/v1/sites` returns the new site |
 | `testdata/sites/<site_id>/<fixture>.html` + `.json` | The provided product page and its expected output |
 | `test/e2e/<site_id>_test.go` | End-to-end test that runs the real config against the saved page through the HTTP service |
 
@@ -110,6 +126,40 @@ Set `currency_words` to the words that appear on the site. Persian and Arabic di
 
 Search the page for phrases like `تماس بگیرید` and `استعلام قیمت`. Include the ones the site uses in `locale.call_for_price_words`. Make sure the word does not appear inside `price_area` on a normal priced product.
 
+### Specifications (features), when the page has them
+
+Many product pages have a specifications or features table, for example WooCommerce's "Additional information" tab, a "مشخصات فنی" or "ویژگی‌ها" tab, or a "Specifications" block. If the provided page has one, configure `pages.product.specs` so the pairs come back as `product.specs` (`[{group, name, value}]`). Specs are optional: if the page has none, skip this part and say so in the report. Missing specs never fail a request.
+
+Find them in the HTML:
+
+```bash
+grep -c 'woocommerce-product-attributes' $HTML
+grep -oE '(مشخصات|ویژگی|Specifications|Features|Additional information)[^<]{0,40}' $HTML | sort | uniq -c
+grep -oE '<(table|dl|ul)[^>]*(spec|attribute|feature|data-sheet)[^>]*>' $HTML | sort | uniq -c
+```
+
+How the selectors work (see `readSpecs` in `internal/extract/parse.go`):
+
+- `group` (optional) is searched inside `root`; `title` inside each group; `row` inside each group (or inside `root` when there is no `group`); `name` and `value` inside each row. Only the **first** `name` and `value` in a row are read.
+- Rows with an empty name or value are skipped. Text is normalized.
+- `exclude` (optional) is a selector whose elements are left out of the title, name, and value text. Use it when a name or value contains extra text, such as a hidden help tooltip (`[data-js-tooltip]` on flooranddecor.com).
+- The specs must be **inside `root`**. If the table is outside the product root, tell the user instead of widening `root`.
+
+Common markup:
+
+| Platform | `row` | `name` | `value` |
+|---|---|---|---|
+| WooCommerce / WoodMart "Additional information" | `table.woocommerce-product-attributes tr` | `th` | `td` |
+| Plain HTML table in a tab | `<table selector> tr` | `th, td:first-child` | `td:last-child` |
+| Grouped blocks (see `configs/sites/tilebar.com.json`) | set `group` and `title` too | | |
+
+Check:
+
+- Do not use `table.variations` (WooCommerce variation dropdowns). Those are choices, not specs.
+- Skip hidden rows (`:not(.no-display)`, `:not([style*="display:none"])`) if the page hides some.
+- PrestaShop's `dl.data-sheet` puts `dt.name` and `dd.value` side by side with no row element. The current `specs` config cannot read that shape. Tell the user and do not change the extractor without asking.
+- If the specs table sits inside the `description` selector, the description will also contain the spec text. Mention it; do not narrow the description without asking.
+
 ## Step 4: Write the config
 
 File: `configs/sites/<domain>.json`. Keep only what differs from the template. Always set `$comment` with the platform, theme, price unit, and the date you checked the provided page.
@@ -144,6 +194,16 @@ Rules:
 - `validation.required_fields` defaults to `["title"]`. Add more only if the user asks.
 - Never edit a template to fix one site. Override in the site file. Change a template only if the fix is correct for every site that extends it.
 
+### Add the site to the active list
+
+`configs/active_sites.json` lists the websites that `GET /api/v1/sites` returns. A site that is not in it still extracts, but is not listed. Add `<domain>` (the bare domain, the same name as the config file without `.json`) to the `active` array:
+
+- Keep the array sorted alphabetically, one domain per line, and keep the existing entries and `$comment`.
+- Do not add it twice; if it is already there, leave the file alone.
+- Lowercase, no scheme, no `www.`, no path.
+
+Check it is still valid JSON: `python3 -m json.tool configs/active_sites.json >/dev/null`. If a test counts the active sites, fix the test to not depend on the number, as in Step 8.
+
 ## Step 5: Validate and check against the HTML
 
 ```bash
@@ -160,6 +220,7 @@ go run ./cmd/sitectl check --url "<product url>" --html $HTML
 - `price.current` is the right number **in toman** (divided by 10 for rial sites). `price.regular` is set only when there is a crossed-out price.
 - `price.state` is `available` for an orderable product.
 - `description` is product text, not menu or footer text.
+- `specs`, when configured, has the same number of pairs as the page's table, with correct names, values, and groups, in page order. No variation choices, empty rows, or hidden rows.
 - `warnings` is empty, or every warning is expected (for example no description on that product).
 
 If `check` fails, it prints an error code, root cause, and the selector trace. Fix the config and run it again. Typical codes: `SELECTOR_NOT_FOUND` (wrong `root` or field selector), `NOT_PRODUCT_URL` (`match` regex), `PRICE_PARSE_FAILED` (price selector hits text without numbers; fix the selector or add a call-for-price word).
@@ -227,6 +288,8 @@ Write one `Test<SiteID>` with these subtests. Use the sample product's real path
 | Saved page matches the fixture | Serve the fixture HTML at the sample path | `Success`; `site_id`; `title`, `url`, `image_url`, `description`, `price.currency`, `price.raw`, `price.state` equal the fixture; no warnings |
 | Sample product details | Same page | Exact title, `price.current` in toman, `price.regular` (number or present-and-null), `state` |
 | Canonical URL | Same page | `product.url` starts with `https://<domain>/` (only if the page has a canonical link) |
+| Specs (only if configured) | Same page | `product.specs` equals the fixture (`reflect.DeepEqual`); a few named pairs have the right value and group; the row count is exact |
+| Specs are optional (only if configured) | Rename the specs table's class in the HTML | `Success`, `product.specs` absent, no warnings, price unchanged |
 | Sale price | Replace the price block with `<del>` regular + `<ins>` current, in the site's markup and unit | Both prices, converted to toman |
 | Out of stock | Remove the order button, add the out-of-stock element | `state = out_of_stock`, price kept |
 | Call for price | Replace the price block with one of the site's call-for-price words, remove the button | `state = call_for_price`, `current` present and `null` |
@@ -237,6 +300,8 @@ Write one `Test<SiteID>` with these subtests. Use the sample product's real path
 Build the variants by editing the **real** fixture HTML with `strings.Replace` or a regex, not by writing new HTML. That keeps the site's real markup in every case. If a replacement target is missing, call `t.Fatal`, so the test does not silently test nothing.
 
 Keep failure messages short: print the fields you checked, not `r.Raw`. Real pages have long descriptions that flood the output.
+
+For the specs subtests, copy the pattern in `test/e2e/tilebar_test.go`.
 
 The complete working example is `test/e2e/hmland_test.go`. Copy its structure and change the names, paths, prices, and markup for the new site.
 
@@ -270,7 +335,8 @@ Tell the user:
 
 - The platform and theme you found, the template used, and the price unit.
 - The result for the sample product from the provided HTML: title, price in toman (and the original number and unit on the page), state.
-- The files you added or changed, as links.
+- Specs: how many pairs were found and a few examples, or that the page has none, or why they could not be read (outside `root`, no row element).
+- The files you added or changed, as links, including `configs/active_sites.json`.
 - The test results, including the failure check from Step 7.
 - That the live site was not fetched, so robots.txt, blocking (403 or Cloudflare), and differences between the saved file and what the server sends were not checked. Suggest running `sitectl check --url "<product url>"` once without `--html` when the network allows it.
 - Anything to decide: a very long description, a selector you were unsure about, or fixtures worth adding (out-of-stock, sale, or call-for-price pages from the real site, provided as HTML files).
@@ -283,7 +349,9 @@ Tell the user:
 - [ ] Platform and template identified
 - [ ] Every selector checked against the real page
 - [ ] Price unit and call-for-price words set from the page
+- [ ] Specs table looked for; `pages.product.specs` configured and checked if the page has one
 - [ ] `configs/sites/<domain>.json` written with `$comment` and a dated `version`
+- [ ] `<domain>` added to `configs/active_sites.json` (sorted, no duplicate)
 - [ ] `sitectl validate` → 0 invalid
 - [ ] `sitectl check --html` → SUCCESS, every field correct
 - [ ] Fixture saved with `sitectl fixture --html` and its `.json` reviewed; `sitectl test` → 0 failed

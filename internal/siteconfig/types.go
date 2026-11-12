@@ -5,6 +5,7 @@ package siteconfig
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
 	"regexp"
 	"time"
 )
@@ -59,11 +60,14 @@ type Site struct {
 
 // Fetch controls how a site's pages are retrieved.
 type Fetch struct {
-	UserAgent        string `json:"user_agent"`
-	DelayMS          *int   `json:"delay_ms"`
-	TimeoutSeconds   int    `json:"timeout_seconds"`
-	Retries          *int   `json:"retries"`
-	RespectRobotsTxt *bool  `json:"respect_robots_txt"`
+	UserAgent string `json:"user_agent"`
+	// UserAgents, when set, replaces UserAgent: each fetch picks one of
+	// them at random and keeps it for its retries and redirects.
+	UserAgents       []string `json:"user_agents"`
+	DelayMS          *int     `json:"delay_ms"`
+	TimeoutSeconds   int      `json:"timeout_seconds"`
+	Retries          *int     `json:"retries"`
+	RespectRobotsTxt *bool    `json:"respect_robots_txt"`
 }
 
 // Locale holds language and currency settings.
@@ -108,6 +112,9 @@ type Specs struct {
 	Row   string `json:"row"`
 	Name  string `json:"name"`
 	Value string `json:"value"`
+	// Elements whose text is left out of titles, names, and values, such
+	// as hidden tooltips inside a name. Optional.
+	Exclude string `json:"exclude"`
 }
 
 // Field describes how one value is read inside the root element.
@@ -161,6 +168,15 @@ func (s *Site) Timeout() time.Duration { return time.Duration(s.Fetch.TimeoutSec
 
 // Retries returns how many times a transient failure is retried.
 func (s *Site) Retries() int { return *s.Fetch.Retries }
+
+// PickUserAgent returns a random entry of user_agents, or user_agent when
+// the list is empty.
+func (s *Site) PickUserAgent() string {
+	if n := len(s.Fetch.UserAgents); n > 0 {
+		return s.Fetch.UserAgents[rand.IntN(n)]
+	}
+	return s.Fetch.UserAgent
+}
 
 // RespectRobots reports whether robots.txt is honored.
 func (s *Site) RespectRobots() bool { return *s.Fetch.RespectRobotsTxt }

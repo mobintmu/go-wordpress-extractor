@@ -1,0 +1,157 @@
+{
+  "url": "https://www.flooranddecor.com/ceramic-tile/zellige-oat-high-gloss-ceramic-tile-101130060.html",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Zellige Oat High Gloss Ceramic Tile",
+      "url": "https://www.flooranddecor.com/ceramic-tile/zellige-oat-high-gloss-ceramic-tile-101130060.html",
+      "image_url": "https://i8.amplience.net/i/flooranddecor/101130060_zellige-oat-high-gloss-ceramic-tile_display?fmt=auto\u0026qlt=85",
+      "description": "Zellige Oat High Gloss Ceramic Tile by Villa is a rectangular wall tile that brings refined character to residential and commercial interiors. Its natural color, handmade look, and handcrafted look create a warm artisan surface with unique from tile to tile variation, uneven edges, and rich color variation and texture that elevate any design.\nPressed edges deliver a crisp finished line, helping each installation feel intentional, polished, and beautifully aligned on the wall.\nHigh gloss finish reflects light elegantly, adding depth and brightness while making the surface feel more luxurious and visually expansive.\nHandmade look creates an artisanal statement with unique from tile to tile variation, giving walls authentic charm and designer appeal.\nSuitable for wall only installation, this tile is ideal for feature walls, backsplashes, and fireplace surrounds that need lasting style.\nIndoor use makes it a versatile choice for bathrooms and kitchens, while shower wall safe performance adds confidence in wet areas.\nNatural color pairs effortlessly with modern and classic palettes, while the 8mm profile supports a refined finish. Zellige Oat High Gloss Ceramic Tile offers timeless beauty with artisanal character for standout interiors.",
+      "price": {
+        "current": 149,
+        "regular": null,
+        "currency": "USD",
+        "raw": "$1.49 / piece",
+        "state": "available"
+      },
+      "specs": [
+        {
+          "group": "Dimensions",
+          "name": "Size",
+          "value": "2 1/2 x 8"
+        },
+        {
+          "group": "Dimensions",
+          "name": "Product Length (inches)",
+          "value": "7.87"
+        },
+        {
+          "group": "Dimensions",
+          "name": "Product Width (inches)",
+          "value": "2.56"
+        },
+        {
+          "group": "Dimensions",
+          "name": "Product Thickness",
+          "value": "8mm"
+        },
+        {
+          "group": "Dimensions",
+          "name": "Box Length",
+          "value": "8.07"
+        },
+        {
+          "group": "Dimensions",
+          "name": "Box Width",
+          "value": "7.09"
+        },
+        {
+          "group": "Dimensions",
+          "name": "Box Weight",
+          "value": "14.53 lbs"
+        },
+        {
+          "group": "Dimensions",
+          "name": "Box Quantity",
+          "value": "38"
+        },
+        {
+          "group": "Dimensions",
+          "name": "Coverage (sqft/pc)",
+          "value": "0.14"
+        },
+        {
+          "group": "Details",
+          "name": "Material",
+          "value": "Ceramic"
+        },
+        {
+          "group": "Details",
+          "name": "Color",
+          "value": "Natural"
+        },
+        {
+          "group": "Details",
+          "name": "Edge",
+          "value": "Pressed"
+        },
+        {
+          "group": "Details",
+          "name": "Finish",
+          "value": "High Gloss"
+        },
+        {
+          "group": "Details",
+          "name": "Look",
+          "value": "Handmade Look"
+        },
+        {
+          "group": "Details",
+          "name": "Frost Resistance",
+          "value": "N/A"
+        },
+        {
+          "group": "Details",
+          "name": "Country of Origin",
+          "value": "Spain"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Suggested Grout Line Size",
+          "value": "1/16 - 3/8"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Installation Type",
+          "value": "Grout \u0026 Mortar"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Placement Location",
+          "value": "Indoor"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Installation Options",
+          "value": "Wall Only"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Shower Surface",
+          "value": "Not Suitable for Shower Floors"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Shower Surface",
+          "value": "Suitable for Shower Walls"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Pool Interior/ Submersible",
+          "value": "Not for Pool Interiors"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Pool Decking/ Wet Areas",
+          "value": "Not for Pool Decks"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Radiant Heat Compatible",
+          "value": "No"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Bathroom Floor Use",
+          "value": "Not Suitable for Bathroom Floor"
+        },
+        {
+          "group": "Installation \u0026 Warranty",
+          "name": "Fireplace Surround Use",
+          "value": "Yes"
+        }
+      ]
+    }
+  },
+  "saved_at": "2026-11-12T12:30:45Z"
+}

@@ -191,7 +191,7 @@ func (f *Fetcher) copyAttempt(page *Page, a *attempt) {
 func (f *Fetcher) collector(ctx context.Context, site *siteconfig.Site, page *Page, cur **attempt) (*colly.Collector, *http.Transport) {
 	c := colly.NewCollector(
 		colly.StdlibContext(ctx),
-		colly.UserAgent(site.Fetch.UserAgent),
+		colly.UserAgent(site.PickUserAgent()),
 		colly.AllowURLRevisit(),
 		colly.ParseHTTPErrorResponse(),
 		colly.MaxBodySize(int(f.opts.MaxBodyBytes+1)),

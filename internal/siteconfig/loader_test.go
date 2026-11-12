@@ -116,6 +116,31 @@ func TestDefaults(t *testing.T) {
 	}
 }
 
+func TestUserAgents(t *testing.T) {
+	agents := []string{"Chrome-UA", "Firefox-UA"}
+	e := load(t, fixture{"sites/s.test.json": site(t, map[string]any{"fetch": map[string]any{"user_agents": agents}}), "templates/.keep.json": "{}"})[0]
+	if e.Err != nil {
+		t.Fatal(e.Err)
+	}
+	seen := map[string]bool{}
+	for range 200 {
+		seen[e.Site.PickUserAgent()] = true
+	}
+	if !reflect.DeepEqual(seen, map[string]bool{"Chrome-UA": true, "Firefox-UA": true}) {
+		t.Fatalf("PickUserAgent picked %v, want both of %v", seen, agents)
+	}
+
+	e = load(t, fixture{"sites/s.test.json": site(t, nil), "templates/.keep.json": "{}"})[0]
+	if got := e.Site.PickUserAgent(); got != "ProductExtractor/1.0" {
+		t.Fatalf("without user_agents PickUserAgent = %q, want the default", got)
+	}
+
+	e = load(t, fixture{"sites/s.test.json": site(t, map[string]any{"fetch": map[string]any{"user_agents": []string{"ok", " "}}}), "templates/.keep.json": "{}"})[0]
+	if e.Err == nil || !strings.Contains(e.Err.Error(), "fetch.user_agents[1] must not be empty") {
+		t.Fatalf("empty user agent accepted: %v", e.Err)
+	}
+}
+
 func TestPriceUnitCurrency(t *testing.T) {
 	for unit, want := range map[string]string{"toman": "IRT", "rial": "IRT", "usd": "USD"} {
 		e := load(t, fixture{"sites/s.test.json": site(t, map[string]any{"locale": map[string]any{"price_unit": unit}}), "templates/.keep.json": "{}"})[0]
@@ -143,6 +168,7 @@ func TestInvalidSites(t *testing.T) {
 		"bad pick":                  {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1", "pick": "all"}}}}}), "pick must be"},
 		"specs without row":         {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"name": "dt", "value": "dd"}}}}), "specs.row is required"},
 		"specs bad selector":        {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"row": "li[", "name": "dt", "value": "dd"}}}}), "specs.row: invalid selector"},
+		"specs bad exclude":         {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"row": "li", "name": "dt", "value": "dd", "exclude": "[x"}}}}), "specs.exclude: invalid selector"},
 		"specs title without group": {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"title": "h3", "row": "li", "name": "dt", "value": "dd"}}}}), "specs.title needs"},
 		"bad unit":                  {site(t, map[string]any{"locale": map[string]any{"price_unit": "eur"}}), "price_unit"},
 		"bad domain":                {site(t, map[string]any{"domains": []string{"not a host"}}), "not a valid hostname"},

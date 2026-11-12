@@ -73,6 +73,8 @@ func TestClassifyMissingProductOrder(t *testing.T) {
 		{"header beats everything", "<p>" + long + "</p>", http.Header{"Cf-Mitigated": {"challenge"}}, BotProtection},
 		{"captcha markup", `<div class="g-recaptcha"></div>`, nil, BotProtection},
 		{"captcha only in CSS is a layout change", "<style>.g-recaptcha{display:none}</style><article>" + long + "</article>", nil, ""},
+		{"cloudflare challenge script", `<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1?ray=1"></script>`, nil, BotProtection},
+		{"cloudflare passive bot script is a layout change", `<script>var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=1'</script><article>` + long + "</article>", nil, ""},
 		{"empty", "", nil, EmptyPage},
 		{"almost no text", "<p>hi</p>", nil, EmptyPage},
 		{"app shell", `<div id="__next"></div><script>` + strings.Repeat("x", 6000) + `</script>`, nil, JSRenderedPage},

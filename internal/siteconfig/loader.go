@@ -271,6 +271,11 @@ func Validate(s *Site) error {
 	}
 
 	// Fetch defaults and ranges.
+	for i, ua := range s.Fetch.UserAgents {
+		if strings.TrimSpace(ua) == "" {
+			add("fetch.user_agents[%d] must not be empty", i)
+		}
+	}
 	if s.Fetch.UserAgent == "" {
 		s.Fetch.UserAgent = defaultUserAgent
 	}
@@ -342,6 +347,7 @@ func Validate(s *Site) error {
 		checkSelector("pages.product.specs.row", sp.Row, true)
 		checkSelector("pages.product.specs.name", sp.Name, true)
 		checkSelector("pages.product.specs.value", sp.Value, true)
+		checkSelector("pages.product.specs.exclude", sp.Exclude, false)
 		if sp.Title != "" && sp.Group == "" {
 			add("pages.product.specs.title needs pages.product.specs.group")
 		}

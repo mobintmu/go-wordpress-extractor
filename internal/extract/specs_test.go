@@ -50,3 +50,26 @@ func TestReadSpecs(t *testing.T) {
 		t.Errorf("missing block: got %+v, want nil", got)
 	}
 }
+
+func TestReadSpecsExclude(t *testing.T) {
+	page := `<main><div class="g"><h3>Details <i class="tip">group help</i></h3>
+		<p><span class="n">Look <span class="tip"><b>Choose from</b> many looks.</span></span><span class="v">Handmade</span></p>
+		<p><span class="n">Edge</span><span class="v">Pressed <span class="tip">help</span></span></p>
+		<p><span class="n"><span class="tip">only help</span></span><span class="v">dropped</span></p>
+	</div></main>`
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sp := siteconfig.Specs{Group: "div.g", Title: "h3", Row: "p", Name: ".n", Value: ".v", Exclude: ".tip"}
+	got := readSpecs(doc.Find("main"), sp)
+	want := []Spec{{"Details", "Look", "Handmade"}, {"Details", "Edge", "Pressed"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("exclude:\n got %+v\nwant %+v", got, want)
+	}
+
+	sp.Exclude = ""
+	if got := readSpecs(doc.Find("main"), sp); len(got) != 3 || got[0].Name != "Look Choose from many looks." {
+		t.Errorf("without exclude: got %+v", got)
+	}
+}

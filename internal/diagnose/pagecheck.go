@@ -23,7 +23,10 @@ type PageSignals struct {
 var blockMarkers = []string{
 	"cf-browser-verification",
 	"cf_chl_opt",
-	"challenge-platform",
+	// The challenge page's own scripts, not "challenge-platform" alone:
+	// normal pages behind Cloudflare Bot Management load the passive
+	// /cdn-cgi/challenge-platform/scripts/jsd/main.js (flooranddecor.com does).
+	"/cdn-cgi/challenge-platform/h/",
 	"cf-challenge",
 	"Attention Required! | Cloudflare",
 	"Just a moment...",

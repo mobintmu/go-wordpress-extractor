@@ -262,10 +262,20 @@ func readField(el *goquery.Selection, f siteconfig.Field, base *url.URL, isURL, 
 // a value are skipped.
 func readSpecs(el *goquery.Selection, sp siteconfig.Specs) []Spec {
 	var out []Spec
+	var skip map[*html.Node]bool
+	if sp.Exclude != "" {
+		skip = map[*html.Node]bool{}
+		for _, n := range el.Find(sp.Exclude).Nodes {
+			skip[n] = true
+		}
+	}
+	text := func(s *goquery.Selection) string {
+		return normalize.Text(walkText(s, false, skip))
+	}
 	read := func(group *goquery.Selection, title string) {
 		group.Find(sp.Row).Each(func(_ int, row *goquery.Selection) {
-			name := normalize.Text(nodesText(row.Find(sp.Name).First(), false))
-			value := normalize.Text(nodesText(row.Find(sp.Value).First(), false))
+			name := text(row.Find(sp.Name).First())
+			value := text(row.Find(sp.Value).First())
 			if name != "" && value != "" {
 				out = append(out, Spec{Group: title, Name: name, Value: value})
 			}
@@ -278,7 +288,7 @@ func readSpecs(el *goquery.Selection, sp siteconfig.Specs) []Spec {
 	el.Find(sp.Group).Each(func(_ int, g *goquery.Selection) {
 		title := ""
 		if sp.Title != "" {
-			title = normalize.Text(nodesText(g.Find(sp.Title).First(), false))
+			title = text(g.Find(sp.Title).First())
 		}
 		read(g, title)
 	})
@@ -314,9 +324,18 @@ var blockElements = map[string]bool{
 // every text node is separated, so adjacent inline elements like
 // <span>100</span><span>200</span> do not merge into one number.
 func nodesText(s *goquery.Selection, everyNode bool) string {
+	return walkText(s, everyNode, nil)
+}
+
+// walkText is nodesText that also leaves out the nodes in skip and
+// everything inside them.
+func walkText(s *goquery.Selection, everyNode bool, skip map[*html.Node]bool) string {
 	var b strings.Builder
 	var walk func(n *html.Node)
 	walk = func(n *html.Node) {
+		if skip[n] {
+			return
+		}
 		switch n.Type {
 		case html.TextNode:
 			b.WriteString(n.Data)
