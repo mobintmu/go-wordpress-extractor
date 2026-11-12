@@ -1,0 +1,27 @@
+{
+  "url": "https://www.emtek.com/all-products/door-hardware/front-door-entry-sets/tubular-entry-sets/select-smooth-grip-full-length-tubular-entry-set/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "SELECT L-Square Stem, Smooth Grip Full Length Tubular Entry Set",
+      "url": "https://www.emtek.com/all-products/door-hardware/front-door-entry-sets/tubular-entry-sets/select-smooth-grip-full-length-tubular-entry-set/",
+      "image_url": "https://res.cloudinary.com/emtek/image/fetch/e_trim:1/w_900,c_pad,ar_1:1/f_auto,q_auto,w_1200,c_lpad,b_rgb:ffffff,d_product-placeholder.jpg,ar_1:1,dpr_auto/https%3A%2F%2Fwww.emtek.com%2Fmedia%2Fsalsify%2Fimages%2F3t%2F3tfyrqb8sy-2026-07-20T203904Z-4914US15.LS15.SM15_EM_KO_3Q-EXT.jpg",
+      "description": "Blending style and security, Emtek SELECT Entry Handlesets offer hundreds of unique combinations, to find the perfect match for your home’s entryway.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-12T16:35:03Z"
+}
