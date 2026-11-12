@@ -1,0 +1,45 @@
+{
+  "$comment": "Salesforce Commerce Cloud (Demandware: /on/demandware.static/, Sites-int-us-Site) with Interface's own 'b-product_*' theme (US store). Prices are in US dollars and are returned in cents with currency USD. The server HTML has no price at all: div.b-product_details-price is hidden and holds 'N/A', and the real price is injected by the priceBlock label widget (the JSON-LD Offer has no price either), so price is not configured and every product returns price.state 'unknown' with a PRICE_MISSING warning. Product URLs end in the upper-case SKU (A043R.html, canonical A04302144020103XX0.html). The gallery is server-rendered as Scene7 URLs (the desktop hero close-up sits outside the product root, in l-pdp-main); the description is div.b-product_description-content; the specifications are five accordions (Product, Performance, Health + Environmental, Packaging, Technical Information: 39 rows) inside #attribute-section-wrapped. The order button is button.b-order_sample ('Order Sample' and 'Add to Cart'); the out-of-stock class m-outofstock is inferred from the m-instock class seen on the same section, and the order button is the primary stock signal. Checked against a saved (curl) Cut & Form 4.5 mm product page on 2026-11-12.",
+  "schema_version": 1,
+  "site_id": "interface",
+  "version": "2026-11-12.1",
+  "enabled": true,
+  "domains": ["shop.interface.com", "www.shop.interface.com"],
+
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": ["$", "USD"],
+    "call_for_price_words": ["Call for price", "Request a quote"]
+  },
+
+  "pages": {
+    "product": {
+      "match": ["^/US/en-US/(?:[a-z0-9.-]+/)+[A-Z0-9]{5,}\\.html$"],
+      "root": "div.l-pdp-top[data-tau=\"product_details\"]",
+      "fields": {
+        "title": { "selector": "h1.b-product_details-name", "pick": "first" },
+        "image_url": {
+          "selector": "li.b-product_gallery-item img.b-product_gallery-img",
+          "attr": ["data-src", "src"],
+          "pick": "first"
+        },
+        "description": { "selector": "div.b-product_description-content", "pick": "first" }
+      },
+      "availability": {
+        "out_of_stock": "section.b-availability.m-outofstock",
+        "order_button": "button.b-order_sample"
+      },
+      "specs": {
+        "group": "#attribute-section-wrapped section.b-product_accordion-item",
+        "title": "button.b-product_accordion-button",
+        "row": "table.b-specification tr.b-specification_item",
+        "name": "td.b-specification_label",
+        "value": "td.b-specification_column"
+      }
+    }
+  },
+
+  "validation": {
+    "required_fields": ["title"]
+  }
+}

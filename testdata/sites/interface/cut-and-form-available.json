@@ -1,0 +1,224 @@
+{
+  "url": "https://shop.interface.com/US/en-US/resilient/lvt/cut-and-form-4.5-mm/A043R.html",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Cut \u0026 Form 4.5 mm",
+      "url": "https://shop.interface.com/US/en-US/resilient/lvt/cut-and-form-4.5-mm/A043R.html",
+      "image_url": "https://s7d1.scene7.com/is/image/interfaceprd/CutAndForm_Honey_ASH:c375x375",
+      "description": "Cut \u0026 Form™ blends the timeless parquet look with a modern LVT twist. Designed for beauty. Made for flexibility. Built to last. And available in 50cm x 50cm tiles.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "group": "Product Specifications",
+          "name": "Product Number",
+          "value": "A043"
+        },
+        {
+          "group": "Product Specifications",
+          "name": "Product Construction",
+          "value": "High Performance Luxury Vinyl Tile"
+        },
+        {
+          "group": "Product Specifications",
+          "name": "Class / ASTM F1700",
+          "value": "Class III Printed Vinyl Tile"
+        },
+        {
+          "group": "Product Specifications",
+          "name": "Wear Layer Thickness",
+          "value": "22 mil"
+        },
+        {
+          "group": "Product Specifications",
+          "name": "Total Thickness",
+          "value": "4.5 mm"
+        },
+        {
+          "group": "Product Specifications",
+          "name": "Backing Class",
+          "value": "Commercial Grade"
+        },
+        {
+          "group": "Product Specifications",
+          "name": "Finish",
+          "value": "Ceramor™+"
+        },
+        {
+          "group": "Product Specifications",
+          "name": "Nominal Dimensions",
+          "value": "50 cm x 50 cm (19.69 in x 19.69 in)"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "IIC Sound Rating",
+          "value": "(ASTM E492-09) 64 IIC"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Slip Resistance",
+          "value": "(ASTM D2047) \u003e0.55 wet/dry, ADA Compliant"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Static Load Limit",
+          "value": "(ASTM F970) 1500 psi"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Flexibility",
+          "value": "(ASTM F137) Passes"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Resistance to Heat",
+          "value": "(ASTM F1514) Passes"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Resistance to Light",
+          "value": "(ASTM F1515) Passes"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Radiant Flux",
+          "value": "(ASTM E648) Class I"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Smoke Density",
+          "value": "(ASTM E662) ≤ 450"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Size \u0026 Squareness",
+          "value": "Passes, +/- 0.016 in. per linear foot"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Thickness",
+          "value": "(ASTM F386) Passes"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Dimensional Stability",
+          "value": "(ASTM F2199) Passes"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Residual Indentation",
+          "value": "(ASTM F1914) Passes"
+        },
+        {
+          "group": "Performance Specifications",
+          "name": "Resistance to Chemicals",
+          "value": "(ASTM F925) Passes"
+        },
+        {
+          "group": "Health + Environmental Specifications",
+          "name": "Embodied Carbon (Cradle to Gate)",
+          "value": "7.33 Kg CO₂/M²"
+        },
+        {
+          "group": "Health + Environmental Specifications",
+          "name": "Total Recycled Content (Pre Consumer)",
+          "value": "39%"
+        },
+        {
+          "group": "Health + Environmental Specifications",
+          "name": "Indoor Air Quality",
+          "value": "GREENGUARD Gold 4.5 mm Sound Choice FloorScore® SCS-FS-04366 CDPH 01350 compliant"
+        },
+        {
+          "group": "Health + Environmental Specifications",
+          "name": "Material Composition",
+          "value": "Free of Ortho Phthalates, Added Formaldehyde and Heavy Metal Stabilizers"
+        },
+        {
+          "group": "Health + Environmental Specifications",
+          "name": "Disclosure of Environmental Impacts",
+          "value": "Environmental Product Declaration"
+        },
+        {
+          "group": "Health + Environmental Specifications",
+          "name": "Disclosure of Product Ingredients",
+          "value": "Health Product Declaration"
+        },
+        {
+          "group": "Health + Environmental Specifications",
+          "name": "Environmental Certifications",
+          "value": "NSF/ANSI 332 - 2022 Level 1"
+        },
+        {
+          "group": "Health + Environmental Specifications",
+          "name": "LEED",
+          "value": "Contributes to IEQ: Low Emitting Materials; M\u0026R: EPD and EPR"
+        },
+        {
+          "group": "Packaging",
+          "name": "Quantity per Carton",
+          "value": "26.91 ft² (2.5 m²)"
+        },
+        {
+          "group": "Packaging",
+          "name": "Pieces per Carton",
+          "value": "10"
+        },
+        {
+          "group": "Packaging",
+          "name": "Weight Per Carton",
+          "value": "40 lb"
+        },
+        {
+          "group": "Packaging",
+          "name": "Cartons per Pallet",
+          "value": "40"
+        },
+        {
+          "group": "Packaging",
+          "name": "Pallets per Truckload",
+          "value": "20"
+        },
+        {
+          "group": "Technical Information",
+          "name": "Installation",
+          "value": "Interface LVT Installation Guidelines"
+        },
+        {
+          "group": "Technical Information",
+          "name": "Maintenance",
+          "value": "Recommended Interface LVT Maintenance Guidelines"
+        },
+        {
+          "group": "Technical Information",
+          "name": "Reclamation",
+          "value": "Recyclable through ReEntry® - Call 1.888.733.6873 (U.S.) / 1.866.398.3191 (Canada)"
+        },
+        {
+          "group": "Technical Information",
+          "name": "Warranty",
+          "value": "15 Year Standard LVT Warranty"
+        },
+        {
+          "group": "Technical Information",
+          "name": "Installation Method",
+          "value": "Monolithic Ashlar Brick"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-12T13:33:44Z"
+}
