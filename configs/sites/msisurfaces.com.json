@@ -1,0 +1,35 @@
+{
+  "$comment": "MSI Surfaces (www.msisurfaces.com) runs on ASP.NET Core (Kestrel; AutoFill.asmx web services) with a custom Bootstrap 3 storefront theme. MSI sells through dealers, so the product page carries no price at all: there is no price element, no cart button and no price in JSON-LD (only a BreadcrumbList), just 'Check Inventory' and 'Dealer Locator' links, so price is not configured and every product returns price.state 'unknown' with a PRICE_MISSING warning (price_unit usd only keeps currency USD in the response). There is no availability signal either: the only stock widget, div#divRealTimeInventory, is never rendered server-side, so availability is not configured. Product URLs are /{category}/{collection}/{color}/ and the color segment may contain spaces (for example /luxury-vinyl-planks/ashton-2/benton blonde/), hence the space in the match character class. Specs are not a table: pairs of div.col-xs-6 blocks inside div.specs-column, each with div.specs-heading (name) and div.specs-label (value), plus one div.application-info block holding the Flooring/Residential/Commercial applications; the 'Additional Resources' row only holds a disclaimer link and is dropped with specs.exclude. The description is the bullet list in div.product-highlights; the main image is the desktop gallery image (img#detail_image, CDN). Checked against a saved (curl) Briven Luxury Vinyl Plank page on 2026-11-12.",
+  "schema_version": 1,
+  "site_id": "msisurfaces",
+  "version": "2026-11-12.1",
+  "enabled": true,
+  "domains": ["msisurfaces.com", "www.msisurfaces.com"],
+
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": ["$", "USD"]
+  },
+
+  "pages": {
+    "product": {
+      "match": ["^/[a-z0-9-]+/[a-z0-9-]+/[a-z0-9% .-]+/$"],
+      "root": "div.product-page",
+      "fields": {
+        "title": { "selector": "h1.h1-header", "pick": "first" },
+        "image_url": { "selector": "div.prd-d-view img#detail_image", "attr": "src", "pick": "first" },
+        "description": { "selector": "div.product-highlights label", "pick": "first" }
+      },
+      "specs": {
+        "row": "div.specs-column > div.col-xs-6",
+        "name": ".specs-heading",
+        "value": ".specs-label",
+        "exclude": "div.spec-diclamer"
+      }
+    }
+  },
+
+  "validation": {
+    "required_fields": ["title"]
+  }
+}

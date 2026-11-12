@@ -1,0 +1,49 @@
+{
+  "url": "https://www.msisurfaces.com/luxury-vinyl-planks/ashton-2/briven/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Briven Luxury Vinyl Plank",
+      "url": "https://www.msisurfaces.com/luxury-vinyl-planks/ashton-2/briven/",
+      "image_url": "https://cdn.msisurfaces.com/images/colornames/briven.jpg",
+      "description": "Rich brown tones with warm caramel highlights create the inviting character of naturally aged hardwood. Authentic knots and wood graining add depth and dimension, while MSI's exclusive CrystaLux wear layer enhances durability. 7\" x 48\" luxury vinyl planks featuring a click-lock installation system, pre-attached backing, and no-acclimation technology. Ideal for residential and light commercial spaces, offering 100% waterproof performance with lifetime limited residential and 6-year light commercial warranties.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "name": "Primary Color(s)",
+          "value": "Brown"
+        },
+        {
+          "name": "Style",
+          "value": "Wood"
+        },
+        {
+          "name": "Wear Layer",
+          "value": "12MIL"
+        },
+        {
+          "name": "Environmental",
+          "value": "Greenguard Gold, FloorScore, USGBC LEED Certified"
+        },
+        {
+          "name": "Radiant Heating",
+          "value": "YES - See Installation Instructions for Details"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-12T14:09:24Z"
+}
