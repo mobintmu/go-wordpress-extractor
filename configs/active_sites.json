@@ -1,6 +1,7 @@
 {
   "$comment": "Websites returned by GET /api/v1/sites. Each domain must match a config in sites/; disabled or invalid configs are still left out.",
   "active": [
+    "3-form.com",
     "badomjip.com",
     "flooranddecor.com",
     "hmland.ir",

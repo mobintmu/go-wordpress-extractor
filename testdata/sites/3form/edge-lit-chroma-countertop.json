@@ -1,0 +1,27 @@
+{
+  "url": "https://www.3-form.com/products/edge-lit-chroma-countertop",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Edge-Lit Chroma Countertop",
+      "url": "https://www.3-form.com/products/edge-lit-chroma-countertop",
+      "image_url": "https://img.imageboss.me/mkt-images-prod/width/1200/hsyorploiop5anxqs8yo96f3dqb6",
+      "description": "Made with our light-loving Chroma material, this product uses an Avalanche opaque layer to conceal the base attachment, and comes with a proprietary LED illumination and controller.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-12T14:22:03Z"
+}

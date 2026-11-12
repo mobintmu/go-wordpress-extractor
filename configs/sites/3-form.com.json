@@ -1,0 +1,30 @@
+{
+  "$comment": "3form's own CMS (no framework; server-rendered <walter-block>/<miles-block>/... custom elements whose content attribute is rendered by JavaScript, with a div.crawler-copy fallback that holds the product name in an h2 and the intro in the next p). Product pages are /products/<slug>. There is no price and no stock signal anywhere: every CTA is 'Request a Quote' (or a dealer/rep contact), so price is not configured and every product returns price.state 'unknown' with a PRICE_MISSING warning. The product gallery is also client-rendered, so the only server-side image is og:image in <head> and root is the whole document, anchored on the product h2. There are no name/value specification rows on the page: the specification sections are h3 headings whose values are filled by JavaScript, so specs are not configured. /gallery/<id> pages are inspiration articles (og:type=article, no product fields) and do not match. Checked against five saved (curl) product pages on 2026-11-12.",
+  "schema_version": 1,
+  "site_id": "3form",
+  "version": "2026-11-12.1",
+  "enabled": true,
+  "domains": ["3-form.com", "www.3-form.com"],
+
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": ["$", "USD"],
+    "call_for_price_words": ["Request a Quote"]
+  },
+
+  "pages": {
+    "product": {
+      "match": ["^/products/[a-z0-9][a-z0-9-]*/?$"],
+      "root": "html:has(main walter-block div.crawler-copy > h2)",
+      "fields": {
+        "title": { "selector": "main walter-block div.crawler-copy > h2", "pick": "first" },
+        "image_url": { "selector": "meta[property='og:image']", "attr": ["content"], "pick": "first" },
+        "description": { "selector": "main walter-block div.crawler-copy > h2 + p", "pick": "first" }
+      }
+    }
+  },
+
+  "validation": {
+    "required_fields": ["title"]
+  }
+}
