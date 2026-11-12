@@ -89,19 +89,32 @@ func Prices(text string) ([]int64, error) {
 	return out, nil
 }
 
-// usdRe matches a US dollar amount: optional comma thousands groups and
-// an optional fraction of one or two digits ("1,234.50", "19.9", "420").
-var usdRe = regexp.MustCompile(`\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?`)
+// amountRe matches a dollar or euro amount: thousands groups of three digits
+// and an optional fraction of one or two digits, in either notation
+// ("1,234.50", "19.99", "1.234,50", "65,90", "420").
+var amountRe = regexp.MustCompile(`\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?`)
 
-// usdCents returns every dollar amount in text, in cents.
-func usdCents(text string) ([]int64, error) {
-	matches := usdRe.FindAllString(Digits(text), -1)
+// cents returns every amount in text, in cents. A trailing group of one or
+// two digits after a separator is the fraction, so both "1,234.50" and
+// "1.234,50" are 123450; a group of exactly three digits is a thousands
+// separator.
+func cents(text string) ([]int64, error) {
+	matches := amountRe.FindAllString(Digits(text), -1)
 	if len(matches) == 0 {
 		return nil, ErrNoPrice
 	}
 	out := make([]int64, 0, len(matches))
 	for _, m := range matches {
-		whole, frac, _ := strings.Cut(strings.ReplaceAll(m, ",", ""), ".")
+		whole, frac := m, ""
+		if i := strings.LastIndexAny(m, ".,"); i >= 0 && len(m)-i-1 <= 2 {
+			whole, frac = m[:i], m[i+1:]
+		}
+		whole = strings.Map(func(r rune) rune {
+			if r >= '0' && r <= '9' {
+				return r
+			}
+			return -1
+		}, whole)
 		frac = (frac + "00")[:2]
 		w, err := strconv.ParseInt(whole, 10, 64)
 		if err != nil || w > (math.MaxInt64-99)/100 {
@@ -115,13 +128,13 @@ func usdCents(text string) ([]int64, error) {
 
 // LowestPrice returns the lowest positive amount in text, in the output
 // unit for the site's price unit: toman for "toman" and "rial" (rial is
-// divided by 10), and cents for "usd". A text with only zeros yields
-// (nil, nil): zero is never a price.
+// divided by 10), and cents for "usd" and "eur". A text with only zeros
+// yields (nil, nil): zero is never a price.
 func LowestPrice(text, unit string) (*int64, error) {
 	var nums []int64
 	var err error
-	if unit == "usd" {
-		nums, err = usdCents(text)
+	if unit == "usd" || unit == "eur" {
+		nums, err = cents(text)
 	} else {
 		nums, err = Prices(text)
 	}

@@ -24,10 +24,11 @@ const (
 	PriceUnknown      = "unknown"
 )
 
-// Output currencies. IRT amounts are toman; USD amounts are cents.
+// Output currencies. IRT amounts are toman; USD and EUR amounts are cents.
 const (
 	CurrencyIRT = siteconfig.CurrencyIRT
 	CurrencyUSD = siteconfig.CurrencyUSD
+	CurrencyEUR = siteconfig.CurrencyEUR
 )
 
 // Warning codes.
@@ -112,12 +113,12 @@ type Spec struct {
 
 // Price holds prices as integers in the unit named by Currency.
 type Price struct {
-	// Price in toman (IRT) or cents (USD). The lowest price when the page shows a range. Null when no price is available, never 0.
+	// Price in toman (IRT), US cents (USD), or euro cents (EUR). The lowest price when the page shows a range. Null when no price is available, never 0.
 	Current *int64 `json:"current" extensions:"x-nullable" example:"400000"`
 	// Regular price before any sale, in the same unit as current. The lowest value when the page shows a range.
 	Regular *int64 `json:"regular" extensions:"x-nullable" example:"500000"`
-	// IRT means the amounts are toman; USD means the amounts are US cents.
-	Currency string `json:"currency" enums:"IRT,USD" example:"IRT"`
+	// IRT means the amounts are toman; USD and EUR mean the amounts are cents.
+	Currency string `json:"currency" enums:"IRT,USD,EUR" example:"IRT"`
 	// Text as it appeared on the page.
 	Raw string `json:"raw" example:"500,000 تومان 400,000 تومان"`
 	// out_of_stock means the product cannot be ordered.

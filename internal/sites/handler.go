@@ -17,7 +17,7 @@ type Site struct {
 	Domains  []string `json:"domains" binding:"required" example:"hmland.ir,www.hmland.ir"`
 	Version  string   `json:"version" binding:"required" example:"2026-11-11.1"`
 	Template string   `json:"template" binding:"required" example:"woodmart"`
-	Currency string   `json:"currency" binding:"required" enums:"IRT,USD" example:"IRT"`
+	Currency string   `json:"currency" binding:"required" enums:"IRT,USD,EUR" example:"IRT"`
 } //@name Site
 
 // ListResponse is the body of GET /api/v1/sites.

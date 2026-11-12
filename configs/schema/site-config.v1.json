@@ -36,7 +36,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "price_unit": { "enum": ["toman", "rial", "usd"], "default": "toman", "description": "toman and rial sites return toman (currency IRT; rial is divided by 10). usd sites return cents (currency USD)." },
+        "price_unit": { "enum": ["toman", "rial", "usd", "eur"], "default": "toman", "description": "toman and rial sites return toman (currency IRT; rial is divided by 10). usd and eur sites return cents (currency USD or EUR)." },
         "currency_words": { "type": "array", "items": { "type": "string" } },
         "call_for_price_words": { "type": "array", "items": { "type": "string" } }
       }

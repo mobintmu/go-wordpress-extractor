@@ -380,16 +380,18 @@ definitions:
   Price:
     properties:
       currency:
-        description: IRT means the amounts are toman; USD means the amounts are US
-          cents.
+        description: IRT means the amounts are toman; USD and EUR mean the amounts
+          are cents.
         enum:
         - IRT
         - USD
+        - EUR
         example: IRT
         type: string
       current:
-        description: Price in toman (IRT) or cents (USD). The lowest price when the
-          page shows a range. Null when no price is available, never 0.
+        description: Price in toman (IRT), US cents (USD), or euro cents (EUR). The
+          lowest price when the page shows a range. Null when no price is available,
+          never 0.
         example: 400000
         type: integer
         x-nullable: true
@@ -468,6 +470,7 @@ definitions:
         enum:
         - IRT
         - USD
+        - EUR
         example: IRT
         type: string
       domains:

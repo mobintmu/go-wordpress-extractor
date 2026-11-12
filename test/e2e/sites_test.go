@@ -83,6 +83,12 @@ func TestListSitesContent(t *testing.T) {
 			"fetch":   map[string]any{"delay_ms": 0, "retries": 0},
 			"locale":  map[string]any{"price_unit": "usd"},
 		},
+		"eur.test": {
+			"schema_version": 1, "site_id": "eur", "version": "u1", "extends": "woocommerce",
+			"domains": []string{"eur.test"},
+			"fetch":   map[string]any{"delay_ms": 0, "retries": 0},
+			"locale":  map[string]any{"price_unit": "eur"},
+		},
 	}})
 	r, sites := e.listSites(t, e.Key)
 
@@ -100,7 +106,7 @@ func TestListSitesContent(t *testing.T) {
 	})
 
 	t.Run("currency follows the price unit", func(t *testing.T) {
-		for id, want := range map[string]string{"rial": "IRT", "usd": "USD"} {
+		for id, want := range map[string]string{"rial": "IRT", "usd": "USD", "eur": "EUR"} {
 			if got := sites[id]["currency"]; got != want {
 				t.Errorf("%s currency = %v, want %s", id, got, want)
 			}

@@ -30,6 +30,13 @@ func TestLowestPrice(t *testing.T) {
 		{"$10.00 – $20.00", "usd", 1000, false},
 		{"$0.00", "usd", -1, false},
 		{"Call for price", "usd", -1, true},
+		{"65,90 €", "eur", 6590, false},
+		{"1.234,50 €", "eur", 123450, false},
+		{"1.250.000,00 €", "eur", 125000000, false},
+		{"ab 4,95 € – 9,90 €", "eur", 495, false},
+		{"1.234", "eur", 123400, false},
+		{"0,00 €", "eur", -1, false},
+		{"Preis auf Anfrage", "eur", -1, true},
 	}
 	for _, c := range cases {
 		got, err := LowestPrice(c.text, c.unit)

@@ -113,14 +113,18 @@ For each field decide: does the template selector match the right element? If no
 | `availability.out_of_stock` | Selector that exists **only** when the product is out of stock. |
 | `availability.order_button` | Selector that exists **only** when the product can be ordered. If configured and missing, the product is out of stock. |
 
-### Price unit: rial or toman
+### Price unit: rial, toman, usd, or eur
 
 Look at the currency text next to the price (`ریال` or `تومان`, or the `woocommerce-Price-currencySymbol` span).
 
 - `تومان` → `"price_unit": "toman"` (the default)
 - `ریال` → `"price_unit": "rial"`. Prices are divided by 10, and the output is always toman (`currency: "IRT"`).
+- `$` or `USD` → `"price_unit": "usd"`. Prices are returned in cents (`currency: "USD"`).
+- `€` or `EUR` → `"price_unit": "eur"`. Prices are returned in cents (`currency: "EUR"`), and requests carry a German `Accept-Language`.
 
-Set `currency_words` to the words that appear on the site. Persian and Arabic digits and separators (`۱۲۳٬۴۵۶`) are handled by `internal/normalize`.
+Set `currency_words` to the words that appear on the site. Persian and Arabic digits and separators (`۱۲۳٬۴۵۶`) are handled by `internal/normalize`, which also reads both `1,234.50` and `1.234,50`.
+
+A trade shop may show no price at all to an anonymous visitor, because prices need a login (see hafele.com.de, where the price block is in the HTML but `display:none`). Then leave the price fields out: the product is returned whole with `price.state` `unknown` and a `PRICE_MISSING` warning, and `price_unit` only decides the currency in the response.
 
 ### Call for price words
 

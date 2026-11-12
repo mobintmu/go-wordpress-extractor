@@ -79,6 +79,7 @@ func TestRequestHeadersWithoutClientHints(t *testing.T) {
 		name, ua, unit, language string
 	}{
 		{"firefox", firefoxMac, siteconfig.UnitUSD, acceptLanguageEnglish},
+		{"euro site", firefoxMac, siteconfig.UnitEUR, acceptLanguageGerman},
 		{"bot", botAgent, siteconfig.UnitToman, acceptLanguagePersian},
 	} {
 		h := requestHeaders(siteWithLocale(c.unit, c.ua), c.ua)

@@ -20,6 +20,7 @@ const (
 	acceptDocument = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
 
 	acceptLanguageEnglish = "en-US,en;q=0.9"
+	acceptLanguageGerman  = "de-DE,de;q=0.9,en;q=0.6"
 	acceptLanguagePersian = "fa-IR,fa;q=0.9,en;q=0.7"
 
 	// greyBrand is the deliberately meaningless brand Chrome puts first.
@@ -48,10 +49,14 @@ func requestHeaders(site *siteconfig.Site, userAgent string) http.Header {
 }
 
 // acceptLanguage prefers the language of the market the site sells to: the
-// dollar sites here are US shops, the toman and rial sites are Iranian.
+// dollar sites here are US shops, the euro site is German, and the toman and
+// rial sites are Iranian.
 func acceptLanguage(site *siteconfig.Site) string {
-	if site.Locale.Currency() == siteconfig.CurrencyUSD {
+	switch site.Locale.Currency() {
+	case siteconfig.CurrencyUSD:
 		return acceptLanguageEnglish
+	case siteconfig.CurrencyEUR:
+		return acceptLanguageGerman
 	}
 	return acceptLanguagePersian
 }

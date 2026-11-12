@@ -748,16 +748,17 @@ const docTemplate = `{
             ],
             "properties": {
                 "currency": {
-                    "description": "IRT means the amounts are toman; USD means the amounts are US cents.",
+                    "description": "IRT means the amounts are toman; USD and EUR mean the amounts are cents.",
                     "type": "string",
                     "enum": [
                         "IRT",
-                        "USD"
+                        "USD",
+                        "EUR"
                     ],
                     "example": "IRT"
                 },
                 "current": {
-                    "description": "Price in toman (IRT) or cents (USD). The lowest price when the page shows a range. Null when no price is available, never 0.",
+                    "description": "Price in toman (IRT), US cents (USD), or euro cents (EUR). The lowest price when the page shows a range. Null when no price is available, never 0.",
                     "type": "integer",
                     "x-nullable": true,
                     "example": 400000
@@ -856,7 +857,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "IRT",
-                        "USD"
+                        "USD",
+                        "EUR"
                     ],
                     "example": "IRT"
                 },

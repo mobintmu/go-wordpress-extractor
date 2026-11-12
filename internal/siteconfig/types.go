@@ -34,12 +34,14 @@ const (
 	UnitToman = "toman"
 	UnitRial  = "rial"
 	UnitUSD   = "usd"
+	UnitEUR   = "eur"
 )
 
 // Output currencies, as returned in price.currency.
 const (
 	CurrencyIRT = "IRT" // toman; used for toman and rial sites
 	CurrencyUSD = "USD" // amounts are in cents
+	CurrencyEUR = "EUR" // amounts are in cents
 )
 
 // Site is one site's merged and validated configuration.
@@ -79,8 +81,11 @@ type Locale struct {
 
 // Currency is the price.currency returned for this locale's price unit.
 func (l Locale) Currency() string {
-	if l.PriceUnit == UnitUSD {
+	switch l.PriceUnit {
+	case UnitUSD:
 		return CurrencyUSD
+	case UnitEUR:
+		return CurrencyEUR
 	}
 	return CurrencyIRT
 }

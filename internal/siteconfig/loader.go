@@ -307,9 +307,9 @@ func Validate(s *Site) error {
 		s.Locale.PriceUnit = UnitToman
 	}
 	switch s.Locale.PriceUnit {
-	case UnitToman, UnitRial, UnitUSD:
+	case UnitToman, UnitRial, UnitUSD, UnitEUR:
 	default:
-		add("locale.price_unit must be %q, %q, or %q", UnitToman, UnitRial, UnitUSD)
+		add("locale.price_unit must be %q, %q, %q, or %q", UnitToman, UnitRial, UnitUSD, UnitEUR)
 	}
 
 	// Product page.

@@ -1,0 +1,57 @@
+{
+  "url": "https://www.hafele.com.de/de/product/universalverbinder-haefele-ixconnect-uc-16-64/P-01901571/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Universalverbinder, Häfele Ixconnect UC 16/64",
+      "url": "https://www.hafele.com.de/de/product/universalverbinder-haefele-ixconnect-uc-16-64/P-01901571/",
+      "image_url": "https://www.hafele.com.de/prod-live/static/WFS/Haefele-HEX-Site/-/Haefele/de_VA/pim/images/default/ppic-04786994.jpg",
+      "description": "UC = Universal Connector (engl. für Universalverbinder) ein Beschlag für unzählige Anwendungen Reduzierung der Lagerbevorratung, da keine Unterscheidung in Rahmen- und Plattenteil einfache Montage durch Aufschieben, Einhängen, Einrasten für lösbare, verdeckt liegende Verbindungen",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "EUR",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "name": "Werkstoff",
+          "value": "Polycarbonat"
+        },
+        {
+          "name": "Farbe/Oberfläche",
+          "value": "tiefschwarz"
+        },
+        {
+          "name": "Einsatzbereich",
+          "value": "Messe- und Ladenbau: Wandverkleidungen (mit und ohne Unterkonstruktion), Holzverkleidungen, Trennwände, Sturzblenden Möbelbau: Eckverbindungen, Flächenverbindungen (bündig oder mit 8 mm Versatz), wieder lösbare Verbindungen von Blenden und Passleisten, Aufdopplung, als Möbelfuß, zur Kabelführung usw."
+        },
+        {
+          "name": "Montage",
+          "value": "zum Aufschrauben mit Spanplattenschrauben Ø 4 mm oder Euroschrauben für Bohrloch-Ø 5 mm, optional zum Einlassen, geeignet für die Befestigung im Raster 32"
+        },
+        {
+          "name": "Funktion",
+          "value": "Verbindung durch Klippfeder und Einrastpunkte, variable Anschraub- und Einrastpositionen zum Einhängen von vorne, von oben oder seitlich, 90°-, 135°- oder 180°-Winkel möglich, die Stärke der Rastverbindung kann über die Anzahl der Verbinder variiert werden"
+        },
+        {
+          "name": "Temperaturbereich",
+          "value": "-100/+135 °C"
+        },
+        {
+          "name": "Maße (L x B x H)",
+          "value": "64 x 16 x 16 mm"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-12T17:33:05Z"
+}

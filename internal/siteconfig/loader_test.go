@@ -142,7 +142,7 @@ func TestUserAgents(t *testing.T) {
 }
 
 func TestPriceUnitCurrency(t *testing.T) {
-	for unit, want := range map[string]string{"toman": "IRT", "rial": "IRT", "usd": "USD"} {
+	for unit, want := range map[string]string{"toman": "IRT", "rial": "IRT", "usd": "USD", "eur": "EUR"} {
 		e := load(t, fixture{"sites/s.test.json": site(t, map[string]any{"locale": map[string]any{"price_unit": unit}}), "templates/.keep.json": "{}"})[0]
 		if e.Err != nil {
 			t.Fatalf("%s: %v", unit, e.Err)
@@ -170,7 +170,7 @@ func TestInvalidSites(t *testing.T) {
 		"specs bad selector":        {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"row": "li[", "name": "dt", "value": "dd"}}}}), "specs.row: invalid selector"},
 		"specs bad exclude":         {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"row": "li", "name": "dt", "value": "dd", "exclude": "[x"}}}}), "specs.exclude: invalid selector"},
 		"specs title without group": {site(t, map[string]any{"pages": map[string]any{"product": map[string]any{"match": []string{"^/"}, "root": "main", "fields": map[string]any{"title": map[string]any{"selector": "h1"}}, "specs": map[string]any{"title": "h3", "row": "li", "name": "dt", "value": "dd"}}}}), "specs.title needs"},
-		"bad unit":                  {site(t, map[string]any{"locale": map[string]any{"price_unit": "eur"}}), "price_unit"},
+		"bad unit":                  {site(t, map[string]any{"locale": map[string]any{"price_unit": "gbp"}}), "price_unit"},
 		"bad domain":                {site(t, map[string]any{"domains": []string{"not a host"}}), "not a valid hostname"},
 		"bad ranges":                {site(t, map[string]any{"fetch": map[string]any{"timeout_seconds": 500, "retries": 9, "delay_ms": -1}}), "timeout_seconds"},
 	}
