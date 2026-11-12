@@ -10,23 +10,24 @@ import (
 
 	"go-wordpress/internal/config"
 	"go-wordpress/internal/server/drain"
+	"go-wordpress/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
-// NewGinEngine builds the Gin engine with request logging and panic
+// NewGinEngine builds the Gin engine with JSON request logging and panic
 // recovery. There is no timeout middleware: each extraction carries its
 // own deadline.
-func NewGinEngine(cfg *config.Config) *gin.Engine {
+func NewGinEngine(cfg *config.Config, log *zap.Logger) *gin.Engine {
 	if cfg.IsDevelopment() {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
-	r.Use(gin.Logger(), gin.Recovery())
+	r.Use(logger.GinMiddleware(log), logger.GinRecovery(log))
 	return r
 }
 

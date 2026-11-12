@@ -41,11 +41,12 @@ func AppOptions() fx.Option {
 			server.CreateHTTPServer,
 		),
 		fx.Invoke(
+			// Registered first so it stops last and flushes every other stop log.
+			logger.RegisterLoggerLifecycle,
 			apikey.RegisterReloader,
 			siteconfig.RegisterReloader,
 			server.RegisterRoutes,
 			server.StartHTTPServer,
-			logger.RegisterLoggerLifecycle,
 		),
 	)
 }
@@ -56,6 +57,7 @@ func NewApp(extra ...fx.Option) *fx.App {
 	opts := []fx.Option{
 		AppOptions(),
 		fx.StopTimeout(config.MaxRequestDurationFromEnv() + 30*time.Second),
+		fx.WithLogger(logger.FxLogger),
 	}
 	return fx.New(append(opts, extra...)...)
 }

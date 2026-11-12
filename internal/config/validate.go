@@ -2,11 +2,12 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // MinPepperLength is the minimum length of APP_API_KEY_PEPPER.
@@ -145,14 +146,14 @@ func validateProxy(cfg *Config) error {
 
 func validateWarnings(cfg *Config) {
 	if (cfg.OpsUser == "") != (cfg.OpsPasswordHash == "") {
-		log.Printf("⚠️  WARNING: set both APP_OPS_USER and APP_OPS_PASSWORD_HASH. Swagger UI stays off")
+		zap.L().Warn("set both APP_OPS_USER and APP_OPS_PASSWORD_HASH; Swagger UI stays off")
 	}
 	if cfg.IsProduction() && !cfg.TLSEnabled() {
-		log.Printf("⚠️  WARNING: serving plain HTTP in production. API keys travel in a header; use this only on a private network")
+		zap.L().Warn("serving plain HTTP in production; API keys travel in a header, use this only on a private network")
 	}
 	if cfg.IsProduction() {
 		if st, err := os.Stat(cfg.APIKeysFile); err == nil && st.Mode().Perm()&0o077 != 0 {
-			log.Printf("⚠️  WARNING: %s has permission %o; expected 0600", cfg.APIKeysFile, st.Mode().Perm())
+			zap.L().Warn("API keys file permissions too open; expected 0600", zap.String("file", cfg.APIKeysFile), zap.String("perm", fmt.Sprintf("%o", st.Mode().Perm())))
 		}
 	}
 }

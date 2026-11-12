@@ -2,8 +2,12 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"go-wordpress/internal/app"
 	"go-wordpress/internal/config"
+	"go-wordpress/pkg/logger"
 )
 
 //	@title			Product Extraction API
@@ -26,6 +30,11 @@ import (
 //	@description				Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger UI.
 
 func main() {
+	// Set up the JSON logger before anything else logs.
+	if _, err := logger.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "cannot start logger: %v\n", err)
+		os.Exit(1)
+	}
 	config.LoadEnv()
 	app.NewApp().Run()
 }

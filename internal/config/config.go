@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
+
+	"go.uber.org/zap"
 )
 
 // Config holds every setting the service reads from the environment.
@@ -75,8 +76,10 @@ func NewConfig() (*Config, error) {
 	if u := cfg.ProxyURL(); u != nil {
 		proxy = u.String()
 	}
-	log.Printf("✅ Loaded config: env=%s port=%d sites=%s keys=%s tls=%t ops=%t proxy=%s",
-		cfg.ENV, cfg.HTTPPort, cfg.SiteConfigDir, cfg.APIKeysFile, cfg.TLSEnabled(), cfg.OpsEnabled(), proxy)
+	zap.L().Info("config loaded",
+		zap.String("env", cfg.ENV), zap.Int("port", cfg.HTTPPort), zap.String("sites", cfg.SiteConfigDir),
+		zap.String("keys", cfg.APIKeysFile), zap.Bool("tls", cfg.TLSEnabled()), zap.Bool("ops", cfg.OpsEnabled()),
+		zap.String("proxy", proxy))
 
 	return cfg, nil
 }
@@ -184,7 +187,7 @@ func LoadEnv() {
 	if env == "" {
 		env = "development"
 	}
-	log.Printf("📋 Loaded environment: %s\n", env)
+	zap.L().Info("environment selected", zap.String("env", env))
 
 	paths := []string{
 		fmt.Sprintf(".env.%s", env),
@@ -199,11 +202,11 @@ func LoadEnv() {
 			continue
 		}
 		applyEnvFile(values)
-		log.Printf("✅ Loaded: %s\n", path)
+		zap.L().Info("env file loaded", zap.String("path", path))
 		return
 	}
 
-	log.Printf("⚠️  No .env found\n")
+	zap.L().Warn("no .env file found")
 }
 
 func applyEnvFile(values map[string]string) {

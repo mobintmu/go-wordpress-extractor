@@ -3,7 +3,6 @@ package server
 import (
 	"crypto/sha256"
 	"crypto/subtle"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -21,6 +20,8 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+
+	"go.uber.org/zap"
 )
 
 // RegisterRoutes wires every endpoint:
@@ -59,10 +60,11 @@ func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, s
 		docs.SwaggerInfo.Schemes = []string{"https"}
 	}
 	if !cfg.OpsEnabled() {
-		log.Printf("ℹ️  Swagger UI is off (it returns 404). Set APP_OPS_USER and APP_OPS_PASSWORD_HASH to turn it on.")
+		zap.L().Info("Swagger UI is off (it returns 404); set APP_OPS_USER and APP_OPS_PASSWORD_HASH to turn it on")
 	} else {
-		log.Printf("✅ Swagger UI: /swagger/index.html (operator login required, user %q, pepper fingerprint %s)",
-			cfg.OpsUser, apikey.PepperFingerprint(cfg.APIKeyPepper))
+		zap.L().Info("Swagger UI enabled; operator login required",
+			zap.String("path", "/swagger/index.html"), zap.String("user", cfg.OpsUser),
+			zap.String("pepper_fingerprint", apikey.PepperFingerprint(cfg.APIKeyPepper)))
 	}
 	ops := engine.Group("/", OpsAuth(cfg))
 	ops.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -179,10 +181,10 @@ func OpsAuth(cfg *config.Config) gin.HandlerFunc {
 			case !ok:
 				// No credentials yet: the browser shows its login prompt.
 			case !userOK:
-				log.Printf("operator login failed: unknown user %q", user)
+				zap.L().Warn("operator login failed: unknown user", zap.String("user", user))
 			default:
-				log.Printf("operator login failed for %q: wrong password, or the hash was made with a different APP_API_KEY_PEPPER (server fingerprint %s)",
-					user, apikey.PepperFingerprint(cfg.APIKeyPepper))
+				zap.L().Warn("operator login failed: wrong password, or the hash was made with a different APP_API_KEY_PEPPER",
+					zap.String("user", user), zap.String("pepper_fingerprint", apikey.PepperFingerprint(cfg.APIKeyPepper)))
 			}
 			c.Header("WWW-Authenticate", `Basic realm="operations", charset="UTF-8"`)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, extract.APIError{Code: "UNAUTHORIZED", Message: "Operator credentials are required."})
