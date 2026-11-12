@@ -271,6 +271,13 @@ func Validate(s *Site) error {
 	}
 
 	// Fetch defaults and ranges.
+	switch s.Fetch.Engine {
+	case "":
+		s.Fetch.Engine = EngineHTTP
+	case EngineHTTP, EngineBrowser:
+	default:
+		add("fetch.engine %q must be %q or %q", s.Fetch.Engine, EngineHTTP, EngineBrowser)
+	}
 	for i, ua := range s.Fetch.UserAgents {
 		if strings.TrimSpace(ua) == "" {
 			add("fetch.user_agents[%d] must not be empty", i)

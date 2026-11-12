@@ -17,6 +17,7 @@ import (
 	"go-wordpress/pkg/logger"
 
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 // AppOptions lists every component. Fx builds them and runs start and
@@ -33,6 +34,8 @@ func AppOptions() fx.Option {
 			siteconfig.NewRegistry,
 			fetchOptions,
 			fetch.New,
+			newBrowserFetcher,
+			newFetchRouter,
 			extract.NewService,
 			extract.NewHandler,
 			sites.NewHandler,
@@ -67,4 +70,30 @@ func fetchOptions(cfg *config.Config) fetch.Options {
 	o := fetch.DefaultOptions()
 	o.Proxy = cfg.ProxyURL()
 	return o
+}
+
+// newBrowserFetcher builds the "browser" fetch engine when
+// APP_BROWSER_ENABLED is on, and returns nil otherwise. Chrome is launched
+// at startup, so a missing driver or browser stops the app with a clear
+// error instead of failing requests later.
+func newBrowserFetcher(lc fx.Lifecycle, cfg *config.Config, opts fetch.Options, lim *limiter.Limiter, log *zap.Logger) *fetch.BrowserFetcher {
+	if !cfg.BrowserEnabled {
+		return nil
+	}
+	b := fetch.NewBrowserFetcher(opts, fetch.BrowserOptions{
+		Channel:  cfg.BrowserChannel,
+		Headless: cfg.BrowserHeadless,
+		MaxPages: cfg.BrowserMaxPages,
+	}, lim, log)
+	lc.Append(fx.Hook{
+		OnStart: b.Start,
+		OnStop:  b.Stop,
+	})
+	return b
+}
+
+// newFetchRouter registers the fetch engines (strategies). The router picks
+// one per request from the site config's fetch.engine.
+func newFetchRouter(httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher) extract.Fetcher {
+	return fetch.NewRouter(httpEngine, browser)
 }

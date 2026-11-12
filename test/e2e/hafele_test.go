@@ -34,6 +34,8 @@ func hafeleSite(t *testing.T) map[string]any {
 	must(t, json.Unmarshal(raw, &cfg))
 	domains, _ := cfg["domains"].([]any)
 	cfg["domains"] = append(domains, hostHafele)
+	// The live site uses the browser engine; the saved page is static, so the
+	// suite fetches it with the default http engine.
 	cfg["fetch"] = map[string]any{"delay_ms": 0, "timeout_seconds": 5, "retries": 2, "respect_robots_txt": true}
 	return cfg
 }
@@ -130,7 +132,7 @@ func TestHafele(t *testing.T) {
 	t.Run("saved page matches the fixture", func(t *testing.T) {
 		r := e.Post("/api/v1/extract", e.Key, map[string]any{"url": productURL(hafelePath), "request_id": "hafele-1"})
 		r.Success(t)
-		if r.Str("site_id") != "hafele" || r.Str("request_id") != "hafele-1" || r.Str("config_version") != "2026-11-12.1" {
+		if r.Str("site_id") != "hafele" || r.Str("request_id") != "hafele-1" || r.Str("config_version") != "2026-11-12.3" {
 			t.Errorf("site_id/request_id/config_version = %q/%q/%q",
 				r.Str("site_id"), r.Str("request_id"), r.Str("config_version"))
 		}

@@ -60,8 +60,18 @@ type Site struct {
 	compiledMatch []*regexp.Regexp
 }
 
+// Fetch engines a site config can select with fetch.engine.
+const (
+	// EngineHTTP fetches with Colly over Go's HTTP client. It is the default.
+	EngineHTTP = "http"
+	// EngineBrowser loads the page in a real Chrome browser through Playwright.
+	EngineBrowser = "browser"
+)
+
 // Fetch controls how a site's pages are retrieved.
 type Fetch struct {
+	// Engine selects the fetch strategy: "http" (default) or "browser".
+	Engine    string `json:"engine"`
 	UserAgent string `json:"user_agent"`
 	// UserAgents, when set, replaces UserAgent: each fetch picks one of
 	// them at random and keeps it for its retries and redirects.

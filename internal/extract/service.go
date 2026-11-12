@@ -22,7 +22,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// Fetcher retrieves one page. *fetch.Fetcher implements it.
+// Fetcher retrieves one page. *fetch.Router implements it by delegating to
+// the fetch engine (strategy) the site config selects; each engine
+// (*fetch.Fetcher, *fetch.BrowserFetcher) implements it too.
 type Fetcher interface {
 	Fetch(ctx context.Context, site *siteconfig.Site, target *url.URL) (*fetch.Page, *diagnose.Failure)
 }
@@ -42,7 +44,7 @@ type Service struct {
 }
 
 // NewService builds the pipeline.
-func NewService(reg *siteconfig.Registry, f *fetch.Fetcher, lim *limiter.Limiter, log *zap.Logger) *Service {
+func NewService(reg *siteconfig.Registry, f Fetcher, lim *limiter.Limiter, log *zap.Logger) *Service {
 	return &Service{sites: reg, fetcher: f, limiter: lim, log: log, now: time.Now}
 }
 

@@ -224,3 +224,19 @@ func TestAttrList(t *testing.T) {
 		t.Fatal("number attr accepted")
 	}
 }
+
+func TestFetchEngine(t *testing.T) {
+	keep := "templates/.keep.json"
+	e := load(t, fixture{"sites/s.test.json": site(t, nil), keep: "{}"})[0]
+	if e.Err != nil || e.Site.Fetch.Engine != EngineHTTP {
+		t.Fatalf("default engine = %q (err %v), want %q", e.Site.Fetch.Engine, e.Err, EngineHTTP)
+	}
+	e = load(t, fixture{"sites/s.test.json": site(t, map[string]any{"fetch": map[string]any{"engine": "browser"}}), keep: "{}"})[0]
+	if e.Err != nil || e.Site.Fetch.Engine != EngineBrowser {
+		t.Fatalf("engine = %q (err %v), want %q", e.Site.Fetch.Engine, e.Err, EngineBrowser)
+	}
+	e = load(t, fixture{"sites/s.test.json": site(t, map[string]any{"fetch": map[string]any{"engine": "curl"}}), keep: "{}"})[0]
+	if e.Err == nil || !strings.Contains(e.Err.Error(), "engine") {
+		t.Fatalf("unknown engine accepted: %v", e.Err)
+	}
+}

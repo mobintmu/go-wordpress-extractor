@@ -24,6 +24,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "engine": { "enum": ["http", "browser"], "default": "http", "description": "Fetch strategy: http fetches with Colly over Go's HTTP client; browser loads the page in real Chrome through Playwright (needs APP_BROWSER_ENABLED on the instance)." },
         "user_agent": { "type": "string", "default": "ProductExtractor/1.0" },
         "user_agents": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Replaces user_agent when set: each fetch picks one at random and keeps it for its retries and redirects." },
         "delay_ms": { "type": "integer", "minimum": 0, "maximum": 60000, "default": 1000 },

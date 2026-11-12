@@ -274,7 +274,15 @@ func (c CLI) live(dir, rawURL, htmlPath string) (*extract.Response, *fetch.Page,
 		if opts.Proxy, err = config.ProxyURLFromEnv(); err != nil {
 			return nil, nil, err
 		}
-		f = fetch.New(opts, lim, zap.NewNop())
+		// Both strategies are registered; the browser starts only if the
+		// site config selects fetch.engine "browser".
+		bopts := fetch.DefaultBrowserOptions()
+		if ch := os.Getenv("APP_BROWSER_CHANNEL"); ch != "" {
+			bopts.Channel = ch
+		}
+		browser := fetch.NewBrowserFetcher(opts, bopts, lim, zap.NewNop())
+		defer func() { _ = browser.Stop(context.Background()) }()
+		f = fetch.NewRouter(fetch.New(opts, lim, zap.NewNop()), browser)
 	}
 	rec := &recorder{next: f}
 	svc := extract.NewServiceWith(staticSnapshot{siteconfig.NewSnapshot(entries)}, rec, lim, zap.NewNop())

@@ -61,6 +61,7 @@ const (
 	PriceParseFailed     = "PRICE_PARSE_FAILED"
 	DeadlineExceeded     = "DEADLINE_EXCEEDED"
 	InternalError        = "INTERNAL_ERROR"
+	EngineUnavailable    = "ENGINE_UNAVAILABLE"
 )
 
 type codeInfo struct {
@@ -94,11 +95,12 @@ var codes = map[string]codeInfo{
 	UnsupportedContent:   {StageFetch, OwnerSourceSite, false, "The response is not HTML.", "Send a URL that serves an HTML product page."},
 	ResponseTooLarge:     {StageFetch, OwnerService, false, "The response exceeded the size limit.", "The page is larger than the service accepts."},
 	BotProtection:        {StagePageCheck, OwnerSourceSite, false, "The target site returned an anti-bot challenge.", "Ask the site owner for access or review the site's fetch settings."},
-	JSRenderedPage:       {StagePageCheck, OwnerSiteConfig, false, "The page is rendered by JavaScript and has no product markup.", "This site needs a headless browser, which the service does not support yet."},
+	JSRenderedPage:       {StagePageCheck, OwnerSiteConfig, false, "The page is rendered by JavaScript and has no product markup.", "Set fetch.engine to \"browser\" in the site config so the page is rendered in Chrome."},
 	EmptyPage:            {StagePageCheck, OwnerSourceSite, true, "The page is empty.", "Retry later."},
 	SelectorNotFound:     {StageExtract, OwnerSiteConfig, false, "The product block was not found on the page.", "Update pages.product.root in the site config."},
 	RequiredFieldMissing: {StageValidate, OwnerSiteConfig, false, "A required field was not found.", "Update the field's selector in the site config."},
 	PriceParseFailed:     {StageNormalize, OwnerSiteConfig, false, "Price text was found but could not be parsed.", "Update the price selectors or locale words in the site config."},
+	EngineUnavailable:    {StageFetch, OwnerService, true, "The fetch engine the site config selects is not available on this instance.", "Enable the engine on this instance (APP_BROWSER_ENABLED=true for \"browser\"), or retry on an instance that has it."},
 	DeadlineExceeded:     {"", OwnerService, true, "The request reached its time limit.", "Retry later."},
 	InternalError:        {"", OwnerService, true, "An unexpected error occurred in the service.", "Retry; report the request_id if it persists."},
 }
@@ -110,7 +112,7 @@ type Failure struct {
 	// DNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,
 	// SOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,
 	// UNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,
-	// REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR.
+	// REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE.
 	Code            string `json:"code" binding:"required" example:"SELECTOR_NOT_FOUND"`
 	Stage           Stage  `json:"stage" binding:"required" enums:"config,fetch,page_check,extract,normalize,validate" swaggertype:"string" example:"extract"`
 	Owner           Owner  `json:"owner" binding:"required" enums:"client,site_config,source_site,service" swaggertype:"string" example:"site_config"`

@@ -46,6 +46,12 @@ APP_API_KEYS_FILE=secrets/api_keys.json \
 # 2. Start the service
 go run ./cmd/server
 
+
+# 2.2 
+sudo apt-get install -y xvfb
+xvfb-run -a go run ./cmd/server
+
+
 # 3. Call it
 curl --max-time 190 -X POST http://127.0.0.1:4000/api/v1/extract \
   -H "X-API-Key: gwp_..." -H 'Content-Type: application/json' \
@@ -332,6 +338,94 @@ func pick(nodes []Node, site string) *Node {
 | `APP_MAX_CONCURRENT_PER_SITE` | `1` | Per-site capacity |
 | `APP_RELOAD_INTERVAL` | `30s` | How often config and key files are checked |
 | `APP_PROXY_HOST`, `APP_PROXY_PORT` | none (direct) | HTTP proxy for every page fetch, for example `127.0.0.1` and `3067`. Destinations are still checked for blocked ports and private addresses before being sent to the proxy. `sitectl` reads the same variables |
+| `APP_BROWSER_ENABLED` | `false` | Turn on the `browser` fetch engine (real Chrome via Playwright) for sites with `"fetch": {"engine": "browser"}`. Chrome launches at startup; the app does not start if it cannot. Without it, such sites fail with `ENGINE_UNAVAILABLE` |
+| `APP_BROWSER_CHANNEL` | `chromium` | `chromium` (Playwright's bundled build) or `chrome` (installed Google Chrome). `sitectl` reads it too |
+| `APP_BROWSER_HEADLESS` | `true` | Run Chrome without a window; `false` needs a display (or Xvfb) |
+| `APP_BROWSER_MAX_PAGES` | `3` | Browser pages open at once per instance (each uses 100-300 MB) |
+| `PLAYWRIGHT_DRIVER_PATH` | user cache | Where the Playwright driver (node + `playwright-core` 1.57.0) is installed |
+
+### Fetch engines
+
+Each site picks how its pages are fetched with `fetch.engine` in its config (Strategy pattern: `fetch.Engine` is the interface, `fetch.Router` picks the engine per request):
+
+| `fetch.engine` | Engine | Use for |
+|---|---|---|
+| `http` (default) | `fetch.Fetcher`: Colly over Go's HTTP client | Server-rendered pages. Fast (under 1 s), small memory |
+| `browser` | `fetch.BrowserFetcher`: Playwright drives Chrome | Pages rendered by JavaScript (`JS_RENDERED_PAGE`) or behind a challenge that only needs a real browser. 3-10 s per page |
+
+All of Chrome's traffic goes through an in-process egress proxy that dials with the same SSRF checks and outbound proxy as the `http` engine. Build the image with Chrome with `docker build --target runtime-browser .`. See [md/browser-engine.md](md/browser-engine.md) for how to run, start and stop it, and [md/real-chrome-playwright.md](md/real-chrome-playwright.md) for the design. For local development without a Chrome window on screen, start the server with `./deploy.sh dev` (`xvfb-run -a go run ./cmd/server`).
+
+### Installing Playwright (browser engine)
+
+The browser engine needs three things on the machine that runs the server: Node.js (it runs the Playwright driver), the Playwright driver at the version `go.mod` pins (`playwright-go v0.5700.1` = Playwright **1.57.0**), and a browser build that matches that driver. Servers without a site that sets `"engine": "browser"` need none of this.
+
+Do not use `go run github.com/playwright-community/playwright-go/cmd/playwright install`: the driver zip it downloads is no longer hosted (HTTP 404), and newer playwright-go releases (`@latest`) cannot be used because their `go.mod` declares a different module path. Install the driver from npm instead, as below.
+
+If the machine reaches the internet through a proxy, export it first. Node.js, npm, Go and the browser download all use it:
+
+```bash
+export https_proxy=http://127.0.0.1:3067
+export http_proxy=http://127.0.0.1:3067
+```
+
+**On a server, with deploy.sh (recommended).** `install` asks whether to enable the browser engine; on an existing server use `browser enable`. It installs Node.js, the driver and Chromium into `/opt/go-wordpress-extractor-playwright`, installs Chromium's system libraries (Debian/Ubuntu), writes `APP_BROWSER_*`, `PLAYWRIGHT_DRIVER_PATH` and `PLAYWRIGHT_BROWSERS_PATH` into `.env.production`, and checks that the browser starts as the service user. `-E` keeps the proxy variables through sudo.
+
+```bash
+sudo -E ./deploy.sh browser enable    # install Playwright + Chromium and turn the engine on
+sudo -E ./deploy.sh restart           # apply
+sudo ./deploy.sh browser              # status: enabled?, driver version, installed browsers
+sudo -E ./deploy.sh browser install   # reinstall or update without changing settings
+sudo ./deploy.sh browser disable      # turn off (files stay)
+```
+
+**Server without a screen (Xvfb).** Sites behind a Cloudflare challenge, such as hafele.com.de, only pass with Chrome in a window: headless Chrome stays on "Just a moment...". On a server, that window is drawn on Xvfb, a virtual display in memory (no monitor or GPU, about 20-50 MB RAM). `browser enable` asks "Run Chrome in a window on Xvfb?" (default yes). With yes it sets `APP_BROWSER_HEADLESS=false`, installs Xvfb (`apt-get install -y xvfb`), checks that Chrome starts in a window on a temporary display, and adds a second systemd unit, `go-wordpress-extractor-xvfb`, that runs the display `:99`. The server unit requires it and gets `DISPLAY=:99`. Xvfb runs as its own unit instead of `xvfb-run` around the server, so a stop still sends SIGTERM to the server and running requests finish. To do the same by hand:
+
+```bash
+sudo apt-get install -y xvfb
+# .env.production
+APP_BROWSER_ENABLED=true
+APP_BROWSER_CHANNEL=chrome
+APP_BROWSER_HEADLESS=false
+# then let deploy.sh write both units and restart
+sudo ./deploy.sh service && sudo ./deploy.sh restart
+sudo ./deploy.sh browser              # shows "window: Chrome runs in a window on Xvfb :99 (service ...: active)"
+```
+
+`sudo ./deploy.sh run` (foreground, no systemd) starts the server under `xvfb-run` when there is no display. Cloudflare also scores the server's IP address: a data-center address can still be challenged where a home connection passes, so test the site from the server itself.
+
+`sudo -E ./deploy.sh update` also updates the driver when `go.mod` moves to a new playwright-go version. Use `APP_BROWSER_CHANNEL=chrome` (asked by `browser enable`) to install and use Google Chrome instead of Playwright's Chromium (x86_64 only).
+
+**On a development machine, by hand.** Needs Node.js 18 or newer (`node --version`). This puts the driver where playwright-go looks by default, so tests and `go run ./cmd/server` find it without extra variables:
+
+```bash
+PW_VERSION=1.57.0
+D=~/.cache/ms-playwright-go/$PW_VERSION
+mkdir -p "$D" && cd "$(mktemp -d)"
+npm pack "playwright-core@$PW_VERSION" --silent
+tar -xzf "playwright-core-$PW_VERSION.tgz" -C "$D"
+ln -sf "$(command -v node)" "$D/node"
+"$D/node" "$D/package/cli.js" --version                          # Version 1.57.0
+"$D/node" "$D/package/cli.js" install chromium chromium-headless-shell
+sudo "$D/node" "$D/package/cli.js" install-deps chromium         # system libraries, Debian/Ubuntu
+cd -
+```
+
+Then run the server with the engine on, and the browser tests (they skip when Playwright is missing):
+
+```bash
+APP_BROWSER_ENABLED=true go run ./cmd/server
+go test ./internal/fetch/ ./test/e2e/ -run 'Browser|Gate|Router|Engine' -v
+```
+
+With Google Chrome already installed you can skip the Chromium download and set `APP_BROWSER_CHANNEL=chrome`.
+
+**In Docker.** `docker build --target runtime-browser -t go-wordpress-extractor:browser .` builds an image with all of the above. Behind a proxy on the host:
+
+```bash
+docker build --network=host \
+  --build-arg https_proxy=$https_proxy --build-arg http_proxy=$http_proxy \
+  --target runtime-browser -t go-wordpress-extractor:browser .
+```
 
 ## Swagger
 

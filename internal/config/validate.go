@@ -26,6 +26,7 @@ func ValidateConfig(cfg *Config) error {
 		validateDurations,
 		validateConcurrency,
 		validateProxy,
+		validateBrowser,
 	}
 	for _, check := range checks {
 		if err := check(cfg); err != nil {
@@ -156,4 +157,19 @@ func validateWarnings(cfg *Config) {
 			zap.L().Warn("API keys file permissions too open; expected 0600", zap.String("file", cfg.APIKeysFile), zap.String("perm", fmt.Sprintf("%o", st.Mode().Perm())))
 		}
 	}
+}
+
+func validateBrowser(cfg *Config) error {
+	if !cfg.BrowserEnabled {
+		return nil
+	}
+	switch cfg.BrowserChannel {
+	case "chromium", "chrome", "chrome-beta", "msedge":
+	default:
+		return fmt.Errorf("invalid BROWSER_CHANNEL: %q. Expected chromium or chrome. Set APP_BROWSER_CHANNEL", cfg.BrowserChannel)
+	}
+	if cfg.BrowserMaxPages < 1 || cfg.BrowserMaxPages > 50 {
+		return fmt.Errorf("invalid BROWSER_MAX_PAGES: %d. Expected value between 1 and 50. Set APP_BROWSER_MAX_PAGES", cfg.BrowserMaxPages)
+	}
+	return nil
 }

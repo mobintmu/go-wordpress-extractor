@@ -45,6 +45,17 @@ type Config struct {
 	// ReloadInterval is how often site configs and the API key file are
 	// checked for changes.
 	ReloadInterval time.Duration
+
+	// BrowserEnabled turns on the "browser" fetch engine (real Chrome via
+	// Playwright) for sites whose config sets fetch.engine to "browser".
+	BrowserEnabled bool
+	// BrowserChannel is "chromium" (Playwright's bundled build) or "chrome"
+	// (the installed Google Chrome).
+	BrowserChannel string
+	// BrowserHeadless runs Chrome without a window.
+	BrowserHeadless bool
+	// BrowserMaxPages caps the browser pages open at once on this instance.
+	BrowserMaxPages int
 }
 
 const (
@@ -57,6 +68,8 @@ const (
 	DefaultMaxConcurrentRequests = 20
 	DefaultMaxConcurrentPerSite  = 1
 	DefaultReloadInterval        = 30 * time.Second
+	DefaultBrowserChannel        = "chromium"
+	DefaultBrowserMaxPages       = 3
 )
 
 func newViper() *viper.Viper {
@@ -79,7 +92,7 @@ func NewConfig() (*Config, error) {
 	zap.L().Info("config loaded",
 		zap.String("env", cfg.ENV), zap.Int("port", cfg.HTTPPort), zap.String("sites", cfg.SiteConfigDir),
 		zap.String("keys", cfg.APIKeysFile), zap.Bool("tls", cfg.TLSEnabled()), zap.Bool("ops", cfg.OpsEnabled()),
-		zap.String("proxy", proxy))
+		zap.String("proxy", proxy), zap.Bool("browser", cfg.BrowserEnabled))
 
 	return cfg, nil
 }
@@ -92,6 +105,10 @@ func buildConfig(v *viper.Viper) *Config {
 	v.SetDefault("MAX_CONCURRENT_REQUESTS", DefaultMaxConcurrentRequests)
 	v.SetDefault("MAX_CONCURRENT_PER_SITE", DefaultMaxConcurrentPerSite)
 	v.SetDefault("RELOAD_INTERVAL", DefaultReloadInterval)
+	v.SetDefault("BROWSER_ENABLED", false)
+	v.SetDefault("BROWSER_CHANNEL", DefaultBrowserChannel)
+	v.SetDefault("BROWSER_HEADLESS", true)
+	v.SetDefault("BROWSER_MAX_PAGES", DefaultBrowserMaxPages)
 
 	cfg := &Config{
 		ENV:                   v.GetString("ENV"),
@@ -111,6 +128,10 @@ func buildConfig(v *viper.Viper) *Config {
 		ReloadInterval:        v.GetDuration("RELOAD_INTERVAL"),
 		ProxyHost:             v.GetString("PROXY_HOST"),
 		ProxyPort:             v.GetInt("PROXY_PORT"),
+		BrowserEnabled:        v.GetBool("BROWSER_ENABLED"),
+		BrowserChannel:        v.GetString("BROWSER_CHANNEL"),
+		BrowserHeadless:       v.GetBool("BROWSER_HEADLESS"),
+		BrowserMaxPages:       v.GetInt("BROWSER_MAX_PAGES"),
 	}
 	if cfg.APIKeysFile == "" {
 		cfg.APIKeysFile = DefaultAPIKeysFile(cfg.ENV)

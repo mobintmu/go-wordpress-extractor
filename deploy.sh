@@ -13,6 +13,13 @@
 # Optional environment overrides:
 #   GO_VERSION=go1.27.4     install this Go version instead of the latest
 #   GOPROXY=...             module proxy used while building (passed to go)
+#   NODE_MAJOR=22           Node.js major version for the browser engine
+#   PLAYWRIGHT_VERSION=1.57.0  Playwright driver version (default: read from go.mod)
+#
+# Behind an HTTP proxy, export it and keep it through sudo; Go, Node, npm and
+# the Chromium download all use it:
+#   export https_proxy=http://127.0.0.1:3067 http_proxy=http://127.0.0.1:3067
+#   sudo -E ./deploy.sh install
 
 set -Eeuo pipefail
 
@@ -29,6 +36,18 @@ GO_BIN="$GO_ROOT/bin/go"
 SERVICE_NAME="go-wordpress-extractor"
 SERVICE_USER="gwp"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
+# Browser fetch engine (Playwright + Chromium), outside the project folder
+# so the service user can always read it.
+PW_DIR="/opt/$SERVICE_NAME-playwright"
+PW_NODE_DIR="$PW_DIR/node"
+PW_DRIVER_DIR="$PW_DIR/driver"
+PW_BROWSERS_DIR="$PW_DIR/browsers"
+NODE_MAJOR="${NODE_MAJOR:-22}"
+# Virtual display for Chrome in a window on a server without a screen
+# (APP_BROWSER_HEADLESS=false). It runs as its own systemd unit.
+XVFB_SERVICE="$SERVICE_NAME-xvfb"
+XVFB_SERVICE_FILE="/etc/systemd/system/$XVFB_SERVICE.service"
+XVFB_DISPLAY="${XVFB_DISPLAY:-:99}"
 
 # ---------------------------------------------------------------- output
 if [ -t 1 ]; then
@@ -185,6 +204,258 @@ build() {
   ok "binaries in $BIN_DIR"
 }
 
+# ================================================================ 3b. browser engine
+browser_enabled() { [ "$(env_get APP_BROWSER_ENABLED)" = "true" ]; }
+
+browser_channel() { local c; c="$(env_get APP_BROWSER_CHANNEL)"; printf '%s' "${c:-chromium}"; }
+
+# The driver must match the playwright-go version in go.mod, so read it
+# from the module source (run.go: playwrightCliVersion).
+playwright_version() {
+  if [ -n "${PLAYWRIGHT_VERSION:-}" ]; then printf '%s' "$PLAYWRIGHT_VERSION"; return; fi
+  local dir v=""
+  dir="$(cd "$APP_DIR" && PATH="$GO_ROOT/bin:$PATH" "$GO_BIN" mod download github.com/playwright-community/playwright-go >/dev/null 2>&1 &&
+    PATH="$GO_ROOT/bin:$PATH" "$GO_BIN" list -m -f '{{.Dir}}' github.com/playwright-community/playwright-go 2>/dev/null || true)"
+  if [ -n "$dir" ] && [ -f "$dir/run.go" ]; then
+    v="$(grep -oE 'playwrightCliVersion = "[0-9]+\.[0-9]+\.[0-9]+"' "$dir/run.go" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)"
+  fi
+  [ -n "$v" ] || die "could not read the Playwright version from go.mod. Set PLAYWRIGHT_VERSION=1.x.y"
+  printf '%s' "$v"
+}
+
+node_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64)  echo x64 ;;
+    aarch64|arm64) echo arm64 ;;
+    armv7l)        echo armv7l ;;
+    ppc64le)       echo ppc64le ;;
+    s390x)         echo s390x ;;
+    *) die "Node.js has no build for $(uname -m)" ;;
+  esac
+}
+
+# Node.js runs the Playwright driver. It is installed under $PW_NODE_DIR
+# only, so it never conflicts with a system Node.
+install_node() {
+  local arch base sums file version current="" tmp want got
+  arch="$(node_arch)"
+  base="https://nodejs.org/dist/latest-v$NODE_MAJOR.x"
+  sums="$(curl -fsSL "$base/SHASUMS256.txt")" || die "could not reach $base (set https_proxy if this server needs a proxy)"
+  file="$(printf '%s\n' "$sums" | awk -v suffix="-linux-$arch.tar.gz" 'substr($2, length($2) - length(suffix) + 1) == suffix {print $2; exit}')"
+  [ -n "$file" ] || die "no Node.js $NODE_MAJOR build for linux-$arch"
+  version="${file#node-}"; version="${version%%-linux-*}"
+  [ -x "$PW_NODE_DIR/bin/node" ] && current="$("$PW_NODE_DIR/bin/node" --version 2>/dev/null || true)"
+  if [ "$current" = "$version" ]; then ok "Node.js $version already installed"; return; fi
+
+  tmp="$(mktemp -d)"
+  info "downloading $file (installed: ${current:-none})"
+  curl -fL --retry 3 -o "$tmp/$file" "$base/$file"
+  want="$(printf '%s\n' "$sums" | awk -v f="$file" '$2 == f {print $1}')"
+  got="$(sha256sum "$tmp/$file" | awk '{print $1}')"
+  [ -n "$want" ] && [ "$want" = "$got" ] || { rm -rf "$tmp"; die "checksum mismatch for $file"; }
+  ok "checksum verified"
+  rm -rf "$PW_NODE_DIR"
+  mkdir -p "$PW_NODE_DIR"
+  tar -C "$PW_NODE_DIR" --strip-components=1 -xzf "$tmp/$file"
+  rm -rf "$tmp"
+  ok "installed Node.js $("$PW_NODE_DIR/bin/node" --version)"
+}
+
+# The driver is node + the playwright-core package. "playwright install"
+# from playwright-go cannot be used: its driver download is no longer hosted.
+install_playwright_driver() {
+  local version="$1" tmp
+  if [ -x "$PW_DRIVER_DIR/node" ] && [ -f "$PW_DRIVER_DIR/package/cli.js" ] &&
+     "$PW_DRIVER_DIR/node" "$PW_DRIVER_DIR/package/cli.js" --version 2>/dev/null | grep -qx "Version $version"; then
+    ok "Playwright driver $version already installed"; return
+  fi
+  tmp="$(mktemp -d)"
+  info "downloading playwright-core $version from npm"
+  (cd "$tmp" && PATH="$PW_NODE_DIR/bin:$PATH" npm pack "playwright-core@$version" --silent >/dev/null) ||
+    { rm -rf "$tmp"; die "npm could not download playwright-core@$version (set https_proxy if this server needs a proxy)"; }
+  rm -rf "$PW_DRIVER_DIR"
+  mkdir -p "$PW_DRIVER_DIR"
+  tar -xzf "$tmp/playwright-core-$version.tgz" -C "$PW_DRIVER_DIR"
+  rm -rf "$tmp"
+  ln -sf "$PW_NODE_DIR/bin/node" "$PW_DRIVER_DIR/node"
+  ok "installed Playwright driver $("$PW_DRIVER_DIR/node" "$PW_DRIVER_DIR/package/cli.js" --version)"
+}
+
+# Download the browser build the driver expects, plus the system libraries
+# it needs (Debian/Ubuntu only; other systems must install them by hand).
+install_playwright_browsers() {
+  local channel targets deps=()
+  channel="$(browser_channel)"
+  case "$channel" in
+    chromium) targets=(chromium chromium-headless-shell) ;;
+    chrome)   [ "$(uname -m)" = x86_64 ] || die "Google Chrome is only available for x86_64; use APP_BROWSER_CHANNEL=chromium"
+              targets=(chrome) ;;
+    *)        die "APP_BROWSER_CHANNEL must be chromium or chrome (is '$channel')" ;;
+  esac
+  if command -v apt-get >/dev/null 2>&1; then
+    deps=(--with-deps)
+  else
+    warn "not a Debian/Ubuntu system: install Chromium's shared libraries by hand if the launch check below fails"
+  fi
+  mkdir -p "$PW_BROWSERS_DIR"
+  info "installing ${targets[*]} (this downloads about 150-250 MB)"
+  PLAYWRIGHT_BROWSERS_PATH="$PW_BROWSERS_DIR" DEBIAN_FRONTEND=noninteractive \
+    "$PW_DRIVER_DIR/node" "$PW_DRIVER_DIR/package/cli.js" install "${deps[@]}" "${targets[@]}"
+  ok "browsers in $PW_BROWSERS_DIR"
+}
+
+# browser_headful -> success when Chrome runs in a window (on Xvfb)
+browser_headful() { browser_enabled && [ "$(env_get APP_BROWSER_HEADLESS)" = "false" ]; }
+
+# Xvfb is an X server that draws into memory: Chrome gets a real window,
+# which passes anti-bot checks (Cloudflare) that headless Chrome fails,
+# without a monitor or GPU. About 20-50 MB of RAM.
+install_xvfb() {
+  if command -v Xvfb >/dev/null 2>&1 && command -v xvfb-run >/dev/null 2>&1; then
+    ok "Xvfb present ($(command -v Xvfb))"; return
+  fi
+  info "installing Xvfb (virtual display)"
+  if   command -v apt-get >/dev/null; then apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb xauth
+  elif command -v dnf     >/dev/null; then dnf install -y xorg-x11-server-Xvfb
+  elif command -v yum     >/dev/null; then yum install -y xorg-x11-server-Xvfb
+  elif command -v apk     >/dev/null; then apk add --no-cache xvfb
+  elif command -v zypper  >/dev/null; then zypper --non-interactive install xorg-x11-server-Xvfb
+  else die "no supported package manager found. Install Xvfb by hand."
+  fi
+  command -v Xvfb >/dev/null 2>&1 || die "Xvfb is still missing after the install"
+  command -v xvfb-run >/dev/null 2>&1 || warn "xvfb-run is not available here; '$0 run' and '$0 dev' need it (the systemd unit does not)"
+  ok "installed Xvfb"
+}
+
+# Launch the browser once, as the service user when it exists, to catch
+# missing libraries before the server tries. With APP_BROWSER_HEADLESS=false
+# it runs in a window on a temporary Xvfb display, as the service will.
+check_browser_launch() {
+  local channel js arg="" headless=true runner=() xpid="" display="" version
+  channel="$(browser_channel)"
+  [ "$channel" = chrome ] && arg=chrome
+  browser_headful && headless=false
+  js='const {chromium} = require(process.argv[1]);
+const opts = {headless: process.argv[3] !== "false"};
+if (process.argv[2]) opts.channel = process.argv[2];
+chromium.launch(opts)
+  .then(async b => { console.log(b.version()); await b.close(); })
+  .catch(e => { console.error(e.message); process.exit(1); });'
+  if id "$SERVICE_USER" >/dev/null 2>&1 && command -v runuser >/dev/null 2>&1; then
+    runner=(runuser -u "$SERVICE_USER" --)
+  fi
+  if [ "$headless" = false ]; then
+    local n=$((200 + RANDOM % 600))
+    while [ -e "/tmp/.X11-unix/X$n" ] || [ -e "/tmp/.X$n-lock" ]; do n=$((n + 1)); done
+    display=":$n"
+    "${runner[@]}" "$(command -v Xvfb)" "$display" -screen 0 1920x1080x24 -nolisten tcp >/dev/null 2>&1 &
+    xpid=$!
+    sleep 2
+    kill -0 "$xpid" 2>/dev/null || die "Xvfb did not start on $display"
+  fi
+  info "checking that $channel launches ($([ "$headless" = false ] && echo "in a window on Xvfb $display" || echo headless))"
+  if version="$("${runner[@]}" env HOME=/tmp DISPLAY="$display" PLAYWRIGHT_BROWSERS_PATH="$PW_BROWSERS_DIR" \
+       "$PW_DRIVER_DIR/node" -e "$js" "$PW_DRIVER_DIR/package" "$arg" "$headless" 2>&1)"; then
+    [ -n "$xpid" ] && kill "$xpid" 2>/dev/null
+    ok "$channel $version launches"
+  else
+    [ -n "$xpid" ] && kill "$xpid" 2>/dev/null
+    printf '%s\n' "$version" >&2
+    die "the browser does not start (see above). On non-Debian systems install its libraries, or set APP_BROWSER_ENABLED=false"
+  fi
+}
+
+# install_playwright [force] -> set up the browser engine when it is enabled
+# in the env file (or always with "force").
+install_playwright() {
+  need_root "browser"
+  if [ "${1:-}" != force ] && ! browser_enabled; then
+    ok "browser fetch engine is off (APP_BROWSER_ENABLED); skipping Playwright"; return
+  fi
+  install_packages
+  [ -x "$GO_BIN" ] || install_go
+  local version; version="$(playwright_version)"
+  info "Playwright $version for playwright-go in go.mod"
+  install_node
+  install_playwright_driver "$version"
+  install_playwright_browsers
+  browser_headful && install_xvfb
+  chmod -R a+rX "$PW_DIR"
+  env_set PLAYWRIGHT_DRIVER_PATH "$PW_DRIVER_DIR"
+  env_set PLAYWRIGHT_BROWSERS_PATH "$PW_BROWSERS_DIR"
+  fix_perms
+  check_browser_launch
+}
+
+browser_status() {
+  if browser_enabled; then
+    echo "Browser fetch engine: ENABLED (channel: $(browser_channel), max pages: $(v=$(env_get APP_BROWSER_MAX_PAGES); echo "${v:-3}"))"
+    if browser_headful; then
+      local xs="not installed"
+      command -v systemctl >/dev/null 2>&1 && [ -f "$XVFB_SERVICE_FILE" ] && xs="$(systemctl is-active "$XVFB_SERVICE" 2>/dev/null || true)"
+      echo "  window   : Chrome runs in a window on Xvfb $XVFB_DISPLAY (service $XVFB_SERVICE: $xs)"
+    else
+      echo "  window   : headless (no display)"
+    fi
+  else
+    echo "Browser fetch engine: DISABLED"
+  fi
+  if [ -f "$PW_DRIVER_DIR/package/cli.js" ]; then
+    echo "  driver   : $("$PW_DRIVER_DIR/node" "$PW_DRIVER_DIR/package/cli.js" --version 2>/dev/null || echo broken) in $PW_DRIVER_DIR"
+    echo "  browsers : $(ls "$PW_BROWSERS_DIR" 2>/dev/null | tr '\n' ' ')"
+  else
+    echo "  Playwright is not installed. Run: sudo $0 browser enable"
+  fi
+}
+
+browser_enable() {
+  need_root "browser"
+  local channel pages
+  channel="$(ask "Browser (chromium = Playwright's build, chrome = Google Chrome, x86_64 only)" "$(browser_channel)")"
+  case "$channel" in chromium|chrome) ;; *) die "choose chromium or chrome" ;; esac
+  pages="$(ask "Browser pages open at once (each needs 100-300 MB RAM)" "$(v=$(env_get APP_BROWSER_MAX_PAGES); echo "${v:-3}")")"
+  [[ "$pages" =~ ^[0-9]+$ ]] && [ "$pages" -ge 1 ] && [ "$pages" -le 50 ] || die "invalid page count: $pages"
+  local def=y window
+  [ "$(env_get APP_BROWSER_HEADLESS)" = "true" ] && def=n
+  echo "Sites behind Cloudflare challenges (e.g. hafele.com.de) only pass with Chrome in a window;"
+  echo "on a server without a screen that window is drawn on Xvfb, a virtual display."
+  if confirm "Run Chrome in a window on Xvfb (recommended)?" "$def"; then window=false; else window=true; fi
+  env_set APP_BROWSER_ENABLED true
+  env_set APP_BROWSER_CHANNEL "$channel"
+  env_set APP_BROWSER_MAX_PAGES "$pages"
+  env_set APP_BROWSER_HEADLESS "$window"
+  install_playwright
+  # Rewrite the units so the service gets (or drops) the Xvfb display.
+  [ -f "$SERVICE_FILE" ] && install_service
+  ok "browser engine enabled. Restart the service to apply: $0 restart"
+}
+
+browser_disable() {
+  need_root "browser"
+  env_set APP_BROWSER_ENABLED false
+  fix_perms
+  [ -f "$SERVICE_FILE" ] && install_service
+  ok "browser engine disabled (Playwright stays in $PW_DIR). Restart the service to apply: $0 restart"
+}
+
+# sites_need_browser -> success when a site config selects fetch.engine "browser"
+sites_need_browser() {
+  grep -qE '"engine"[[:space:]]*:[[:space:]]*"browser"' "$CONFIG_DIR"/sites/*.json 2>/dev/null
+}
+
+setup_browser() {
+  title "Browser fetch engine"
+  local def=n
+  { browser_enabled || sites_need_browser; } && def=y
+  sites_need_browser && echo "Some site configs set \"fetch\": {\"engine\": \"browser\"}; they fail with ENGINE_UNAVAILABLE without it."
+  if confirm "Enable the browser engine (real Chrome via Playwright; ~1 GB disk, more RAM)?" "$def"; then
+    browser_enable
+  else
+    browser_enabled && browser_disable
+    ok "browser engine stays off"
+  fi
+}
+
 # ================================================================ 4. env file
 setup_env() {
   need_root "env"
@@ -234,6 +505,14 @@ APP_MAX_CONCURRENT_PER_SITE=1
 # Outbound HTTP proxy for page fetches. Leave both empty to fetch directly.
 APP_PROXY_HOST=
 APP_PROXY_PORT=
+
+# Browser fetch engine (real Chrome via Playwright) for sites whose config
+# sets "fetch": {"engine": "browser"}. Turn on with: sudo ./deploy.sh browser enable
+APP_BROWSER_ENABLED=false
+APP_BROWSER_CHANNEL=chromium
+APP_BROWSER_MAX_PAGES=3
+# false = Chrome in a window on the Xvfb virtual display (needed for Cloudflare).
+APP_BROWSER_HEADLESS=true
 EOF
   fi
   env_set APP_ENV production
@@ -486,13 +765,25 @@ install_service() {
     warn "user $SERVICE_USER cannot read $APP_DIR. Put the project in a readable place such as /opt/$SERVICE_NAME"
     warn "(not under /root or a private home folder), or fix the folder permissions."
   fi
-  local stop_timeout
+  local stop_timeout xvfb_unit="" xvfb_env=""
   stop_timeout="$(env_get APP_MAX_REQUEST_DURATION)"
+  if browser_headful; then
+    install_xvfb
+    install_xvfb_service
+    # Both units share one private /tmp, so the server sees Xvfb's socket.
+    xvfb_unit="Requires=$XVFB_SERVICE.service
+After=$XVFB_SERVICE.service
+JoinsNamespaceOf=$XVFB_SERVICE.service"
+    xvfb_env="Environment=DISPLAY=$XVFB_DISPLAY"
+  else
+    remove_xvfb_service
+  fi
   cat >"$SERVICE_FILE" <<EOF
 [Unit]
 Description=go-wordpress-extractor API
 After=network-online.target
 Wants=network-online.target
+$xvfb_unit
 
 [Service]
 Type=simple
@@ -500,6 +791,10 @@ User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$APP_DIR
 EnvironmentFile=$ENV_FILE
+# A writable home for Chrome (the service user has none).
+StateDirectory=$SERVICE_NAME
+Environment=HOME=/var/lib/$SERVICE_NAME
+$xvfb_env
 ExecStart=$BIN_DIR/server
 Restart=on-failure
 RestartSec=5
@@ -520,9 +815,47 @@ EOF
   ok "systemd service $SERVICE_NAME installed"
 }
 
+# The virtual display Chrome draws its window on. A separate unit (not
+# xvfb-run around the server) so SIGTERM still reaches the server and it
+# drains running requests on stop.
+install_xvfb_service() {
+  local xvfb; xvfb="$(command -v Xvfb)"
+  cat >"$XVFB_SERVICE_FILE" <<EOF
+[Unit]
+Description=Virtual display $XVFB_DISPLAY for go-wordpress-extractor's browser engine
+After=network.target
+PartOf=$SERVICE_NAME.service
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+Group=$SERVICE_USER
+ExecStart=$xvfb $XVFB_DISPLAY -screen 0 1920x1080x24 -nolisten tcp
+Restart=on-failure
+RestartSec=2
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable "$XVFB_SERVICE" >/dev/null
+  ok "systemd service $XVFB_SERVICE installed (display $XVFB_DISPLAY)"
+}
+
+remove_xvfb_service() {
+  [ -f "$XVFB_SERVICE_FILE" ] || return 0
+  systemctl disable --now "$XVFB_SERVICE" >/dev/null 2>&1 || true
+  rm -f "$XVFB_SERVICE_FILE"
+  systemctl daemon-reload
+  ok "removed $XVFB_SERVICE (browser runs headless)"
+}
+
 restart() {
   need_root "restart"
   command -v systemctl >/dev/null 2>&1 && [ -f "$SERVICE_FILE" ] || die "service not installed. Run: $0 service"
+  browser_headful && [ -f "$XVFB_SERVICE_FILE" ] && systemctl restart "$XVFB_SERVICE"
   systemctl restart "$SERVICE_NAME"
   local port host url i
   port="$(env_get APP_HTTP_PORT)"; port="${port:-4000}"
@@ -538,20 +871,47 @@ restart() {
   die "service did not become ready; log above"
 }
 
+# Chrome in a window always goes on a hidden Xvfb display, even on a
+# desktop (DISPLAY set), so no browser window opens on screen.
+XVFB_RUN_ARGS=(--auto-servernum --server-args="-screen 0 1920x1080x24")
+
 run_foreground() {
   load_key_env
   set -a; . "$ENV_FILE"; set +a
+  if browser_headful; then
+    command -v xvfb-run >/dev/null 2>&1 || die "APP_BROWSER_HEADLESS=false needs Xvfb. Install it: sudo $0 xvfb"
+    cd "$APP_DIR" && exec xvfb-run "${XVFB_RUN_ARGS[@]}" "$BIN_DIR/server"
+  fi
   cd "$APP_DIR" && exec "$BIN_DIR/server"
+}
+
+# dev -> run the development server (go run ./cmd/server, .env.development)
+# inside a hidden Xvfb display, so the browser engine never opens a window.
+# Run it as your own user, not with sudo. Xvfb is installed with sudo when
+# it is missing.
+run_dev() {
+  [ "$(id -u)" -ne 0 ] || warn "running the development server as root; usually run '$0 dev' as your own user"
+  if ! command -v xvfb-run >/dev/null 2>&1; then
+    info "xvfb-run is missing; installing Xvfb (sudo apt-get install -y xvfb)"
+    if [ "$(id -u)" -eq 0 ]; then install_xvfb; else sudo "$APP_DIR/deploy.sh" xvfb; fi
+  fi
+  local go_cmd
+  go_cmd="$(command -v go || true)"
+  if [ -z "$go_cmd" ] && [ -x "$GO_BIN" ]; then go_cmd="$GO_BIN"; fi
+  [ -n "$go_cmd" ] || die "go is not installed. Run: sudo $0 go"
+  info "starting the development server on a hidden display: xvfb-run -a go run ./cmd/server"
+  cd "$APP_DIR" && exec xvfb-run "${XVFB_RUN_ARGS[@]}" "$go_cmd" run ./cmd/server
 }
 
 # ================================================================ install
 install_all() {
   need_root "install"
-  title "1/7 Go";            install_go
-  title "2/7 Build";         build
-  title "3/7 Env file";      setup_env
-  title "4/7 Pepper";        setup_pepper
-  title "5/7 API keys"
+  title "1/8 Go";            install_go
+  title "2/8 Build";         build
+  title "3/8 Env file";      setup_env
+  title "4/8 Browser";       setup_browser
+  title "5/8 Pepper";        setup_pepper
+  title "6/8 API keys"
   load_key_env
   if [ -s "$APP_API_KEYS_FILE" ]; then
     apikey list || true
@@ -561,9 +921,9 @@ install_all() {
     key_generate
   fi
   confirm "Open the key menu for more key tasks?" n && keys_menu
-  title "6/7 Websites";      setup_sites; validate_sites
+  title "7/8 Websites";      setup_sites; validate_sites
                              setup_swagger
-  title "7/7 Service";       install_service; restart
+  title "8/8 Service";       install_service; restart
 
   title "Done"
   echo "  Env file : $ENV_FILE"
@@ -571,6 +931,7 @@ install_all() {
   echo "  Logs     : journalctl -u $SERVICE_NAME -f"
   echo "  Keys     : sudo $0 keys"
   swagger_status | sed 's/^/  /'
+  browser_status | sed 's/^/  /'
 }
 
 usage() {
@@ -578,12 +939,19 @@ usage() {
 Usage: sudo $0 <command>
 
 Setup
-  install              Full setup: Go, build, env, pepper, key, websites, Swagger, service
+  install              Full setup: Go, build, env, browser, pepper, key, websites, Swagger, service
   go                   Install or update Go to the latest version (GO_VERSION=go1.x.y to pin)
   build                Build bin/server, bin/apikey, bin/sitectl
   env                  Create or edit $ENV_FILE
   service              Install the systemd service
-  update               Install latest Go, rebuild, validate configs and restart
+  update               Install latest Go, rebuild, update Playwright (if enabled), validate configs and restart
+
+Browser fetch engine (off by default; for sites with fetch.engine "browser")
+  browser              Show status
+  browser enable       Turn on: installs Node.js, the Playwright driver and Chromium into $PW_DIR,
+                       and Xvfb + the $XVFB_SERVICE unit when Chrome runs in a window
+  browser install      Install or update Playwright and the browser without changing settings
+  browser disable      Turn off (keeps the files)
 
 API keys
   keys                 Interactive key menu
@@ -606,7 +974,9 @@ Run
   restart              Restart the service and wait until it is ready
   status               systemctl status
   logs                 Follow the service log
-  run                  Run the server in the foreground (no systemd)
+  run                  Run the server in the foreground (no systemd); Chrome in a window goes on a hidden Xvfb display
+  dev                  Development: xvfb-run -a go run ./cmd/server as your user (no sudo); installs Xvfb if missing
+  xvfb                 Install Xvfb (sudo apt-get install -y xvfb), the hidden display for Chrome
 EOF
 }
 
@@ -619,7 +989,14 @@ main() {
     env)      setup_env ;;
     pepper)   setup_pepper ;;
     service)  install_service ;;
-    update)   need_root update; install_go; build; validate_sites; restart ;;
+    update)   need_root update; install_go; build; install_playwright; validate_sites; restart ;;
+    browser|playwright)
+      case "${1:-status}" in
+        enable|on)   browser_enable ;;
+        disable|off) browser_disable ;;
+        install)     install_playwright force ;;
+        *)           browser_status ;;
+      esac ;;
     keys)     keys_menu ;;
     key)
       need_root key
@@ -639,9 +1016,11 @@ main() {
         *)           swagger_status ;;
       esac ;;
     restart)  restart ;;
-    status)   systemctl status "$SERVICE_NAME" --no-pager ;;
+    status)   systemctl status "$SERVICE_NAME" --no-pager; browser_headful && systemctl status "$XVFB_SERVICE" --no-pager || true ;;
     logs)     journalctl -u "$SERVICE_NAME" -f ;;
     run)      run_foreground ;;
+    dev)      run_dev ;;
+    xvfb)     need_root xvfb; install_xvfb ;;
     help|-h|--help) usage ;;
     *) usage; exit 2 ;;
   esac
