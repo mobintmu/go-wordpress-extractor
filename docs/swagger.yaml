@@ -623,7 +623,8 @@ paths:
   /api/v1/sites:
     get:
       description: |-
-        Returns every site whose config is valid and enabled, sorted by site_id. Disabled and invalid configs are left out.
+        Returns the sites named in configs/active_sites.json whose config is valid and enabled, sorted by site_id.
+        Disabled and invalid configs, and active domains without a config, are left out. Without active_sites.json, every enabled site is returned.
         The list follows config hot reloads; loaded_at is when the current configs were loaded.
       produces:
       - application/json

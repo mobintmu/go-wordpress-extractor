@@ -451,3 +451,10 @@ func selfSignedCert(t *testing.T, dir string) (certFile, keyFile string, pool *x
 	pool.AddCert(cert)
 	return certFile, keyFile, pool
 }
+
+// WriteActive replaces the active sites file at runtime.
+func (e *Env) WriteActive(raw string) {
+	path := filepath.Join(e.ConfigDir, "active_sites.json")
+	must(e.t, os.WriteFile(path+".tmp", []byte(raw), 0o644))
+	must(e.t, os.Rename(path+".tmp", path))
+}

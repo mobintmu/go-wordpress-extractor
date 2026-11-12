@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"net/http"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -161,5 +162,44 @@ func TestListSitesHotReload(t *testing.T) {
 			_, listed := s["newsite"]
 			return !listed
 		})
+	})
+}
+
+func TestListSitesActiveFile(t *testing.T) {
+	e := Start(t, Options{})
+	ids := func() []string {
+		_, s := e.listSites(t, e.Key)
+		out := make([]string, 0, len(s))
+		for id := range s {
+			out = append(out, id)
+		}
+		sort.Strings(out)
+		return out
+	}
+
+	t.Run("without the file every enabled site is listed", func(t *testing.T) {
+		if got := ids(); len(got) < 3 {
+			t.Errorf("sites = %v", got)
+		}
+	})
+
+	t.Run("only active sites are listed", func(t *testing.T) {
+		// www. matches shop by its second domain; disabled and broken stay
+		// out; unknown.test has no config.
+		e.WriteActive(`{"active": ["` + hostWWW + `", "` + hostRial + `", "` + hostDisabled + `", "broken.test", "unknown.test"]}`)
+		eventually(t, func() bool { return strings.Join(ids(), ",") == "rial,shop" })
+	})
+
+	t.Run("an invalid file keeps the previous list", func(t *testing.T) {
+		e.WriteActive(`{"active": [`)
+		time.Sleep(time.Second)
+		if got := strings.Join(ids(), ","); got != "rial,shop" {
+			t.Errorf("sites = %s", got)
+		}
+	})
+
+	t.Run("an empty list lists nothing", func(t *testing.T) {
+		e.WriteActive(`{"active": []}`)
+		eventually(t, func() bool { return len(ids()) == 0 })
 	})
 }

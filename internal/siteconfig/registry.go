@@ -24,6 +24,30 @@ type Snapshot struct {
 	Entries  []*Entry
 	byHost   map[string]*Entry
 	LoadedAt time.Time
+
+	// active holds the entries named in ActiveFile. When the file is
+	// absent it is nil and every entry counts as active.
+	active map[*Entry]bool
+	// UnknownActive lists domains in ActiveFile that no site config claims.
+	UnknownActive []string
+}
+
+// IsActive reports whether e is listed in ActiveFile. Without that file,
+// every entry is active.
+func (s *Snapshot) IsActive(e *Entry) bool { return s.active == nil || s.active[e] }
+
+// WithActive marks the entries claiming domains as active.
+func (s *Snapshot) WithActive(domains []string) *Snapshot {
+	s.active = map[*Entry]bool{}
+	s.UnknownActive = nil
+	for _, d := range domains {
+		if e := s.Lookup(d); e != nil {
+			s.active[e] = true
+		} else {
+			s.UnknownActive = append(s.UnknownActive, d)
+		}
+	}
+	return s
 }
 
 // Lookup returns the entry claiming host, or nil.
@@ -74,7 +98,19 @@ func (r *Registry) Reload() error {
 	if err != nil {
 		return err
 	}
+	active, hasActive, err := LoadActive(r.dir)
+	if err != nil {
+		return err
+	}
 	snap := NewSnapshot(entries)
+	if hasActive {
+		snap.WithActive(active)
+		for _, d := range snap.UnknownActive {
+			r.log.Warn("active site has no site config", zap.String("domain", d), zap.String("file", ActiveFile))
+		}
+	} else {
+		r.log.Info("no active sites file; listing every enabled site", zap.String("file", ActiveFile))
+	}
 	r.current.Store(snap)
 	r.fingerprint = fp
 

@@ -122,7 +122,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns every site whose config is valid and enabled, sorted by site_id. Disabled and invalid configs are left out.\nThe list follows config hot reloads; loaded_at is when the current configs were loaded.",
+                "description": "Returns the sites named in configs/active_sites.json whose config is valid and enabled, sorted by site_id.\nDisabled and invalid configs, and active domains without a config, are left out. Without active_sites.json, every enabled site is returned.\nThe list follows config hot reloads; loaded_at is when the current configs were loaded.",
                 "produces": [
                     "application/json"
                 ],

@@ -38,7 +38,8 @@ func NewHandler(r *siteconfig.Registry) *Handler { return &Handler{registry: r} 
 // List godoc
 //
 //	@Summary		List websites available for extraction
-//	@Description	Returns every site whose config is valid and enabled, sorted by site_id. Disabled and invalid configs are left out.
+//	@Description	Returns the sites named in configs/active_sites.json whose config is valid and enabled, sorted by site_id.
+//	@Description	Disabled and invalid configs, and active domains without a config, are left out. Without active_sites.json, every enabled site is returned.
 //	@Description	The list follows config hot reloads; loaded_at is when the current configs were loaded.
 //	@Tags			Extraction
 //	@Produce		json
@@ -50,11 +51,11 @@ func (h *Handler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, Build(h.registry.Snapshot()))
 }
 
-// Build lists the enabled, valid sites of a snapshot.
+// Build lists the active, enabled, valid sites of a snapshot.
 func Build(snap *siteconfig.Snapshot) ListResponse {
 	out := ListResponse{LoadedAt: snap.LoadedAt.UTC(), Sites: []Site{}}
 	for _, e := range snap.Entries {
-		if e.Status() != "enabled" {
+		if e.Status() != "enabled" || !snap.IsActive(e) {
 			continue
 		}
 		domains := append([]string{}, e.Site.Domains...)
