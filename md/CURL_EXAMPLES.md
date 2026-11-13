@@ -1,6 +1,6 @@
 # curl examples, one per website
 
-One `POST /api/v1/extract` call for each of the 12 supported sites (see [websites.md](websites.md)). The URLs are the sample products from `testdata/sites/`. Some fixtures are hand-made, so if a call returns `HTTP_NOT_FOUND`, swap in a current product URL from that site.
+One `POST /api/v1/extract` call for each of the 13 supported sites (see [websites.md](websites.md)). The URLs are the sample products from `testdata/sites/`. Some fixtures are hand-made, so if a call returns `HTTP_NOT_FOUND`, swap in a current product URL from that site.
 
 ## Setup
 
@@ -57,14 +57,6 @@ curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
   -d '{"url": "https://www.emtek.com/all-products/door-hardware/front-door-entry-sets/tubular-entry-sets/select-smooth-grip-full-length-tubular-entry-set/", "request_id": "emtek-1"}'
 ```
 
-### 5. flooranddecor.com
-
-```bash
-curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
-  -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
-  -d '{"url": "https://www.flooranddecor.com/ceramic-tile/zellige-oat-high-gloss-ceramic-tile-101130060.html", "request_id": "flooranddecor-1"}'
-```
-
 ### 7. hmland.ir
 
 The site shows rial. The response converts to toman (`currency: IRT`). Persian slugs must be sent percent-encoded, as below.
@@ -85,7 +77,7 @@ curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
   -d '{"url": "https://hosseinibrothers.ir/%DA%A9%D8%B4%D9%85%D8%B4/%DA%A9%D8%B4%D9%85%D8%B4-%D9%BE%D9%84%D9%88%DB%8C%DB%8C-%D8%A2%D9%81%D8%AA%D8%A7%D8%A8%DB%8C", "request_id": "hosseinibrothers-1"}'
 ```
 
-### 9. msisurfaces.com
+### 10. msisurfaces.com
 
 ```bash
 curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
@@ -93,7 +85,7 @@ curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
   -d '{"url": "https://www.msisurfaces.com/luxury-vinyl-planks/ashton-2/briven/", "request_id": "msisurfaces-1"}'
 ```
 
-### 10. sherwin-williams.com
+### 11. sherwin-williams.com
 
 The price is loaded by JavaScript, so the `http` engine gets no price. Expect `PRICE_MISSING` and `price` in `unavailable_fields` with reason `NOT_ON_PAGE`.
 
@@ -103,7 +95,7 @@ curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
   -d '{"url": "https://www.sherwin-williams.com/homeowners/products/emerald-interior-acrylic-latex-paint?colorPartNumber=SW6617&colorType=PALETTE", "request_id": "sherwin-williams-1"}'
 ```
 
-### 11. shop.interface.com
+### 12. shop.interface.com
 
 ```bash
 curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
@@ -111,12 +103,52 @@ curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
   -d '{"url": "https://shop.interface.com/US/en-US/resilient/lvt/cut-and-form-4.5-mm/A043R.html", "request_id": "interface-1"}'
 ```
 
-### 12. tilebar.com
+### 13. tilebar.com
 
 ```bash
 curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
   -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
   -d '{"url": "https://www.tilebar.com/product/avanti-checkerboard-verde-green-and-crema-marfil-beige-12x12-tumbled-marble-tile.html", "request_id": "tilebar-1"}'
+```
+
+## Sites using the `browser` engine
+
+These load the product page in real Chrome through Playwright, so the page's JavaScript runs and Cloudflare challenges that only check for a JavaScript-capable browser are passed. `source.engine` is `browser` and `source.site_contacted` is `true`. The server needs `APP_BROWSER_ENABLED=true`, otherwise the call fails with `ENGINE_UNAVAILABLE`. A browser fetch takes several seconds, so keep `--max-time` high.
+
+### 5. flooranddecor.com
+
+Cloudflare blocked the plain `http` engine with "Sorry, you have been blocked" (HTTP 403). If the browser gets the same page, the block is on the server's IP and the call fails with `BOT_PROTECTION`; then switch the site to a search engine or route it through a different IP (`APP_PROXY_*`).
+
+```bash
+curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
+  -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
+  -d '{"url": "https://www.flooranddecor.com/ceramic-tile/zellige-oat-high-gloss-ceramic-tile-101130060.html", "request_id": "flooranddecor-1"}'
+```
+
+### 6. hafele.com.de
+
+Cloudflare answers a plain HTTP client with a "Just a moment..." JavaScript challenge, which the browser runs. Prices are hidden from anonymous visitors, so expect `price.state: unknown` with a `PRICE_MISSING` warning.
+
+```bash
+curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
+  -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
+  -d '{"url": "https://www.hafele.com.de/de/product/universalverbinder-haefele-ixconnect-uc-16-64/P-01901571/", "request_id": "hafele-1"}'
+```
+
+### 9. lumens.com
+
+The product page is a JavaScript app (the price appears about 11 seconds after load) behind a Cloudflare Turnstile challenge. Headless Chrome does not pass it, so the server needs `APP_BROWSER_HEADLESS=false` and a residential proxy (`APP_PROXY_*`); without them expect `BOT_PROTECTION`. The site config allows 90 seconds per fetch.
+
+```bash
+curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
+  -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
+  -d '{"url": "https://www.lumens.com/n701-round-corner-sofa-by-ethnicraft-ETH2111288.html", "request_id": "lumens-1"}'
+```
+
+Short summary:
+
+```bash
+... | jq '{status, engine: .source.engine, title: .product.title, price: .product.price, error: .error.code}'
 ```
 
 ## Sites using a search engine (`duckduckgo`, alternate `brave`)
@@ -139,21 +171,7 @@ Short summary:
 ... | jq '{status, completeness, title: .product.title, source, unavailable: [.unavailable_fields[].field]}'
 ```
 
-### 6. hafele.com.de
-
-This sample product was not indexed by DuckDuckGo on 2026-11-13, so expect `status: failed` with `error.code: SEARCH_NO_RESULT`. `evidence.search` lists the queries tried and the closest product URLs found. Products that are indexed return a partial product like Ferguson.
-
-```bash
-curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
-  -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
-  -d '{"url": "https://www.hafele.com.de/de/product/universalverbinder-haefele-ixconnect-uc-16-64/P-01901571/", "request_id": "hafele-1"}'
-```
-
-```bash
-... | jq '{status, code: .error.code, root_cause: .error.root_cause, search: .evidence.search}'
-```
-
-## Run all 12 at once
+## Run all 13 at once
 
 ```bash
 #!/usr/bin/env bash
@@ -168,6 +186,7 @@ urls=(
   "https://www.hafele.com.de/de/product/universalverbinder-haefele-ixconnect-uc-16-64/P-01901571/"
   "https://hmland.ir/product/%da%a9%d8%b1%d9%87-%d8%a8%d8%a7%d8%af%d8%a7%d9%85-%d8%b2%d9%85%db%8c%d9%86%db%8c/"
   "https://hosseinibrothers.ir/%DA%A9%D8%B4%D9%85%D8%B4/%DA%A9%D8%B4%D9%85%D8%B4-%D9%BE%D9%84%D9%88%DB%8C%DB%8C-%D8%A2%D9%81%D8%AA%D8%A7%D8%A8%DB%8C"
+  "https://www.lumens.com/n701-round-corner-sofa-by-ethnicraft-ETH2111288.html"
   "https://www.msisurfaces.com/luxury-vinyl-planks/ashton-2/briven/"
   "https://www.sherwin-williams.com/homeowners/products/emerald-interior-acrylic-latex-paint?colorPartNumber=SW6617&colorType=PALETTE"
   "https://shop.interface.com/US/en-US/resilient/lvt/cut-and-form-4.5-mm/A043R.html"
