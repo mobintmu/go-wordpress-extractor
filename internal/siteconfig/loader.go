@@ -431,9 +431,19 @@ func Validate(s *Site) error {
 	if sp := p.Specs; sp != nil {
 		checkSelector("pages.product.specs.group", sp.Group, false)
 		checkSelector("pages.product.specs.title", sp.Title, false)
-		checkSelector("pages.product.specs.row", sp.Row, true)
+		siblings := sp.Layout == SpecsSiblings
+		switch sp.Layout {
+		case "", SpecsRows:
+		case SpecsSiblings:
+			if sp.Row != "" {
+				add("pages.product.specs.row is not used with layout siblings")
+			}
+		default:
+			add("pages.product.specs.layout must be rows or siblings")
+		}
+		checkSelector("pages.product.specs.row", sp.Row, !siblings)
 		checkSelector("pages.product.specs.name", sp.Name, true)
-		checkSelector("pages.product.specs.value", sp.Value, true)
+		checkSelector("pages.product.specs.value", sp.Value, !siblings)
 		checkSelector("pages.product.specs.exclude", sp.Exclude, false)
 		if sp.Title != "" && sp.Group == "" {
 			add("pages.product.specs.title needs pages.product.specs.group")

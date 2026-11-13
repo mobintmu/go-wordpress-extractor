@@ -1,8 +1,8 @@
 {
-  "$comment": "IBM/HCL WebSphere Commerce (/wcsstore/) with AngularJS and inlined AEM fragments (US store). The server HTML has no price, stock, or gallery <img> src for the main product: <sw-product-pricing> and the image carousel are filled by JavaScript, so price is not configured and every product returns price.state 'unknown' with a PRICE_MISSING warning. The only server-side product image is og:image in <head>, so root is the whole document, anchored on the product title. Product URLs are /<segment>/products/<slug>; colour is a query string. Checked against a saved (curl) paint product page on 2026-11-11.",
+  "$comment": "IBM/HCL WebSphere Commerce (/wcsstore/) with AngularJS and inlined AEM fragments (US store). The server HTML has no price, stock, or gallery <img> src for the main product: <sw-product-pricing> and the image carousel are filled by JavaScript, so price is not configured and every product returns price.state 'unknown' with a PRICE_MISSING warning. The only server-side product image is og:image in <head>, so root is the whole document, anchored on the product title. Product URLs are /<segment>/products/<slug>; colour is a query string. The 'Product Specifications' accordion is a per-SKU data-sheet table whose size/sheen/base cells are filled by AngularJS ('--' in the server HTML), so it is not read; specs instead read the server-rendered Options configurator (div.pdp__configurator__field: a label such as 'Container Size:' and a select whose options are the choices), one pair per field with the options joined by ', '. Checked against a saved (curl) paint product page on 2026-11-11.",
   "schema_version": 1,
   "site_id": "sherwin-williams",
-  "version": "2026-11-11.1",
+  "version": "2026-11-13.1",
   "enabled": true,
   "domains": ["sherwin-williams.com", "www.sherwin-williams.com"],
 
@@ -20,6 +20,12 @@
         "title": { "selector": "h2.pdp__title", "pick": "first" },
         "image_url": { "selector": "meta[property='og:image']", "attr": ["content"], "pick": "first" },
         "description": { "selector": "div.pdp__description", "pick": "first" }
+      },
+      "specs": {
+        "row": "div.pdp__configurator__field",
+        "name": "label.pdp__configurator__field__label",
+        "value": "select option",
+        "separator": ", "
       }
     }
   },

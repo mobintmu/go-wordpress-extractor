@@ -161,7 +161,8 @@ Check:
 
 - Do not use `table.variations` (WooCommerce variation dropdowns). Those are choices, not specs.
 - Skip hidden rows (`:not(.no-display)`, `:not([style*="display:none"])`) if the page hides some.
-- PrestaShop's `dl.data-sheet` puts `dt.name` and `dd.value` side by side with no row element. The current `specs` config cannot read that shape. Tell the user and do not change the extractor without asking.
+- When names and values are siblings with no row element (PrestaShop's `dl.data-sheet` with `dt.name`/`dd.value`, or `<h3>name</h3><p>value</p>` sections), use `"layout": "siblings"`: omit `row`, set `name` to the name elements, and optionally `value` to keep only matching siblings. Each value is the text of the siblings after a name, up to the next name.
+- When a value is a list (`<ul><li>A</li><li>B</li></ul>`), set `value` to the items and `"separator": ", "` so the value reads `A, B`. Without `separator` only the first match is read.
 - If the specs table sits inside the `description` selector, the description will also contain the spec text. Mention it; do not narrow the description without asking.
 
 ## Step 4: Write the config

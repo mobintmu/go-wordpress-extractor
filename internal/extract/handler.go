@@ -160,6 +160,14 @@ func (h *Handler) Handle(c *gin.Context) {
 		fields = append(fields, zap.String("price_state", priceState))
 	}
 
+	if c.Request.Context().Err() != nil && h.drain.Draining() {
+		// The drain limit was reached and the server cancelled this
+		// request; the client is probably still waiting, so tell it.
+		h.metrics.ObserveExtraction("cancelled", resp.SiteID, code, priceState, time.Duration(resp.DurationMS)*time.Millisecond)
+		h.log.Warn("extraction cancelled by shutdown", fields...)
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, APIError{Code: CodeShuttingDown, Message: "This instance shut down before the extraction finished. Retry on another instance."})
+		return
+	}
 	if c.Request.Context().Err() != nil {
 		// The client went away; the work is discarded.
 		h.metrics.ObserveExtraction("cancelled", resp.SiteID, code, priceState, time.Duration(resp.DurationMS)*time.Millisecond)

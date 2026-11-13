@@ -90,7 +90,7 @@ func TestThreeForm(t *testing.T) {
 	t.Run("saved page matches the fixture", func(t *testing.T) {
 		r := e.Post("/api/v1/extract", e.Key, map[string]any{"url": productURL(threeFormPath), "request_id": "3form-1"})
 		r.Success(t)
-		if r.Str("site_id") != "3form" || r.Str("request_id") != "3form-1" || r.Str("config_version") != "2026-11-12.1" {
+		if r.Str("site_id") != "3form" || r.Str("request_id") != "3form-1" || r.Str("config_version") != "2026-11-13.1" {
 			t.Errorf("site_id/request_id/config_version = %q/%q/%q",
 				r.Str("site_id"), r.Str("request_id"), r.Str("config_version"))
 		}
@@ -132,8 +132,31 @@ func TestThreeForm(t *testing.T) {
 		if r.Str("product.price.state") != "unknown" || r.Str("product.price.currency") != "USD" {
 			t.Errorf("price = %s %s, want unknown USD", r.Str("product.price.state"), r.Str("product.price.currency"))
 		}
-		if r.Has("product.specs") {
-			t.Errorf("product.specs = %v, want absent (no spec rows on this page)", r.At("product.specs"))
+		if got := r.At("product.specs"); !reflect.DeepEqual(got, want["specs"]) {
+			t.Errorf("product.specs = %v, want %v", got, want["specs"])
+		}
+	})
+
+	t.Run("specs: h3 sections, empty heading and downloads skipped", func(t *testing.T) {
+		r := e.Extract(productURL(threeFormPath))
+		r.Success(t)
+		specs, _ := r.At("product.specs").([]any)
+		var names []string
+		vals := map[string]string{}
+		for _, sp := range specs {
+			m := sp.(map[string]any)
+			n, _ := m["name"].(string)
+			names = append(names, n)
+			vals[n], _ = m["value"].(string)
+		}
+		if exp := []string{"What You Get", "Material Choices", "Design Choices", "Product Features"}; !reflect.DeepEqual(names, exp) {
+			t.Errorf("spec names = %q, want %q", names, exp)
+		}
+		if vals["Material Choices"] != "Chroma" {
+			t.Errorf("Material Choices = %q, want Chroma", vals["Material Choices"])
+		}
+		if !strings.HasPrefix(vals["Product Features"], `Countertop is 96" long (2440 mm) 1" gauge`) {
+			t.Errorf("Product Features = %.80q", vals["Product Features"])
 		}
 	})
 

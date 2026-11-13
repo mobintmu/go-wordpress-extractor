@@ -1,8 +1,8 @@
 {
-  "$comment": "PrestaShop with the Panda (stsb_) Elementor theme. Selectors checked against a live product page on 2026-11-11. Product URLs are /<category>/<product> with no trailing slash; category URLs end in '/', info pages are /content/*.html.",
+  "$comment": "PrestaShop with the Panda (stsb_) Elementor theme. Selectors checked against a live product page on 2026-11-11. Product URLs are /<category>/<product> with no trailing slash; category URLs end in '/', info pages are /content/*.html. There is no features table: the 'مشخصات تکمیلی' tab repeats the description, so specs read the product's variant groups (div.stsb_variant_group: a label like 'وزن:' and a select whose options are the sizes), one pair per group with the options joined by ', '. Checked against the live raisin page on 2026-11-13.",
   "schema_version": 1,
   "site_id": "hosseinibrothers",
-  "version": "2026-11-11.2",
+  "version": "2026-11-13.1",
   "enabled": true,
   "extends": "prestashop",
   "domains": ["hosseinibrothers.ir", "www.hosseinibrothers.ir"],
@@ -26,6 +26,12 @@
       "availability": {
         "out_of_stock": "",
         "order_button": "button[data-button-action='add-to-cart']:not([disabled])"
+      },
+      "specs": {
+        "row": "div.stsb_variant_group",
+        "name": ".stsb_variant_label",
+        "value": "option",
+        "separator": ", "
       }
     }
   }

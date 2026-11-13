@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -101,7 +102,7 @@ func TestEmtek(t *testing.T) {
 	t.Run("saved page matches the fixture", func(t *testing.T) {
 		r := e.Post("/api/v1/extract", e.Key, map[string]any{"url": productURL(emtekPath), "request_id": "emtek-1"})
 		r.Success(t)
-		if r.Str("site_id") != "emtek" || r.Str("request_id") != "emtek-1" || r.Str("config_version") != "2026-11-12.1" {
+		if r.Str("site_id") != "emtek" || r.Str("request_id") != "emtek-1" || r.Str("config_version") != "2026-11-13.1" {
 			t.Errorf("site_id/request_id/config_version = %q/%q/%q",
 				r.Str("site_id"), r.Str("request_id"), r.Str("config_version"))
 		}
@@ -110,6 +111,17 @@ func TestEmtek(t *testing.T) {
 			if got := r.Str("product." + f); got != exp {
 				t.Errorf("%s = %.120q, want %.120q", f, got, exp)
 			}
+		}
+		if got := r.At("product.specs"); !reflect.DeepEqual(got, want["specs"]) {
+			t.Errorf("product.specs = %v, want %v", got, want["specs"])
+		}
+		specs, _ := r.At("product.specs").([]any)
+		if len(specs) != 1 {
+			t.Fatalf("specs = %v, want one Available Functions pair", specs)
+		}
+		if sp := specs[0].(map[string]any); sp["name"] != "Available Functions" ||
+			sp["value"] != "Double Cylinder Keyed, Dummy, Smart Lock Single Cylinder, Single Cylinder Keyed" {
+			t.Errorf("specs[0] = %v", sp)
 		}
 		wantPrice, _ := want["price"].(map[string]any)
 		for _, f := range []string{"raw", "state", "currency"} {

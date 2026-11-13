@@ -156,18 +156,38 @@ type ProductPage struct {
 	Specs        *Specs           `json:"specs"`
 }
 
+// Specs layouts.
+const (
+	// SpecsRows: each row element holds one name and one value.
+	SpecsRows = "rows"
+	// SpecsSiblings: names and values are siblings with no row element, as
+	// in <dt>name</dt><dd>value</dd> or <h3>name</h3><p>value</p>.
+	SpecsSiblings = "siblings"
+)
+
 // Specs reads optional name/value pairs, such as a specifications table.
 // Every selector is searched inside the one before it: group inside the
 // product root, title and row inside a group, name and value inside a row.
+// In the siblings layout there is no row: name is searched inside a group
+// and its value is the text of the following siblings up to the next name.
 type Specs struct {
+	// rows (default) or siblings.
+	Layout string `json:"layout"`
 	// Elements that each hold one group of rows. Empty means the product
 	// root is a single group without a title.
 	Group string `json:"group"`
 	// The group's heading, inside a group. Optional.
 	Title string `json:"title"`
-	Row   string `json:"row"`
-	Name  string `json:"name"`
+	// One name/value pair. Not used in the siblings layout.
+	Row  string `json:"row"`
+	Name string `json:"name"`
+	// In the siblings layout, optional: only following siblings that
+	// match it are part of the value.
 	Value string `json:"value"`
+	// Optional. When set, every element matching value is read and the
+	// texts are joined with it, so a list like <ul><li>A</li><li>B</li></ul>
+	// reads "A, B". Without it a row's value is the first match only.
+	Separator string `json:"separator"`
 	// Elements whose text is left out of titles, names, and values, such
 	// as hidden tooltips inside a name. Optional.
 	Exclude string `json:"exclude"`

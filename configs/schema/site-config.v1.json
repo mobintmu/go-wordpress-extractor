@@ -87,14 +87,19 @@
             "specs": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["row", "name", "value"],
-              "description": "Optional name/value pairs returned as product.specs. Each selector is searched inside the previous one: group in root, title and row in group, name and value in row. Missing specs never fail a request.",
+              "required": ["name"],
+              "if": { "properties": { "layout": { "const": "siblings" } }, "required": ["layout"] },
+              "then": { "not": { "required": ["row"] } },
+              "else": { "required": ["row", "value"] },
+              "description": "Optional name/value pairs returned as product.specs. Each selector is searched inside the previous one: group in root, title and row in group, name and value in row. In the siblings layout there is no row: name is searched in the group and its value is the following siblings up to the next name. Missing specs never fail a request.",
               "properties": {
+                "layout": { "enum": ["rows", "siblings"], "default": "rows", "description": "rows: each row holds a name and a value. siblings: name and value elements are siblings with no row, like dt/dd or h3/p" },
                 "group": { "type": "string", "description": "Elements that each hold one titled group of rows. Empty means the root is one untitled group" },
                 "title": { "type": "string", "description": "Group heading inside group. Needs group" },
                 "row": { "type": "string", "minLength": 1, "description": "One name/value pair" },
                 "name": { "type": "string", "minLength": 1 },
-                "value": { "type": "string", "minLength": 1 },
+                "value": { "type": "string", "minLength": 1, "description": "In the siblings layout, optional: only following siblings matching it are part of the value" },
+                "separator": { "type": "string", "minLength": 1, "description": "Read every element matching value and join their texts with it, for example \", \" for a list of li. Without it a row's value is the first match (siblings: joined with a space)" },
                 "exclude": { "type": "string", "description": "Elements inside title, name, or value whose text is left out, for example a hidden tooltip" }
               }
             }

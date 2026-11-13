@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"go-wordpress/internal/apikey"
+	"go-wordpress/internal/server"
 )
 
 func TestRequestValidation(t *testing.T) {
@@ -187,6 +188,35 @@ func TestHealthReadyAndDrain(t *testing.T) {
 		if !e2.Drain.Draining() {
 			t.Errorf("drain flag not set on stop")
 		}
+	})
+
+	t.Run("stuck requests are cancelled at the drain limit", func(t *testing.T) {
+		e2 := Start(t, Options{})
+		result := make(chan *Result, 1)
+		go func() {
+			r, err := e2.ExtractCtx(context.Background(), e2.Shop.URL(hostShop, "/product/hang/"))
+			if err != nil {
+				t.Errorf("in-flight request failed: %v", err)
+			}
+			result <- r
+		}()
+		waitFor(t, e2.Shop.Started, "/product/hang/")
+		// The stop context leaves 2s for draining before the forced step.
+		ctx, cancel := context.WithTimeout(context.Background(), server.ForceGrace+2*time.Second)
+		defer cancel()
+		e2.stopped = true
+		begin := time.Now()
+		if err := e2.app.Stop(ctx); err != nil {
+			t.Fatalf("stop: %v", err)
+		}
+		if took := time.Since(begin); took < 2*time.Second || took > server.ForceGrace+2*time.Second {
+			t.Errorf("stop took %s, want the 2s drain limit plus a quick cancel", took)
+		}
+		r := <-result
+		if r == nil {
+			t.Fatal("no response")
+		}
+		r.APIError(t, http.StatusServiceUnavailable, "SHUTTING_DOWN")
 	})
 
 	t.Run("draining instance returns 503", func(t *testing.T) {

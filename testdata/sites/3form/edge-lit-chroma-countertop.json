@@ -13,7 +13,25 @@
         "currency": "USD",
         "raw": "",
         "state": "unknown"
-      }
+      },
+      "specs": [
+        {
+          "name": "What You Get",
+          "value": "A 96\" (2440 mm) long with a 6\" (152 mm) minimum and 24\" (610 mm) maximum depth Chroma countertop with RGB lighting."
+        },
+        {
+          "name": "Material Choices",
+          "value": "Chroma"
+        },
+        {
+          "name": "Design Choices",
+          "value": "— Countertop depth"
+        },
+        {
+          "name": "Product Features",
+          "value": "Countertop is 96\" long (2440 mm) 1\" gauge Chroma countertop uses an opaque white layer called Avalanche to conceal attachment to the substrate Proprietary LED illumination inside a fabricated channel Avalanche backing can be glued to sub-top with recommended overhang for access to LED lighting Utilizes our standard 3flex RGB series edge lighting solution with a monochromatic RGB controller"
+        }
+      ]
     },
     "warnings": [
       {
@@ -23,5 +41,5 @@
       }
     ]
   },
-  "saved_at": "2026-11-12T14:22:03Z"
+  "saved_at": "2026-11-13T14:52:20Z"
 }

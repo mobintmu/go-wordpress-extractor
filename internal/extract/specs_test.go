@@ -73,3 +73,57 @@ func TestReadSpecsExclude(t *testing.T) {
 		t.Errorf("without exclude: got %+v", got)
 	}
 }
+
+func TestReadSpecsSiblings(t *testing.T) {
+	page := `<main>
+	<div class="copy"><h2>Name</h2><h3>Overview</h3><h3>What You Get</h3><div>A countertop.</div>
+		<h3>Features</h3><div><p>Long</p><p>Lit</p></div><p>Extra</p>
+		<h3>Downloads</h3><p><a href="/s.pdf">Spec Sheet</a></p></div>
+	<dl class="data"><dt>Weight</dt><dd>2 kg</dd><dt>Color</dt><span>note</span><dd>Red</dd><dt>Empty</dt></dl>
+	</main>`
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := doc.Find("main")
+
+	got := readSpecs(root, siteconfig.Specs{Layout: siteconfig.SpecsSiblings, Name: "div.copy > h3", Exclude: "a[href$='.pdf']"})
+	want := []Spec{{"", "What You Get", "A countertop."}, {"", "Features", "Long Lit Extra"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("headings:\n got %+v\nwant %+v", got, want)
+	}
+
+	got = readSpecs(root, siteconfig.Specs{Layout: siteconfig.SpecsSiblings, Name: "dl.data > dt", Value: "dd"})
+	want = []Spec{{"", "Weight", "2 kg"}, {"", "Color", "Red"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("dt/dd:\n got %+v\nwant %+v", got, want)
+	}
+}
+
+func TestReadSpecsSeparator(t *testing.T) {
+	page := `<main><section class="fl"><h2>Available Functions</h2><ul><li>Privacy</li><li> </li><li>Passage</li></ul></section></main>`
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sp := siteconfig.Specs{Row: "section.fl", Name: "h2", Value: "li", Separator: ", "}
+	if got, want := readSpecs(doc.Find("main"), sp), []Spec{{"", "Available Functions", "Privacy, Passage"}}; !reflect.DeepEqual(got, want) {
+		t.Errorf("with separator: got %+v, want %+v", got, want)
+	}
+	sp.Separator = ""
+	if got, want := readSpecs(doc.Find("main"), sp), []Spec{{"", "Available Functions", "Privacy"}}; !reflect.DeepEqual(got, want) {
+		t.Errorf("without separator: got %+v, want %+v", got, want)
+	}
+}
+
+func TestReadSpecsTrimsColon(t *testing.T) {
+	page := `<main><div class="vg"><div class="l">وزن: </div><select><option>1کیلو گرم</option><option>500گرم</option></select></div></main>`
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := readSpecs(doc.Find("main"), siteconfig.Specs{Row: "div.vg", Name: ".l", Value: "option", Separator: ", "})
+	if want := []Spec{{"", "وزن", "1کیلو گرم, 500گرم"}}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}

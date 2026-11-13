@@ -1,8 +1,8 @@
 {
-  "$comment": "Emtek runs a Next.js storefront (pages router, __NEXT_DATA__) behind CloudFront; class names come from CSS modules and carry a build hash (product-showcase_figure__H6Rwh), so every selector here matches on the stable class prefix instead of the hashed name. Emtek is a trade brand: the product page has no price, no cart and no stock text at all (zero '$' in the page), only a 'Find a Dealer' link to /where-to-buy/, so price_current, price_regular, price_area and availability are not configured and a product is returned whole with price.state unknown and a PRICE_MISSING warning; locale.price_unit stays usd so the currency is USD. The page has no canonical link, so product.link is the requested URL. The showcase photo is the finish chosen by the query string (?443=<finish id>&444=<stem id>), a Cloudinary URL that resizes the Salsify original, and the description is the first paragraph of the 'Designed to be Personalized.' rich-text block, which is family copy shared by every SELECT entry set. There is no specification table: the page's two specification tabs are 'Available Functions' (images plus labels, choices rather than specs) and product options, so no specs block is configured. Paths under /all-products/ are both product pages and category landing pages, and they cannot be told apart by shape: /all-products/accessories/door-accessories/house-numbers/7qt-modern/ is a collection at the same depth as a product, so match only rejects the first two category levels and a deeper landing page is fetched and then fails with SELECTOR_NOT_FOUND instead of NOT_PRODUCT_URL. main:has(figure[class*='productShowcase']) is the product root, which keeps the nav menus (out of main) away from the title and description. Checked against the saved page of the SELECT L-Square Stem, Smooth Grip Full Length Tubular Entry Set entry set on 2026-11-12.",
+  "$comment": "Emtek runs a Next.js storefront (pages router, __NEXT_DATA__) behind CloudFront; class names come from CSS modules and carry a build hash (product-showcase_figure__H6Rwh), so every selector here matches on the stable class prefix instead of the hashed name. Emtek is a trade brand: the product page has no price, no cart and no stock text at all (zero '$' in the page), only a 'Find a Dealer' link to /where-to-buy/, so price_current, price_regular, price_area and availability are not configured and a product is returned whole with price.state unknown and a PRICE_MISSING warning; locale.price_unit stays usd so the currency is USD. The page has no canonical link, so product.link is the requested URL. The showcase photo is the finish chosen by the query string (?443=<finish id>&444=<stem id>), a Cloudinary URL that resizes the Salsify original, and the description is the first paragraph of the 'Designed to be Personalized.' rich-text block, which is family copy shared by every SELECT entry set. There is no name/value specification table. The one server-rendered structured fact is the 'Available Functions' list (section.function-list_*: an h2 and one li per function, for example Double Cylinder Keyed, Dummy), present on every product page checked, so specs returns it as a single pair whose value is the li texts joined with ', '. The 'Tech Specs' tab, on products that have it, is free-text bullets (not name/value) and the specification documents are PDF links, so neither is read. Paths under /all-products/ are both product pages and category landing pages, and they cannot be told apart by shape: /all-products/accessories/door-accessories/house-numbers/7qt-modern/ is a collection at the same depth as a product, so match only rejects the first two category levels and a deeper landing page is fetched and then fails with SELECTOR_NOT_FOUND instead of NOT_PRODUCT_URL. main:has(figure[class*='productShowcase']) is the product root, which keeps the nav menus (out of main) away from the title and description. Checked against the saved page of the SELECT L-Square Stem, Smooth Grip Full Length Tubular Entry Set entry set on 2026-11-12.",
   "schema_version": 1,
   "site_id": "emtek",
-  "version": "2026-11-12.1",
+  "version": "2026-11-13.1",
   "enabled": true,
   "domains": ["emtek.com", "www.emtek.com"],
 
@@ -19,6 +19,12 @@
         "title": { "selector": "h1", "pick": "first" },
         "image_url": { "selector": "figure[class*='productShowcase'] img", "attr": "src", "pick": "first" },
         "description": { "selector": "div[class*='richText'] p", "pick": "first" }
+      },
+      "specs": {
+        "row": "section[class*='function-list']",
+        "name": "h2",
+        "value": "li",
+        "separator": ", "
       }
     }
   },

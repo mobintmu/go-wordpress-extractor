@@ -122,6 +122,18 @@ func TestSherwinWilliams(t *testing.T) {
 		if got := sherwinWilliamsWarnings(r); len(got) != 1 || got[0] != "PRICE_MISSING" {
 			t.Errorf("warnings = %v, want only PRICE_MISSING", got)
 		}
+		// Specs are the Options configurator: one pair per field, the
+		// options joined by ", " and the label's trailing colon dropped.
+		specs, _ := r.At("product.specs").([]any)
+		got := map[string]string{}
+		for _, s := range specs {
+			m := s.(map[string]any)
+			got[m["name"].(string)], _ = m["value"].(string)
+		}
+		if len(specs) != 3 || got["Container Size"] != "1 Quart, 1 Gallon, 5 Gallon" || got["Sheen"] != "Flat, Matte, Satin, Semi-Gloss" ||
+			!strings.HasPrefix(got["Base"], "High Reflective White, Extra White, ") {
+			t.Errorf("specs = %v", specs)
+		}
 	})
 
 	t.Run("sample product: no price in the server HTML", func(t *testing.T) {

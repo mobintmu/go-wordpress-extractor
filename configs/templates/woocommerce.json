@@ -36,6 +36,11 @@
       "availability": {
         "out_of_stock": "p.stock.out-of-stock",
         "order_button": "button.single_add_to_cart_button"
+      },
+      "specs": {
+        "row": "table.woocommerce-product-attributes tr.woocommerce-product-attributes-item",
+        "name": "th.woocommerce-product-attributes-item__label",
+        "value": "td.woocommerce-product-attributes-item__value"
       }
     }
   },

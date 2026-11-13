@@ -13,7 +13,21 @@
         "currency": "USD",
         "raw": "",
         "state": "unknown"
-      }
+      },
+      "specs": [
+        {
+          "name": "Container Size",
+          "value": "1 Quart, 1 Gallon, 5 Gallon"
+        },
+        {
+          "name": "Sheen",
+          "value": "Flat, Matte, Satin, Semi-Gloss"
+        },
+        {
+          "name": "Base",
+          "value": "High Reflective White, Extra White, Deep Base, Accent Base, Ultradeep Base, Bright Yellow, Real Red, Ultra White"
+        }
+      ]
     },
     "warnings": [
       {
@@ -23,5 +37,5 @@
       }
     ]
   },
-  "saved_at": "2026-11-11T02:06:23Z"
+  "saved_at": "2026-11-13T15:23:48Z"
 }

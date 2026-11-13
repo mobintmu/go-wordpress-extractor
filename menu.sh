@@ -192,6 +192,59 @@ delete_keys() {
   echo "Restart any running server, and copy this file to every instance."
 }
 
+# Ask for a proxy host and port, export http_proxy/https_proxy for this
+# menu session (go run and other tools started from here use them), and
+# optionally save APP_PROXY_HOST/APP_PROXY_PORT, which the server's own
+# fetches use. The server ignores http_proxy/https_proxy on purpose.
+set_proxy() {
+  local cur_host cur_port host port
+  cur_host=$(get_var APP_PROXY_HOST)
+  cur_port=$(get_var APP_PROXY_PORT)
+  echo "Current: http_proxy=${http_proxy:-<unset>}  APP_PROXY_HOST=${cur_host:-<unset>}  APP_PROXY_PORT=${cur_port:-<unset>}"
+  echo "Enter 'none' as the host to remove the proxy."
+  while true; do
+    read -r -p "Proxy host (example: 127.0.0.1) [${cur_host:-127.0.0.1}]: " host
+    host="${host:-${cur_host:-127.0.0.1}}"
+    if [[ "$host" == none ]]; then
+      unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
+      if ask_yes "Also remove APP_PROXY_HOST/APP_PROXY_PORT from $ENV_FILE (server fetches directly)?" y; then
+        set_var APP_PROXY_HOST ""
+        set_var APP_PROXY_PORT ""
+        unset APP_PROXY_HOST APP_PROXY_PORT
+        echo "Proxy removed from $ENV_FILE."
+      fi
+      echo "http_proxy and https_proxy unset for this session."
+      return 0
+    fi
+    # A host name or IP address only: no scheme, port, path, or spaces.
+    if [[ "$host" =~ ^[A-Za-z0-9.-]+$ ]]; then
+      break
+    fi
+    echo "Enter a host name or IP address only, for example 127.0.0.1 (no http://, no port)."
+  done
+  while true; do
+    read -r -p "Proxy port (example: 3067) [${cur_port:-3067}]: " port
+    port="${port:-${cur_port:-3067}}"
+    if [[ "$port" =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )); then
+      break
+    fi
+    echo "Enter a port between 1 and 65535, for example 3067."
+  done
+
+  export https_proxy="http://$host:$port"
+  export http_proxy="http://$host:$port"
+  echo "Exported for this session:"
+  echo "  export https_proxy=$https_proxy"
+  echo "  export http_proxy=$http_proxy"
+
+  if ask_yes "Save as APP_PROXY_HOST/APP_PROXY_PORT in $ENV_FILE so the server's fetches use it?" y; then
+    set_var APP_PROXY_HOST "$host"
+    set_var APP_PROXY_PORT "$port"
+    export APP_PROXY_HOST="$host" APP_PROXY_PORT="$port"
+    echo "Saved. Restart a running server to use the proxy."
+  fi
+}
+
 run_server() {
   need_pepper || return 1
   echo "Starting the server with $ENV_FILE (Ctrl+C to stop)..."
@@ -214,6 +267,7 @@ while true; do
   3) Show keys
   4) Set up all keys (pepper, operator login, client key)
   5) Create a client key
+  6) Set proxy (host and port)
   0) Exit
 EOF
   read -r -p "Choose: " choice || exit 0
@@ -224,6 +278,7 @@ EOF
     3) show_keys ;;
     4) setup_all ;;
     5) create_key ;;
+    6) set_proxy ;;
     0|q|Q) exit 0 ;;
     *) echo "Unknown choice: $choice" ;;
   esac

@@ -2,5 +2,6 @@
     "sonarlint.connectedMode.project": {
         "connectionId": "sonar-local",
         "projectKey": "go-wordpress"
-    }
+    },
+    "python.terminal.useEnvFile": true
 }

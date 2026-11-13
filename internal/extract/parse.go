@@ -273,9 +273,13 @@ func readSpecs(el *goquery.Selection, sp siteconfig.Specs) []Spec {
 		return normalize.Text(walkText(s, false, skip))
 	}
 	read := func(group *goquery.Selection, title string) {
+		if sp.Layout == siteconfig.SpecsSiblings {
+			readSiblingSpecs(group, sp, title, text, &out)
+			return
+		}
 		group.Find(sp.Row).Each(func(_ int, row *goquery.Selection) {
-			name := text(row.Find(sp.Name).First())
-			value := text(row.Find(sp.Value).First())
+			name := specName(text(row.Find(sp.Name).First()))
+			value := specValue(row.Find(sp.Value), sp.Separator, text)
 			if name != "" && value != "" {
 				out = append(out, Spec{Group: title, Name: name, Value: value})
 			}
@@ -293,6 +297,56 @@ func readSpecs(el *goquery.Selection, sp siteconfig.Specs) []Spec {
 		read(g, title)
 	})
 	return out
+}
+
+// specName drops a trailing colon from a label like "Weight:" or "وزن:".
+func specName(s string) string {
+	return strings.TrimSpace(strings.TrimRight(s, ":："))
+}
+
+// specValue is the text of the first element in vals, or with sep set,
+// the non-empty texts of every element joined with sep.
+func specValue(vals *goquery.Selection, sep string, text func(*goquery.Selection) string) string {
+	if sep == "" {
+		return text(vals.First())
+	}
+	var parts []string
+	vals.Each(func(_ int, v *goquery.Selection) {
+		if t := text(v); t != "" {
+			parts = append(parts, t)
+		}
+	})
+	return strings.Join(parts, sep)
+}
+
+// readSiblingSpecs reads the siblings layout: every name element in group
+// is a name, and its value is the text of the siblings after it, up to the
+// next name element. With sp.Value set, only siblings matching it count.
+func readSiblingSpecs(group *goquery.Selection, sp siteconfig.Specs, title string, text func(*goquery.Selection) string, out *[]Spec) {
+	names := group.Find(sp.Name)
+	isName := map[*html.Node]bool{}
+	for _, n := range names.Nodes {
+		isName[n] = true
+	}
+	names.Each(func(_ int, n *goquery.Selection) {
+		name := specName(text(n))
+		var parts []string
+		for sib := n.Next(); sib.Length() > 0 && !isName[sib.Nodes[0]]; sib = sib.Next() {
+			if sp.Value != "" && !sib.Is(sp.Value) {
+				continue
+			}
+			if t := text(sib); t != "" {
+				parts = append(parts, t)
+			}
+		}
+		sep := sp.Separator
+		if sep == "" {
+			sep = " "
+		}
+		if value := strings.Join(parts, sep); name != "" && value != "" {
+			*out = append(*out, Spec{Group: title, Name: name, Value: value})
+		}
+	})
 }
 
 func pick(vals []string, f siteconfig.Field, defaultSep string) string {
