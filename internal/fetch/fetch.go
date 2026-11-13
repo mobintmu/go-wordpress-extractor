@@ -64,6 +64,11 @@ type Page struct {
 	Headers      http.Header
 	Body         []byte
 	BodyLength   int64
+	// Engine is the fetch engine that produced the page, set by the Router.
+	Engine string
+	// Search is set by the search engines (duckduckgo, brave). They never
+	// contact the site, so the page then has no Body, Status or Headers.
+	Search *SearchPage
 }
 
 // ContentType returns the response Content-Type header.

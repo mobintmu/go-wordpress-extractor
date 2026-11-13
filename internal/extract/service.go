@@ -119,9 +119,13 @@ func (s *Service) Run(ctx context.Context, requestID string, target *url.URL) (r
 	// fetch
 	stage = diagnose.StageFetch
 	page, fail := s.fetcher.Fetch(ctx, site, target)
+	resp.Source = sourceOf(page)
 	if fail != nil {
 		s.fail(resp, fail, evidenceFrom(page))
 		return resp, nil
+	}
+	if page.Search != nil {
+		return s.finishSearch(resp, site, file, page), nil
 	}
 	final := page.FinalURL
 	if final == nil {
@@ -157,13 +161,53 @@ func (s *Service) Run(ctx context.Context, requestID string, target *url.URL) (r
 		s.fail(resp, out.failure, ev)
 		if out.failure.Code == diagnose.RequiredFieldMissing || out.failure.Code == diagnose.PriceParseFailed {
 			resp.Partial.Product = out.product
+			resp.UnavailableFields = unavailableFields(site, out.product, false)
 		}
 		return resp, nil
 	}
+	s.succeed(resp, site, out, false)
+	return resp, nil
+}
+
+// succeed fills a success result: whatever was found, and every field that
+// was not in unavailable_fields.
+func (s *Service) succeed(resp *Response, site *siteconfig.Site, out parsed, fromSearch bool) {
 	resp.Status = StatusSuccess
 	resp.Product = out.product
 	resp.Warnings = out.warnings
-	return resp, nil
+	resp.UnavailableFields = unavailableFields(site, out.product, fromSearch)
+	resp.Completeness = completeness(resp.UnavailableFields)
+}
+
+// finishSearch builds the result from a search engine's match. The site
+// was not contacted, so there is no page to check or parse.
+func (s *Service) finishSearch(resp *Response, site *siteconfig.Site, file string, page *fetch.Page) *Response {
+	out := fromSearch(site, file, page.Search)
+	if out.failure != nil {
+		ev := evidenceFrom(page)
+		ev.FieldSamples = out.fields
+		s.fail(resp, out.failure, ev)
+		resp.Partial.Product = out.product
+		resp.UnavailableFields = unavailableFields(site, out.product, true)
+		return resp
+	}
+	s.succeed(resp, site, out, true)
+	return resp
+}
+
+// sourceOf says which engine produced the page.
+func sourceOf(p *fetch.Page) *Source {
+	if p == nil || p.Engine == "" {
+		return nil
+	}
+	src := &Source{Engine: p.Engine, SiteContacted: !siteconfig.IsSearchEngine(p.Engine)}
+	if sp := p.Search; sp != nil {
+		src.Cached = sp.Cached
+		if sp.Result != nil {
+			src.Query, src.ResultRank = sp.Query, sp.Result.Rank
+		}
+	}
+	return src
 }
 
 func (s *Service) fail(resp *Response, f *diagnose.Failure, ev *diagnose.Evidence) {
@@ -197,6 +241,11 @@ func evidenceFrom(p *fetch.Page) *diagnose.Evidence {
 		return ev
 	}
 	ev.FailedURL = p.RequestedURL
+	if p.Search != nil {
+		// The site was not contacted: only the search is evidence.
+		ev.Search = p.Search.Evidence()
+		return ev
+	}
 	ev.FinalURL = p.RequestedURL
 	if p.FinalURL != nil {
 		ev.FinalURL = p.FinalURL.String()

@@ -2,6 +2,8 @@
 
 A stateless HTTP service that extracts one product from one product page. A client application sends a product URL with an API key. The service finds that site's parsing rules in a JSON file, fetches the page, and returns either the product or a structured root cause with evidence, in the same response.
 
+For sites behind bot protection that the service does not get past (fergusonhome.com, hafele.com.de), a search engine (`duckduckgo` or `brave`) builds the product from the search result instead, without contacting the site. Whatever is found is returned, and every field that could not be found is listed in `unavailable_fields`. See [Search engines](#search-engines-duckduckgo-brave) and [Responsible use](#responsible-use).
+
 There is no database and no Redis. Site configs and API keys are files that are re-read every 30 seconds. The design is in [md/SYNC_EXTRACTION_PROPOSAL.md](md/SYNC_EXTRACTION_PROPOSAL.md).
 
 Because nodes share nothing, you can run as many as you like. Each node reports how busy it is, so the client can act as the dispatcher and spread requests across nodes. See [Run distributed](#run-distributed-client-side-load-balancing).
@@ -26,12 +28,14 @@ configs/                schema/, templates/ (woocommerce, woodmart, prestashop),
 internal/apikey         Key format, HMAC hashing, .env and JSON key files, reload, middleware
 internal/siteconfig     Loader, template merge, validation, registry with hot reload
 internal/extract        Pipeline (config, fetch, page_check, extract, normalize, validate) and handler
-internal/fetch          Colly setup, SSRF-safe dialer, retries, redirects, size limit
+internal/fetch          Fetch engines (http/Colly, browser, search) and router; SSRF-safe dialer, retries, redirects, size limit
+internal/fetch/search   DuckDuckGo and Brave providers, URL matching, query building
 internal/normalize      Digits, prices (ranges, rial to toman), text, URLs
 internal/diagnose       Failure codes, page checks, selector trace, HTML samples
 internal/limiter        Per-instance and per-site concurrency, per-site request spacing
 internal/metrics        Prometheus text metrics
 testdata/sites/         Saved HTML and expected output per site
+testdata/search/        Saved DuckDuckGo result pages (real) and a Brave response (synthetic)
 test/e2e/               End-to-end tests against the real server and a fake shop
 ```
 
@@ -122,6 +126,31 @@ With Docker, using the program inside the image:
 ```
 docker compose run --rm apikey generate-pepper
 ```
+
+## Responsible use
+
+This service downloads product pages from shop websites. When a search engine is enabled, it also sends queries to third-party search services. Whoever runs an instance decides which websites and services it contacts, and is responsible for that use.
+
+**The license covers this code only.** The MIT license ([LICENSE](LICENSE)) lets you use, copy and change the code in this repository. It gives you no rights to the websites listed in `configs/sites/` or their content, or to the services of DuckDuckGo, Brave or any other provider. Those rights can only come from the website owners and the providers, under their own terms.
+
+**Before you enable a site or an engine, check that your use is allowed by:**
+
+- **The website's terms of use.** A config in this repository shows how a site's pages are built. It does not mean the site allows automated extraction.
+- **DuckDuckGo's [Terms of Service](https://duckduckgo.com/terms) and [Acceptable Use Policy](https://duckduckgo.com/acceptable-use)**, for the `duckduckgo` engine. DuckDuckGo offers no API for web results and has not approved this project. The engine is off by default.
+- **Brave's terms for your [Brave Search API](https://brave.com/search/api) plan**, for the `brave` engine, including whether you may store results. Use your own API key. The engine is off by default.
+- **The laws that apply to you**, for example on copyright, databases and personal data.
+
+**What each engine does:**
+
+| Engine | Contacts the website | Notes |
+|---|---|---|
+| `http` | Yes, with plain HTTP requests | Follows the site's `robots.txt` unless the site config sets `respect_robots_txt` to `false` |
+| `browser` | Yes, in a real Chrome browser | Runs the page's JavaScript like a normal visitor's browser. This can get past some anti-bot checks, for example Cloudflare's "Just a moment..." page. Some websites' terms forbid this, so check before you use it for a site |
+| `duckduckgo`, `brave` | No | Sends search queries to the provider only, and builds the product from the search result |
+
+**No affiliation.** DuckDuckGo, Brave, and the shop names used in `configs/sites/` are trademarks of their owners. This project is not affiliated with or endorsed by any of them.
+
+**Not legal advice.** This section is general information, not legal advice. If you are unsure whether your use is allowed, ask a lawyer. As [LICENSE](LICENSE) states, the software is provided "as is", without warranty of any kind.
 
 ## Run with docker compose
 
@@ -343,6 +372,15 @@ func pick(nodes []Node, site string) *Node {
 | `APP_BROWSER_HEADLESS` | `true` | Run Chrome without a window; `false` needs a display (or Xvfb) |
 | `APP_BROWSER_MAX_PAGES` | `3` | Browser pages open at once per instance (each uses 100-300 MB) |
 | `PLAYWRIGHT_DRIVER_PATH` | user cache | Where the Playwright driver (node + `playwright-core` 1.57.0) is installed |
+| `APP_SEARCH_USER_AGENT` | `go-wordpress-extractor/1.0` | Honest client name sent to the search providers. Do not put personal contact details in it unless you mean to share them |
+| `APP_SEARCH_CACHE_TTL` | `6h` | How long a matched search result is kept in memory. `0` turns the cache off |
+| `APP_SEARCH_NO_RESULT_CACHE_TTL` | `1h` | How long a `SEARCH_NO_RESULT` answer is kept, so repeated requests for an unindexed product do not query the provider again |
+| `APP_DUCKDUCKGO_ENABLED` | `false` | Turn on the `duckduckgo` engine. No key. Without it (and without an enabled alternate), such sites fail with `ENGINE_UNAVAILABLE` |
+| `APP_DUCKDUCKGO_MIN_INTERVAL_MS` | `2000` | Minimum time between two DuckDuckGo queries from this instance, across all sites |
+| `APP_BRAVE_ENABLED` | `false` | Turn on the `brave` engine. Needs a key; the app does not start without one |
+| `APP_BRAVE_API_KEY` | none | **Secret.** Your Brave Search API key, sent as `X-Subscription-Token`. Never logged. Never put it in `.env.development` or `.env.test`: they are committed |
+| `APP_BRAVE_API_KEY_FILE` | none | A file holding only the key (for example `secrets/brave_api_key`; `secrets/` is git-ignored). Used when `APP_BRAVE_API_KEY` is empty |
+| `APP_BRAVE_MIN_INTERVAL_MS` | `1000` | Minimum time between two Brave queries. `1000` fits the free tier's 1 query per second |
 
 ### Fetch engines
 
@@ -351,9 +389,90 @@ Each site picks how its pages are fetched with `fetch.engine` in its config (Str
 | `fetch.engine` | Engine | Use for |
 |---|---|---|
 | `http` (default) | `fetch.Fetcher`: Colly over Go's HTTP client | Server-rendered pages. Fast (under 1 s), small memory |
-| `browser` | `fetch.BrowserFetcher`: Playwright drives Chrome | Pages rendered by JavaScript (`JS_RENDERED_PAGE`) or behind a challenge that only needs a real browser. 3-10 s per page |
+| `browser` | `fetch.BrowserFetcher`: Playwright drives Chrome | Pages rendered by JavaScript (`JS_RENDERED_PAGE`). 3-10 s per page |
+| `duckduckgo` | `fetch.SearchFetcher` with DuckDuckGo's HTML results page | Sites behind bot protection that should not be fetched at all. Never contacts the site. About 1-3 s |
+| `brave` | `fetch.SearchFetcher` with the Brave Search API | The same, through a paid, licensed API with your own key |
+
+A site can also list `alternate_engines` (search engines only). The router uses the first engine from `[engine, ...alternate_engines]` that is enabled on the instance. That choice is made once per request: a failed fetch is never retried on another engine, and a request never switches from `http` or `browser` to search.
 
 All of Chrome's traffic goes through an in-process egress proxy that dials with the same SSRF checks and outbound proxy as the `http` engine. Build the image with Chrome with `docker build --target runtime-browser .`. See [md/browser-engine.md](md/browser-engine.md) for how to run, start and stop it, and [md/real-chrome-playwright.md](md/real-chrome-playwright.md) for the design. For local development without a Chrome window on screen, start the server with `./deploy.sh dev` (`xvfb-run -a go run ./cmd/server`).
+
+### Search engines (duckduckgo, brave)
+
+For a site behind bot protection (Cloudflare, Akamai, ...) that the service should not get past, set a search engine. The service then never contacts the site: it looks the product URL up in the search engine and builds the product from the matching result. Used today by `fergusonhome.com` and `hafele.com.de`. The design and the tests behind it are in [md/SEARCH_ENGINE_PROPOSAL.md](md/SEARCH_ENGINE_PROPOSAL.md).
+
+```json
+"fetch": {
+  "engine": "duckduckgo",
+  "alternate_engines": ["brave"],
+  "timeout_seconds": 20,
+  "search": {
+    "region": "us-en",
+    "title_strip": [" | Ferguson Home"],
+    "ignore_params": ["uid"],
+    "queries": ["site_slug", "url"]
+  }
+}
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `search.region` | `wt-wt` (none) | `<country>-<lang>`, for example `us-en`, `de-de`. Sent as `kl` to DuckDuckGo and as `country` + `search_lang` to Brave |
+| `search.title_strip` | `[]` | Suffixes or prefixes removed from the result title |
+| `search.ignore_params` | `[]` | Query parameters ignored when comparing a result URL with the requested URL (Ferguson's variant `uid`) |
+| `search.queries` | `["site_slug", "url"]` | Queries tried in order, at most 2: `site_slug` = `site:<domain> <words of the URL slug>`, `url` = the product URL in quotes |
+
+**How a request runs.** The engine sends the first query, and the second only if the first had no match. A result is used only if its URL is exactly the requested URL (lowercase host without `www.`, no scheme, no trailing `/`, no tracking or ignored parameters), so a similar product (another size, another colour) is never returned instead. Queries to one provider are spaced by `APP_DUCKDUCKGO_MIN_INTERVAL_MS` / `APP_BRAVE_MIN_INTERVAL_MS`, and answers are cached in memory.
+
+**What comes back.** A search result has a title, a URL and a snippet, so a search response is almost always `"completeness": "partial"`:
+
+| Field | From search |
+|---|---|
+| `title` | The result title, without `title_strip` and without the `...` a search engine adds to a long title (warning `SEARCH_TITLE_TRUNCATED`) |
+| `url` | The matched result URL |
+| `description` | The result snippet (warning `SEARCH_SNIPPET`: shortened, maybe out of date) |
+| `image_url`, `price`, `specs` | Never. Listed in `unavailable_fields` with reason `NOT_IN_SEARCH_RESULTS`; `price.state` is `unknown` and `PRICE_MISSING` is warned as before |
+
+`source` says which engine answered (`"site_contacted": false`, the query, the result's rank, and `cached`). Search indexes do not hold every product: on 2026-11-13 DuckDuckGo had the Ferguson sample product at rank 1 but not the Häfele one. When no result matches, the request fails with `SEARCH_NO_RESULT` (not retryable; retry in a few days), and `evidence.search` lists the queries, how many results each returned, and up to 3 `closest` product URLs on the site for a person to check. They are never used as the product.
+
+| Failure code | Meaning |
+|---|---|
+| `SEARCH_NO_RESULT` | No result is the requested product URL |
+| `SEARCH_PROVIDER_BLOCKED` | DuckDuckGo answered with a rate-limit or bot-check page. The service does not work around it |
+| `SEARCH_QUOTA_EXCEEDED` | Brave answered 429 (per-second limit or plan quota) |
+| `SEARCH_PROVIDER_AUTH_FAILED` | Brave answered 401/403: wrong or revoked key, or the plan lacks web search |
+| `SEARCH_PROVIDER_ERROR` | Network error, 5xx, or a response the parser cannot read |
+
+**Turning them on.** Both are off by default; see [Responsible use](#responsible-use) first.
+
+```bash
+sudo ./deploy.sh search                     # status (never shows the key)
+sudo ./deploy.sh search enable duckduckgo   # no key; shows DuckDuckGo's terms and asks
+sudo ./deploy.sh search enable brave        # asks for your Brave API key without echoing it
+sudo ./deploy.sh search disable brave
+sudo ./deploy.sh restart
+```
+
+Locally, `.env.development` turns `duckduckgo` on. For Brave, put the key alone in `secrets/brave_api_key` (git-ignored) and set `APP_BRAVE_ENABLED=true`, or export `APP_BRAVE_API_KEY` in your shell. `.env.example` lists every search setting.
+
+Unit tests never send real queries: they use the saved pages in `testdata/search/`. To query the real providers once:
+
+```bash
+SEARCH_LIVE_TEST=1 go test ./internal/fetch/search/ -run Live -v                        # DuckDuckGo
+SEARCH_LIVE_TEST=1 APP_BRAVE_API_KEY=... go test ./internal/fetch/search/ -run Live -v   # also Brave
+```
+
+### Response: completeness and unavailable_fields
+
+For every engine, the response returns whatever product data was found and lists every field that was not in `unavailable_fields` (an array in the JSON body; the HTTP status stays 200). The fields checked are `image_url`, `description`, `price`, `availability` and `specs` (and `title` when a failed result carries `partial.product`):
+
+| Reason | Meaning |
+|---|---|
+| `NOT_ON_PAGE` | The page was fetched, but the field was not on it (`http`, `browser`) |
+| `NOT_IN_SEARCH_RESULTS` | The search result does not include it (`duckduckgo`, `brave`) |
+| `NOT_CONFIGURED` | The site config does not extract it for this site |
+
+`completeness` is `full` when the list is empty and `partial` otherwise. The existing `FIELD_MISSING` and `PRICE_MISSING` warnings are unchanged.
 
 ### Installing Playwright (browser engine)
 
@@ -378,7 +497,7 @@ sudo -E ./deploy.sh browser install   # reinstall or update without changing set
 sudo ./deploy.sh browser disable      # turn off (files stay)
 ```
 
-**Server without a screen (Xvfb).** Sites behind a Cloudflare challenge, such as hafele.com.de, only pass with Chrome in a window: headless Chrome stays on "Just a moment...". On a server, that window is drawn on Xvfb, a virtual display in memory (no monitor or GPU, about 20-50 MB RAM). `browser enable` asks "Run Chrome in a window on Xvfb?" (default yes). With yes it sets `APP_BROWSER_HEADLESS=false`, installs Xvfb (`apt-get install -y xvfb`), checks that Chrome starts in a window on a temporary display, and adds a second systemd unit, `go-wordpress-extractor-xvfb`, that runs the display `:99`. The server unit requires it and gets `DISPLAY=:99`. Xvfb runs as its own unit instead of `xvfb-run` around the server, so a stop still sends SIGTERM to the server and running requests finish. To do the same by hand:
+**Server without a screen (Xvfb).** Some pages only load in Chrome with a window, because headless Chrome is detected more often (for example, it stays on Cloudflare's "Just a moment..." page). On a server, that window is drawn on Xvfb, a virtual display in memory (no monitor or GPU, about 20-50 MB RAM). `browser enable` asks "Run Chrome in a window on Xvfb?" (default yes). With yes it sets `APP_BROWSER_HEADLESS=false`, installs Xvfb (`apt-get install -y xvfb`), checks that Chrome starts in a window on a temporary display, and adds a second systemd unit, `go-wordpress-extractor-xvfb`, that runs the display `:99`. The server unit requires it and gets `DISPLAY=:99`. Xvfb runs as its own unit instead of `xvfb-run` around the server, so a stop still sends SIGTERM to the server and running requests finish. To do the same by hand:
 
 ```bash
 sudo apt-get install -y xvfb

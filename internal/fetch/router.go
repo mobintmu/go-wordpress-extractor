@@ -49,18 +49,37 @@ func (r *Router) Engines() []string {
 	return out
 }
 
-// Fetch selects the site's engine and delegates to it.
+// Fetch selects the site's engine and delegates to it. When fetch.engine is
+// not enabled on this instance, the first enabled engine from
+// fetch.alternate_engines is used instead. The choice is made once: the
+// chosen engine's failure is returned as it is, never retried on another
+// engine.
 func (r *Router) Fetch(ctx context.Context, site *siteconfig.Site, target *url.URL) (*Page, *diagnose.Failure) {
-	name := site.Fetch.Engine
-	if name == "" {
-		name = r.fallback
+	names := site.Engines()
+	if names[0] == "" {
+		names[0] = r.fallback
 	}
-	engine, ok := r.engines[name]
-	if !ok {
+	for _, name := range names {
+		engine, ok := r.engines[name]
+		if !ok {
+			continue
+		}
+		page, fail := engine.Fetch(ctx, site, target)
+		if page == nil {
+			page = &Page{RequestedURL: target.String()}
+		}
+		if page.Engine == "" {
+			page.Engine = name
+		}
+		return page, fail
+	}
+	if len(names) == 1 {
 		return &Page{RequestedURL: target.String()}, diagnose.New(diagnose.EngineUnavailable, diagnose.ConfidenceHigh,
-			"The site config selects fetch engine %q, which is not enabled on this instance (enabled: %v).", name, r.Engines())
+			"The site config selects fetch engine %q, which is not enabled on this instance (enabled: %v).", names[0], r.Engines())
 	}
-	return engine.Fetch(ctx, site, target)
+	return &Page{RequestedURL: target.String()}, diagnose.New(diagnose.EngineUnavailable, diagnose.ConfidenceHigh,
+		"The site config selects fetch engine %q with alternates %q, and none of them is enabled on this instance (enabled: %v).",
+		names[0], names[1:], r.Engines())
 }
 
 // isNil reports whether e is nil or a typed nil pointer, which fx and

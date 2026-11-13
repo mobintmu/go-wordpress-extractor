@@ -65,6 +65,11 @@ definitions:
         description: 'Allow-listed headers only: server, content-type, retry-after,
           cf-ray, cf-mitigated, location. Never Set-Cookie.'
         type: object
+      search:
+        allOf:
+        - $ref: '#/definitions/SearchEvidence'
+        description: What a search engine searched for. Set only for the duckduckgo
+          and brave engines.
       selector_trace:
         description: Match count for each step of the failing selector path.
         items:
@@ -80,7 +85,8 @@ definitions:
           DNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,
           SOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,
           UNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,
-          REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE.
+          REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,
+          SEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR.
         example: SELECTOR_NOT_FOUND
         type: string
       confidence:
@@ -146,6 +152,14 @@ definitions:
     type: object
   ExtractResponse:
     properties:
+      completeness:
+        description: full when unavailable_fields is empty, partial otherwise. Set
+          on success.
+        enum:
+        - full
+        - partial
+        example: partial
+        type: string
       config_version:
         example: 2026-11-08.1
         type: string
@@ -178,6 +192,10 @@ definitions:
         description: Missing when no site config matched.
         example: badomjip
         type: string
+      source:
+        allOf:
+        - $ref: '#/definitions/Source'
+        description: Which fetch engine produced the data. Set once a fetch was attempted.
       started_at:
         example: "2026-11-08T10:00:00Z"
         type: string
@@ -187,6 +205,12 @@ definitions:
         - failed
         example: success
         type: string
+      unavailable_fields:
+        description: Every product field that is not in the response, with the reason.
+          Always an array on success; also set on failed when partial.product is.
+        items:
+          $ref: '#/definitions/UnavailableField'
+        type: array
       url:
         example: https://badomjip.com/product/example/
         format: uri
@@ -452,6 +476,46 @@ definitions:
     required:
     - url
     type: object
+  SearchEvidence:
+    properties:
+      cached:
+        description: True when the answer came from the instance's cache and no query
+          was sent for this request.
+        example: false
+        type: boolean
+      closest:
+        description: Up to 3 result URLs on the same site, for a person to check.
+          Never used as the product.
+        items:
+          type: string
+        type: array
+      engine:
+        example: duckduckgo
+        type: string
+      queries:
+        items:
+          $ref: '#/definitions/SearchQuery'
+        type: array
+    required:
+    - cached
+    - engine
+    - queries
+    type: object
+  SearchQuery:
+    properties:
+      matched:
+        example: false
+        type: boolean
+      query:
+        example: site:hafele.com.de universalverbinder haefele ixconnect uc 16 64
+        type: string
+      results:
+        description: Number of web results that came back.
+        example: 10
+        type: integer
+    required:
+    - query
+    type: object
   SelectorTraceStep:
     properties:
       matches:
@@ -513,6 +577,39 @@ definitions:
     - loaded_at
     - sites
     type: object
+  Source:
+    properties:
+      cached:
+        description: True when the search answer came from the instance's cache.
+        example: false
+        type: boolean
+      engine:
+        enum:
+        - http
+        - browser
+        - duckduckgo
+        - brave
+        example: duckduckgo
+        type: string
+      query:
+        description: The search query whose results held the product. Search engines
+          only.
+        example: site:fergusonhome.com duravit 030549 0hole
+        type: string
+      result_rank:
+        description: The product's 1-based position in the search results. Search
+          engines only.
+        example: 1
+        type: integer
+      site_contacted:
+        description: False for the search engines, which never contact the product's
+          site.
+        example: false
+        type: boolean
+    required:
+    - engine
+    - site_contacted
+    type: object
   Spec:
     properties:
       group:
@@ -529,6 +626,33 @@ definitions:
     required:
     - name
     - value
+    type: object
+  UnavailableField:
+    properties:
+      field:
+        enum:
+        - title
+        - image_url
+        - description
+        - price
+        - availability
+        - specs
+        example: price
+        type: string
+      message:
+        example: Search results do not include prices.
+        type: string
+      reason:
+        enum:
+        - NOT_ON_PAGE
+        - NOT_IN_SEARCH_RESULTS
+        - NOT_CONFIGURED
+        example: NOT_IN_SEARCH_RESULTS
+        type: string
+    required:
+    - field
+    - message
+    - reason
     type: object
   Warning:
     properties:

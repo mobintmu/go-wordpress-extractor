@@ -2,10 +2,12 @@
 
 The browser engine loads a product page in a real Google Chrome (or Chromium) browser, driven by Playwright, instead of fetching it with a plain HTTP request. Use it for sites that the default HTTP engine cannot read:
 
-- **Anti-bot challenges.** For example hafele.com.de: Cloudflare answers a plain request with HTTP 403 "Just a moment...". Chrome runs the challenge and gets the real page.
+- **Anti-bot challenges.** For example hafele.com.de (until 2026-11-13): Cloudflare answers a plain request with HTTP 403 "Just a moment...". Chrome runs the challenge and gets the real page. Some websites' terms forbid this; check before using it for a site (README "Responsible use").
 - **Pages rendered by JavaScript.** The HTML has no product markup until scripts run (failure code `JS_RENDERED_PAGE`).
 
 Every other site keeps using the HTTP engine (Colly), which is faster and lighter.
+
+> **Since 2026-11-13 no site config in the repo uses the browser engine.** hafele.com.de, the first site that used it, moved to the `duckduckgo` search engine (alternate `brave`), which never contacts the site. The project does not get past bot protection for the sites it ships ([SEARCH_ENGINE_PROPOSAL.md](SEARCH_ENGINE_PROPOSAL.md), README "Responsible use"). The engine stays available for pages rendered by JavaScript; sherwin-williams.com is the planned next user. The Häfele results on this page are kept as the test record from 2026-11-12.
 
 | | HTTP engine | Browser engine |
 |---|---|---|
@@ -64,7 +66,7 @@ Leave `engine` out, or set it to `"http"`, for the HTTP engine. The server reloa
 | Mode | Settings | Works for |
 |---|---|---|
 | Headless | `APP_BROWSER_HEADLESS=true` | Pages that only need JavaScript |
-| Chrome in a window on Xvfb | `APP_BROWSER_CHANNEL=chrome`, `APP_BROWSER_HEADLESS=false` | Cloudflare challenges (hafele.com.de) |
+| Chrome in a window on Xvfb | `APP_BROWSER_CHANNEL=chrome`, `APP_BROWSER_HEADLESS=false` | Cloudflare challenges (tested on hafele.com.de, 2026-11-12) |
 
 Checked against hafele.com.de on 2026-11-12: headless Chromium and headless Google Chrome both stayed on the challenge for 60 s (`BOT_PROTECTION`). Google Chrome with a window succeeded in 5-11 s.
 
@@ -161,7 +163,7 @@ curl -s -X POST http://127.0.0.1:4000/api/v1/extract \
   -d '{"url":"https://www.hafele.com.de/de/product/universalverbinder-haefele-ixconnect-uc-16-64/P-01901571/"}'
 ```
 
-Expect `"status": "success"`, the product title, and `image_url` ending in `ppic-04786994.jpg`. Tests:
+hafele.com.de now uses the `duckduckgo` engine, so this request no longer goes through the browser. To check the browser engine, point it at a site whose config sets `"engine": "browser"` (for example a local copy of a config). With the browser engine, Häfele returned `"status": "success"`, the product title, and an `image_url` ending in `ppic-04786994.jpg`. Tests:
 
 ```bash
 go test ./internal/fetch/ ./test/e2e/ -run 'Browser|Gate|Router|Engine' -v   # skip when Playwright is not installed

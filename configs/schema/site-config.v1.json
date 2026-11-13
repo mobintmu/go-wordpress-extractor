@@ -24,7 +24,19 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "engine": { "enum": ["http", "browser"], "default": "http", "description": "Fetch strategy: http fetches with Colly over Go's HTTP client; browser loads the page in real Chrome through Playwright (needs APP_BROWSER_ENABLED on the instance)." },
+        "engine": { "enum": ["http", "browser", "duckduckgo", "brave"], "default": "http", "description": "Fetch strategy: http fetches with Colly over Go's HTTP client; browser loads the page in real Chrome through Playwright (needs APP_BROWSER_ENABLED on the instance); duckduckgo and brave never contact the site and build the product from search results (need APP_DUCKDUCKGO_ENABLED, or APP_BRAVE_ENABLED and a Brave API key)." },
+        "alternate_engines": { "type": "array", "uniqueItems": true, "maxItems": 1, "items": { "enum": ["duckduckgo", "brave"] }, "description": "Search engines used, in order, when engine is not enabled on the instance. Chosen once per request; a failed fetch is never retried on another engine. Only allowed when engine is a search engine." },
+        "search": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Search settings. Only allowed when engine is duckduckgo or brave.",
+          "properties": {
+            "region": { "type": "string", "pattern": "^[a-z]{2}-[a-z]{2}$", "default": "wt-wt", "description": "<country>-<lang>, for example us-en or de-de; wt-wt means no region." },
+            "title_strip": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Suffixes and prefixes removed from the result title, for example \" | Ferguson Home\"." },
+            "ignore_params": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Extra query parameters ignored when matching result URLs to the requested URL, for example uid." },
+            "queries": { "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": { "enum": ["site_slug", "url"] }, "default": ["site_slug", "url"], "description": "Queries to try, in order: site_slug = site:<domain> <words from the URL path>; url = the product URL in quotes." }
+          }
+        },
         "user_agent": { "type": "string", "default": "ProductExtractor/1.0" },
         "user_agents": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Replaces user_agent when set: each fetch picks one at random and keeps it for its retries and redirects." },
         "delay_ms": { "type": "integer", "minimum": 0, "maximum": 60000, "default": 1000 },

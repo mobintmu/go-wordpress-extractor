@@ -27,7 +27,27 @@ type Evidence struct {
 	HTMLSample    *HTMLSample `json:"html_sample,omitempty"`
 	// Raw text found for each field.
 	FieldSamples map[string]string `json:"field_samples,omitempty"`
+	// What a search engine searched for. Set only for the duckduckgo and brave engines.
+	Search *SearchEvidence `json:"search,omitempty"`
 } //@name Evidence
+
+// SearchEvidence describes the queries a search engine sent and what came back.
+type SearchEvidence struct {
+	Engine string `json:"engine" binding:"required" example:"duckduckgo"`
+	// True when the answer came from the instance's cache and no query was sent for this request.
+	Cached  bool          `json:"cached" binding:"required" example:"false"`
+	Queries []SearchQuery `json:"queries" binding:"required"`
+	// Up to 3 result URLs on the same site, for a person to check. Never used as the product.
+	Closest []string `json:"closest,omitempty"`
+} //@name SearchEvidence
+
+// SearchQuery is one query a search engine sent.
+type SearchQuery struct {
+	Query string `json:"query" binding:"required" example:"site:hafele.com.de universalverbinder haefele ixconnect uc 16 64"`
+	// Number of web results that came back.
+	Results int  `json:"results" example:"10"`
+	Matched bool `json:"matched" example:"false"`
+} //@name SearchQuery
 
 // TraceStep is the match count for one prefix of a selector path.
 type TraceStep struct {

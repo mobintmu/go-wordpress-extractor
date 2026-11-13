@@ -66,13 +66,41 @@ const (
 	EngineHTTP = "http"
 	// EngineBrowser loads the page in a real Chrome browser through Playwright.
 	EngineBrowser = "browser"
+	// EngineDuckDuckGo builds the product from DuckDuckGo's HTML search
+	// results. The site itself is never contacted.
+	EngineDuckDuckGo = "duckduckgo"
+	// EngineBrave builds the product from the Brave Search API. The site
+	// itself is never contacted.
+	EngineBrave = "brave"
+)
+
+// IsSearchEngine reports whether name is an engine that reads search
+// results instead of the site.
+func IsSearchEngine(name string) bool {
+	return name == EngineDuckDuckGo || name == EngineBrave
+}
+
+// Search query kinds, as listed in fetch.search.queries.
+const (
+	// QuerySiteSlug is "site:<domain> <words from the URL path>".
+	QuerySiteSlug = "site_slug"
+	// QueryURL is the normalized product URL in quotes.
+	QueryURL = "url"
 )
 
 // Fetch controls how a site's pages are retrieved.
 type Fetch struct {
-	// Engine selects the fetch strategy: "http" (default) or "browser".
-	Engine    string `json:"engine"`
-	UserAgent string `json:"user_agent"`
+	// Engine selects the fetch strategy: "http" (default), "browser",
+	// "duckduckgo" or "brave".
+	Engine string `json:"engine"`
+	// AlternateEngines are used, in order, when Engine is not enabled on
+	// the instance. The choice is made once per request; a failed fetch is
+	// never retried on another engine. Only search engines may be listed.
+	AlternateEngines []string `json:"alternate_engines"`
+	// Search configures the search engines. Only allowed when Engine is a
+	// search engine.
+	Search    *Search `json:"search"`
+	UserAgent string  `json:"user_agent"`
 	// UserAgents, when set, replaces UserAgent: each fetch picks one of
 	// them at random and keeps it for its retries and redirects.
 	UserAgents       []string `json:"user_agents"`
@@ -80,6 +108,19 @@ type Fetch struct {
 	TimeoutSeconds   int      `json:"timeout_seconds"`
 	Retries          *int     `json:"retries"`
 	RespectRobotsTxt *bool    `json:"respect_robots_txt"`
+}
+
+// Search configures how a search engine looks a product URL up.
+type Search struct {
+	// Region is "<country>-<lang>", for example "us-en"; "wt-wt" means no
+	// region. Sent as kl to DuckDuckGo and as country + search_lang to Brave.
+	Region string `json:"region"`
+	// TitleStrip lists suffixes and prefixes removed from the result title.
+	TitleStrip []string `json:"title_strip"`
+	// IgnoreParams lists extra query parameters ignored when matching URLs.
+	IgnoreParams []string `json:"ignore_params"`
+	// Queries lists the queries to try, in order (QuerySiteSlug, QueryURL).
+	Queries []string `json:"queries"`
 }
 
 // Locale holds language and currency settings.
@@ -191,6 +232,21 @@ func (s *Site) PickUserAgent() string {
 		return s.Fetch.UserAgents[rand.IntN(n)]
 	}
 	return s.Fetch.UserAgent
+}
+
+// Engines returns the engine and its alternates, in the order they are
+// tried when choosing an engine for a request.
+func (s *Site) Engines() []string {
+	return append([]string{s.Fetch.Engine}, s.Fetch.AlternateEngines...)
+}
+
+// SearchSettings returns the site's search settings, with defaults applied
+// by Validate. It is never nil for a validated search site.
+func (s *Site) SearchSettings() Search {
+	if s.Fetch.Search == nil {
+		return Search{}
+	}
+	return *s.Fetch.Search
 }
 
 // RespectRobots reports whether robots.txt is honored.

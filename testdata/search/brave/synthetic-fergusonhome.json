@@ -1,0 +1,24 @@
+{
+  "$comment": "SYNTHETIC: written by hand in the shape third-party guides describe for the Brave Search API (web.results[].title/url/description/extra_snippets), because no API key was available when the provider was written. Replace it with a real saved response when one exists (plan step 3).",
+  "type": "search",
+  "query": { "original": "site:fergusonhome.com duravit 030549 0hole" },
+  "web": {
+    "type": "search",
+    "results": [
+      {
+        "title": "Duravit 0305430000 Starck 3 18-1/4\" Rectangular Ceramic Undermount Bathroom Sink",
+        "url": "https://www.fergusonhome.com/duravit-030543-0hole/s1666393",
+        "description": "Duravit 030543-0HOLE Features: Covered under Duravit's 5 year warranty"
+      },
+      {
+        "title": "Duravit 0305490017 Starck 3 20-7/8\" Rectangular Ceramic <strong>Undermount</strong> Bathroom Sink | Ferguson Home",
+        "url": "https://www.fergusonhome.com/duravit-030549-0hole/s1666394",
+        "description": "<strong>Duravit</strong> 030549-0HOLE Features: Covered under Duravit&#39;s 5 year warranty and 5 year commercial warranty",
+        "extra_snippets": ["Constructed of ceramic", "Undermount installation"],
+        "thumbnail": { "src": "https://imgs.search.brave.com/example" }
+      },
+      { "title": "", "url": "https://www.fergusonhome.com/no-title/s1" },
+      { "title": "Not a web URL", "url": "ftp://example.com/x" }
+    ]
+  }
+}

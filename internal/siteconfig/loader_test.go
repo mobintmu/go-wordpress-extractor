@@ -240,3 +240,57 @@ func TestFetchEngine(t *testing.T) {
 		t.Fatalf("unknown engine accepted: %v", e.Err)
 	}
 }
+
+func TestSearchEngines(t *testing.T) {
+	keep := "templates/.keep.json"
+	loadFetch := func(fetch map[string]any) *Entry {
+		return load(t, fixture{"sites/s.test.json": site(t, map[string]any{"fetch": fetch}), keep: "{}"})[0]
+	}
+
+	e := loadFetch(map[string]any{"engine": "brave", "alternate_engines": []string{"duckduckgo"}})
+	if e.Err != nil {
+		t.Fatal(e.Err)
+	}
+	sc := e.Site.SearchSettings()
+	if sc.Region != "wt-wt" || !reflect.DeepEqual(sc.Queries, []string{QuerySiteSlug, QueryURL}) {
+		t.Errorf("search defaults = %+v", sc)
+	}
+	if got := e.Site.Engines(); !reflect.DeepEqual(got, []string{EngineBrave, EngineDuckDuckGo}) {
+		t.Errorf("Engines() = %v", got)
+	}
+
+	e = loadFetch(map[string]any{"engine": "duckduckgo", "search": map[string]any{
+		"region": "de-de", "title_strip": []string{" | HÄFELE"}, "ignore_params": []string{"uid"}, "queries": []string{"url"},
+	}})
+	if e.Err != nil || e.Site.SearchSettings().Region != "de-de" || e.Site.SearchSettings().Queries[0] != QueryURL {
+		t.Fatalf("explicit search block: %v %+v", e.Err, e.Site.SearchSettings())
+	}
+
+	bad := map[string]struct {
+		fetch map[string]any
+		want  string
+	}{
+		"alternates on http":      {map[string]any{"alternate_engines": []string{"brave"}}, "alternate_engines is only allowed"},
+		"browser as alternate":    {map[string]any{"engine": "brave", "alternate_engines": []string{"browser"}}, `alternate_engines[0] "browser"`},
+		"alternate repeats":       {map[string]any{"engine": "brave", "alternate_engines": []string{"brave"}}, "repeats fetch.engine"},
+		"search block on browser": {map[string]any{"engine": "browser", "search": map[string]any{"region": "us-en"}}, "fetch.search is only allowed"},
+		"bad region":              {map[string]any{"engine": "brave", "search": map[string]any{"region": "usa"}}, "fetch.search.region"},
+		"bad query":               {map[string]any{"engine": "brave", "search": map[string]any{"queries": []string{"title"}}}, "queries[0]"},
+		"too many queries":        {map[string]any{"engine": "brave", "search": map[string]any{"queries": []string{"url", "site_slug", "url"}}}, "at most 2"},
+		"unknown search key":      {map[string]any{"engine": "brave", "search": map[string]any{"api_key": "x"}}, "unknown field"},
+	}
+	for name, c := range bad {
+		e := loadFetch(c.fetch)
+		if e.Err == nil || !strings.Contains(e.Err.Error(), c.want) {
+			t.Errorf("%s: err = %v, want %q", name, e.Err, c.want)
+		}
+	}
+
+	e = loadFetch(map[string]any{"engine": "brave", "user_agents": []string{"Mozilla/5.0"}})
+	if e.Err != nil || len(SearchWarnings(e.Site)) != 1 {
+		t.Errorf("user_agents on a search site should warn: %v %v", e.Err, SearchWarnings(e.Site))
+	}
+	if w := SearchWarnings(loadFetch(map[string]any{"engine": "brave"}).Site); len(w) != 0 {
+		t.Errorf("unexpected warnings: %v", w)
+	}
+}

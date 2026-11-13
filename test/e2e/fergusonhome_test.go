@@ -20,8 +20,11 @@ const fergusonPath = "/duravit-030549-0hole/s1666394"
 // fergusonSite loads the real fergusonhome.com config and points it at the
 // fake shop. The real domains stay, so the page's canonical link
 // (https://www.fergusonhome.com/...) is honoured exactly as in production.
-// The config's browser user agent is kept, so the request carries the client
-// hints and Sec-Fetch headers a browser sends.
+// The live site uses a search engine (brave, alternate duckduckgo) and is
+// never fetched; the saved page is static, so the suite fetches it with the
+// default http engine to keep checking the selectors. It sends a browser
+// user agent, so the request also carries the client hints and Sec-Fetch
+// headers the http engine adds for one.
 func fergusonSite(t *testing.T) map[string]any {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(repoRoot, "configs", "sites", "fergusonhome.com.json"))
@@ -37,20 +40,14 @@ func fergusonSite(t *testing.T) map[string]any {
 	return cfg
 }
 
-// fergusonUserAgent returns the first browser user agent of the real config,
-// so the test follows the config when the browser version is bumped.
-func fergusonUserAgent(t *testing.T, cfg map[string]any) string {
+// fergusonBrowserUA is the browser user agent the config used before the
+// site moved to a search engine.
+const fergusonBrowserUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+
+// fergusonUserAgent returns the browser user agent the test fetches with.
+func fergusonUserAgent(t *testing.T, _ map[string]any) string {
 	t.Helper()
-	fetch, _ := cfg["fetch"].(map[string]any)
-	agents, _ := fetch["user_agents"].([]any)
-	if len(agents) == 0 {
-		t.Fatal("fergusonhome.com.json has no fetch.user_agents")
-	}
-	agent, _ := agents[0].(string)
-	if agent == "" {
-		t.Fatal("fergusonhome.com.json has an empty fetch.user_agents[0]")
-	}
-	return agent
+	return fergusonBrowserUA
 }
 
 // fergusonFixture returns the saved page and its expected product.
@@ -130,7 +127,7 @@ func TestFergusonHome(t *testing.T) {
 	t.Run("saved page matches the fixture", func(t *testing.T) {
 		r := e.Post("/api/v1/extract", e.Key, map[string]any{"url": productURL(fergusonPath), "request_id": "ferguson-1"})
 		r.Success(t)
-		if r.Str("site_id") != "fergusonhome" || r.Str("request_id") != "ferguson-1" || r.Str("config_version") != "2026-11-12.2" {
+		if r.Str("site_id") != "fergusonhome" || r.Str("request_id") != "ferguson-1" || r.Str("config_version") != "2026-11-13.1" {
 			t.Errorf("site_id/request_id/config_version = %q/%q/%q",
 				r.Str("site_id"), r.Str("request_id"), r.Str("config_version"))
 		}
@@ -163,8 +160,8 @@ func TestFergusonHome(t *testing.T) {
 		}
 	})
 
-	// The shop's edge (Akamai) refuses requests that carry nothing but a user
-	// agent, so the fetch must look like the browser it claims to be.
+	// With a browser user agent, the http engine sends the headers that
+	// browser sends.
 	t.Run("the request looks like the browser it claims to be", func(t *testing.T) {
 		r := e.Extract(productURL(fergusonPath))
 		r.Success(t)

@@ -417,7 +417,7 @@ browser_enable() {
   [[ "$pages" =~ ^[0-9]+$ ]] && [ "$pages" -ge 1 ] && [ "$pages" -le 50 ] || die "invalid page count: $pages"
   local def=y window
   [ "$(env_get APP_BROWSER_HEADLESS)" = "true" ] && def=n
-  echo "Sites behind Cloudflare challenges (e.g. hafele.com.de) only pass with Chrome in a window;"
+  echo "Pages that only render in a real browser may need Chrome in a window (headless Chrome is detected more often);"
   echo "on a server without a screen that window is drawn on Xvfb, a virtual display."
   if confirm "Run Chrome in a window on Xvfb (recommended)?" "$def"; then window=false; else window=true; fi
   env_set APP_BROWSER_ENABLED true
@@ -454,6 +454,103 @@ setup_browser() {
     browser_enabled && browser_disable
     ok "browser engine stays off"
   fi
+}
+
+# ================================================================ 3c. search engines
+search_engine_enabled() { [ "$(env_get "APP_$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')_ENABLED")" = "true" ]; }
+
+# sites_using_search -> config files whose fetch.engine or alternate_engines names a search engine
+sites_using_search() {
+  grep -lE '"(engine|alternate_engines)"[[:space:]]*:[[:space:]]*\[?[^]]*"(brave|duckduckgo)"' "$CONFIG_DIR"/sites/*.json 2>/dev/null | xargs -r -n1 basename || true
+}
+
+search_status() {
+  local key="not set"
+  [ -n "$(env_get APP_BRAVE_API_KEY)" ] && key="set (hidden)"
+  [ -z "$(env_get APP_BRAVE_API_KEY)" ] && [ -n "$(env_get APP_BRAVE_API_KEY_FILE)" ] && key="from file $(env_get APP_BRAVE_API_KEY_FILE)"
+  if search_engine_enabled duckduckgo; then
+    echo "Search engine duckduckgo: ENABLED (min interval $(v=$(env_get APP_DUCKDUCKGO_MIN_INTERVAL_MS); echo "${v:-2000}") ms, no key)"
+  else
+    echo "Search engine duckduckgo: off"
+  fi
+  if search_engine_enabled brave; then
+    echo "Search engine brave     : ENABLED (min interval $(v=$(env_get APP_BRAVE_MIN_INTERVAL_MS); echo "${v:-1000}") ms, API key $key)"
+  else
+    echo "Search engine brave     : off (API key $key)"
+  fi
+  local sites; sites="$(sites_using_search | tr '\n' ' ')"
+  [ -n "$sites" ] && echo "  sites using a search engine: $sites"
+  return 0
+}
+
+search_enable() {
+  need_root "search"
+  local engine="${1:-}"
+  [ -n "$engine" ] || engine="$(ask "Which search engine (brave or duckduckgo)" "brave")"
+  case "$engine" in
+    duckduckgo)
+      echo "DuckDuckGo has no API for web results and has not approved this project; the engine reads its"
+      echo "HTML results page, which its robots.txt allows. Check that your use fits DuckDuckGo's terms:"
+      echo "  https://duckduckgo.com/terms  https://duckduckgo.com/acceptable-use"
+      confirm "Enable the duckduckgo engine?" n || { ok "duckduckgo stays off"; return; }
+      env_set APP_DUCKDUCKGO_ENABLED true
+      [ -n "$(env_get APP_DUCKDUCKGO_MIN_INTERVAL_MS)" ] || env_set APP_DUCKDUCKGO_MIN_INTERVAL_MS 2000
+      ;;
+    brave)
+      echo "The brave engine needs your own Brave Search API key (https://brave.com/search/api)."
+      echo "Check that your plan covers how your clients use and store the results."
+      local key=""
+      if [ -n "$(env_get APP_BRAVE_API_KEY)" ] && confirm "A Brave API key is already set. Keep it?" y; then
+        key="$(env_get APP_BRAVE_API_KEY)"
+      else
+        read -r -s -p "Brave API key (input hidden): " key </dev/tty; echo
+        key="$(printf '%s' "$key" | tr -d '[:space:]')"
+      fi
+      [ -n "$key" ] || die "no key entered; brave stays off"
+      env_set APP_BRAVE_API_KEY "$key"
+      env_set APP_BRAVE_ENABLED true
+      [ -n "$(env_get APP_BRAVE_MIN_INTERVAL_MS)" ] || env_set APP_BRAVE_MIN_INTERVAL_MS 1000
+      ;;
+    *) die "choose brave or duckduckgo" ;;
+  esac
+  [ -n "$(env_get APP_SEARCH_USER_AGENT)" ] || env_set APP_SEARCH_USER_AGENT "go-wordpress-extractor/1.0"
+  fix_perms
+  ok "$engine engine enabled. Restart the service to apply: $0 restart"
+}
+
+search_disable() {
+  need_root "search"
+  local engine="${1:-}"
+  [ -n "$engine" ] || engine="$(ask "Which search engine to turn off (brave or duckduckgo)" "")"
+  case "$engine" in
+    duckduckgo) env_set APP_DUCKDUCKGO_ENABLED false ;;
+    brave)
+      env_set APP_BRAVE_ENABLED false
+      confirm "Also remove the Brave API key from $ENV_FILE?" n && env_set APP_BRAVE_API_KEY ""
+      ;;
+    *) die "choose brave or duckduckgo" ;;
+  esac
+  fix_perms
+  ok "$engine engine disabled. Restart the service to apply: $0 restart"
+}
+
+setup_search() {
+  title "Search engines"
+  local sites; sites="$(sites_using_search | tr '\n' ' ')"
+  if [ -n "$sites" ]; then
+    echo "These site configs use a search engine (fetch.engine, then alternate_engines): $sites"
+    echo "Without one of their engines enabled they fail with ENGINE_UNAVAILABLE."
+  fi
+  local ddg_def=n brave_def=n
+  { search_engine_enabled duckduckgo || [ -n "$sites" ]; } && ddg_def=y
+  search_engine_enabled brave && brave_def=y
+  if confirm "Enable the duckduckgo engine (no key; check DuckDuckGo's terms first)?" "$ddg_def"; then
+    search_enable duckduckgo
+  fi
+  if confirm "Enable the brave engine (needs your own Brave Search API key)?" "$brave_def"; then
+    search_enable brave
+  fi
+  search_status
 }
 
 # ================================================================ 4. env file
@@ -513,6 +610,21 @@ APP_BROWSER_CHANNEL=chromium
 APP_BROWSER_MAX_PAGES=3
 # false = Chrome in a window on the Xvfb virtual display (needed for Cloudflare).
 APP_BROWSER_HEADLESS=true
+
+# Search engines for sites whose config sets "fetch": {"engine": "brave"} or
+# "duckduckgo". They never contact the product's site; they return what the
+# search result shows and list the rest in unavailable_fields.
+# Turn on with: sudo ./deploy.sh search enable brave|duckduckgo
+APP_SEARCH_USER_AGENT=go-wordpress-extractor/1.0
+APP_SEARCH_CACHE_TTL=6h
+APP_SEARCH_NO_RESULT_CACHE_TTL=1h
+# No key needed. Enable only if your use fits DuckDuckGo's terms (README, "Responsible use").
+APP_DUCKDUCKGO_ENABLED=false
+APP_DUCKDUCKGO_MIN_INTERVAL_MS=2000
+# Needs your own Brave Search API key. Secret: this file is mode 640/600 and not in git.
+APP_BRAVE_ENABLED=false
+APP_BRAVE_API_KEY=
+APP_BRAVE_MIN_INTERVAL_MS=1000
 EOF
   fi
   env_set APP_ENV production
@@ -906,12 +1018,13 @@ run_dev() {
 # ================================================================ install
 install_all() {
   need_root "install"
-  title "1/8 Go";            install_go
-  title "2/8 Build";         build
-  title "3/8 Env file";      setup_env
-  title "4/8 Browser";       setup_browser
-  title "5/8 Pepper";        setup_pepper
-  title "6/8 API keys"
+  title "1/9 Go";            install_go
+  title "2/9 Build";         build
+  title "3/9 Env file";      setup_env
+  title "4/9 Browser";       setup_browser
+  title "5/9 Search";        setup_search
+  title "6/9 Pepper";        setup_pepper
+  title "7/9 API keys"
   load_key_env
   if [ -s "$APP_API_KEYS_FILE" ]; then
     apikey list || true
@@ -921,9 +1034,9 @@ install_all() {
     key_generate
   fi
   confirm "Open the key menu for more key tasks?" n && keys_menu
-  title "7/8 Websites";      setup_sites; validate_sites
+  title "8/9 Websites";      setup_sites; validate_sites
                              setup_swagger
-  title "8/8 Service";       install_service; restart
+  title "9/9 Service";       install_service; restart
 
   title "Done"
   echo "  Env file : $ENV_FILE"
@@ -932,6 +1045,7 @@ install_all() {
   echo "  Keys     : sudo $0 keys"
   swagger_status | sed 's/^/  /'
   browser_status | sed 's/^/  /'
+  search_status | sed 's/^/  /'
 }
 
 usage() {
@@ -939,7 +1053,7 @@ usage() {
 Usage: sudo $0 <command>
 
 Setup
-  install              Full setup: Go, build, env, browser, pepper, key, websites, Swagger, service
+  install              Full setup: Go, build, env, browser, search, pepper, key, websites, Swagger, service
   go                   Install or update Go to the latest version (GO_VERSION=go1.x.y to pin)
   build                Build bin/server, bin/apikey, bin/sitectl
   env                  Create or edit $ENV_FILE
@@ -952,6 +1066,15 @@ Browser fetch engine (off by default; for sites with fetch.engine "browser")
                        and Xvfb + the $XVFB_SERVICE unit when Chrome runs in a window
   browser install      Install or update Playwright and the browser without changing settings
   browser disable      Turn off (keeps the files)
+
+Search engines (off by default; for sites with fetch.engine "brave" or "duckduckgo")
+  search               Show status (never shows the API key)
+  search enable brave  Turn on Brave; asks for your Brave Search API key without echoing it
+                       and writes it to $ENV_FILE
+  search enable duckduckgo
+                       Turn on DuckDuckGo (no key); shows DuckDuckGo's terms first
+  search disable <engine>
+                       Turn off brave or duckduckgo
 
 API keys
   keys                 Interactive key menu
@@ -996,6 +1119,12 @@ main() {
         disable|off) browser_disable ;;
         install)     install_playwright force ;;
         *)           browser_status ;;
+      esac ;;
+    search)
+      case "${1:-status}" in
+        enable|on)   shift; search_enable "${1:-}" ;;
+        disable|off) shift; search_disable "${1:-}" ;;
+        *)           search_status ;;
       esac ;;
     keys)     keys_menu ;;
     key)

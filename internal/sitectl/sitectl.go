@@ -150,6 +150,8 @@ type siteRow struct {
 	Domains  []string `json:"domains"`
 	Error    string   `json:"error,omitempty"`
 	Fixtures int      `json:"fixtures"`
+	// Warnings are settings that are valid but have no effect.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 func rows(entries []*siteconfig.Entry, fixtureRoot string) []siteRow {
@@ -158,6 +160,8 @@ func rows(entries []*siteconfig.Entry, fixtureRoot string) []siteRow {
 		r := siteRow{File: filepath.Base(e.File), SiteID: e.SiteID, Version: e.Version, Template: e.Template, Status: e.Status(), Domains: e.Domains}
 		if e.Err != nil {
 			r.Error = e.Err.Error()
+		} else {
+			r.Warnings = siteconfig.SearchWarnings(e.Site)
 		}
 		if fixtureRoot != "" {
 			files, _ := filepath.Glob(filepath.Join(fixtureRoot, e.SiteID, "*.json"))
@@ -194,6 +198,9 @@ func (c CLI) validate(args []string) error {
 				fmt.Fprintf(c.Stdout, "INVALID  %s: %s\n", r.File, r.Error)
 			} else {
 				fmt.Fprintf(c.Stdout, "ok       %s (%s, version %s, %s)\n", r.File, r.SiteID, r.Version, r.Status)
+			}
+			for _, w := range r.Warnings {
+				fmt.Fprintf(c.Stdout, "  warn   %s\n", w)
 			}
 		}
 		fmt.Fprintf(c.Stdout, "%d sites, %d invalid\n", len(rs), invalid)
@@ -281,8 +288,8 @@ func (c CLI) live(dir, rawURL, htmlPath string) (*extract.Response, *fetch.Page,
 		if ch := os.Getenv("APP_BROWSER_CHANNEL"); ch != "" {
 			bopts.Channel = ch
 		}
-		// A challenge that headless Chrome cannot pass (see hafele.com.de)
-		// needs the same window here as on the server.
+		// A page that headless Chrome cannot load needs the same window
+		// here as on the server.
 		if hl := os.Getenv("APP_BROWSER_HEADLESS"); hl != "" {
 			if bopts.Headless, err = strconv.ParseBool(hl); err != nil {
 				return nil, nil, fmt.Errorf("APP_BROWSER_HEADLESS: %w", err)
@@ -290,7 +297,15 @@ func (c CLI) live(dir, rawURL, htmlPath string) (*extract.Response, *fetch.Page,
 		}
 		browser := fetch.NewBrowserFetcher(opts, bopts, lim, zap.NewNop())
 		defer func() { _ = browser.Stop(context.Background()) }()
-		f = fetch.NewRouter(fetch.New(opts, lim, zap.NewNop()), browser)
+		// Search engines follow the same APP_DUCKDUCKGO_* and APP_BRAVE_*
+		// settings as the server, so a search site is checked the same way.
+		st, err := config.SearchFromEnv()
+		if err != nil {
+			return nil, nil, err
+		}
+		engines := []fetch.Engine{fetch.New(opts, lim, zap.NewNop()), browser}
+		engines = append(engines, fetch.NewSearchEngines(opts, fetch.SearchSettings(st), zap.NewNop())...)
+		f = fetch.NewRouter(engines...)
 	}
 	rec := &recorder{next: f}
 	svc := extract.NewServiceWith(staticSnapshot{siteconfig.NewSnapshot(entries)}, rec, lim, zap.NewNop())

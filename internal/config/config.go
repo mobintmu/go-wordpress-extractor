@@ -56,6 +56,31 @@ type Config struct {
 	BrowserHeadless bool
 	// BrowserMaxPages caps the browser pages open at once on this instance.
 	BrowserMaxPages int
+
+	// Search engines ("duckduckgo", "brave"). They never contact the
+	// product's site; they build the product from search results.
+
+	// SearchUserAgent is the honest client name sent to search providers.
+	SearchUserAgent string
+	// SearchCacheTTL is how long a matched search result is kept in memory.
+	SearchCacheTTL time.Duration
+	// SearchNoResultCacheTTL is how long a SEARCH_NO_RESULT answer is kept.
+	SearchNoResultCacheTTL time.Duration
+
+	// DuckDuckGoEnabled turns on the "duckduckgo" engine. It needs no key.
+	DuckDuckGoEnabled bool
+	// DuckDuckGoMinIntervalMS is the minimum gap between two DuckDuckGo
+	// queries from this instance.
+	DuckDuckGoMinIntervalMS int
+
+	// BraveEnabled turns on the "brave" engine. It needs an API key.
+	BraveEnabled bool
+	// BraveAPIKey is the Brave Search API key. Secret: never logged.
+	BraveAPIKey string
+	// BraveAPIKeyFile holds only the key; read when BraveAPIKey is empty.
+	BraveAPIKeyFile string
+	// BraveMinIntervalMS is the minimum gap between two Brave queries.
+	BraveMinIntervalMS int
 }
 
 const (
@@ -70,6 +95,11 @@ const (
 	DefaultReloadInterval        = 30 * time.Second
 	DefaultBrowserChannel        = "chromium"
 	DefaultBrowserMaxPages       = 3
+	DefaultSearchUserAgent       = "go-wordpress-extractor/1.0"
+	DefaultSearchCacheTTL        = 6 * time.Hour
+	DefaultSearchNoResultTTL     = time.Hour
+	DefaultDuckDuckGoIntervalMS  = 2000
+	DefaultBraveIntervalMS       = 1000
 )
 
 func newViper() *viper.Viper {
@@ -92,7 +122,8 @@ func NewConfig() (*Config, error) {
 	zap.L().Info("config loaded",
 		zap.String("env", cfg.ENV), zap.Int("port", cfg.HTTPPort), zap.String("sites", cfg.SiteConfigDir),
 		zap.String("keys", cfg.APIKeysFile), zap.Bool("tls", cfg.TLSEnabled()), zap.Bool("ops", cfg.OpsEnabled()),
-		zap.String("proxy", proxy), zap.Bool("browser", cfg.BrowserEnabled))
+		zap.String("proxy", proxy), zap.Bool("browser", cfg.BrowserEnabled),
+		zap.Bool("duckduckgo", cfg.DuckDuckGoEnabled), zap.Bool("brave", cfg.BraveEnabled))
 
 	return cfg, nil
 }
@@ -109,6 +140,13 @@ func buildConfig(v *viper.Viper) *Config {
 	v.SetDefault("BROWSER_CHANNEL", DefaultBrowserChannel)
 	v.SetDefault("BROWSER_HEADLESS", true)
 	v.SetDefault("BROWSER_MAX_PAGES", DefaultBrowserMaxPages)
+	v.SetDefault("SEARCH_USER_AGENT", DefaultSearchUserAgent)
+	v.SetDefault("SEARCH_CACHE_TTL", DefaultSearchCacheTTL)
+	v.SetDefault("SEARCH_NO_RESULT_CACHE_TTL", DefaultSearchNoResultTTL)
+	v.SetDefault("DUCKDUCKGO_ENABLED", false)
+	v.SetDefault("DUCKDUCKGO_MIN_INTERVAL_MS", DefaultDuckDuckGoIntervalMS)
+	v.SetDefault("BRAVE_ENABLED", false)
+	v.SetDefault("BRAVE_MIN_INTERVAL_MS", DefaultBraveIntervalMS)
 
 	cfg := &Config{
 		ENV:                   v.GetString("ENV"),
@@ -132,6 +170,16 @@ func buildConfig(v *viper.Viper) *Config {
 		BrowserChannel:        v.GetString("BROWSER_CHANNEL"),
 		BrowserHeadless:       v.GetBool("BROWSER_HEADLESS"),
 		BrowserMaxPages:       v.GetInt("BROWSER_MAX_PAGES"),
+
+		SearchUserAgent:         v.GetString("SEARCH_USER_AGENT"),
+		SearchCacheTTL:          v.GetDuration("SEARCH_CACHE_TTL"),
+		SearchNoResultCacheTTL:  v.GetDuration("SEARCH_NO_RESULT_CACHE_TTL"),
+		DuckDuckGoEnabled:       v.GetBool("DUCKDUCKGO_ENABLED"),
+		DuckDuckGoMinIntervalMS: v.GetInt("DUCKDUCKGO_MIN_INTERVAL_MS"),
+		BraveEnabled:            v.GetBool("BRAVE_ENABLED"),
+		BraveAPIKey:             v.GetString("BRAVE_API_KEY"),
+		BraveAPIKeyFile:         v.GetString("BRAVE_API_KEY_FILE"),
+		BraveMinIntervalMS:      v.GetInt("BRAVE_MIN_INTERVAL_MS"),
 	}
 	if cfg.APIKeysFile == "" {
 		cfg.APIKeysFile = DefaultAPIKeysFile(cfg.ENV)
@@ -236,4 +284,41 @@ func applyEnvFile(values map[string]string) {
 			os.Setenv(k, v) //nolint:errcheck
 		}
 	}
+}
+
+// SearchSettings returns the search engine settings in the form the fetch
+// package uses.
+func (c *Config) SearchSettings() SearchSettings {
+	return SearchSettings{
+		UserAgent:             c.SearchUserAgent,
+		CacheTTL:              c.SearchCacheTTL,
+		NoResultTTL:           c.SearchNoResultCacheTTL,
+		DuckDuckGoEnabled:     c.DuckDuckGoEnabled,
+		DuckDuckGoMinInterval: time.Duration(c.DuckDuckGoMinIntervalMS) * time.Millisecond,
+		BraveEnabled:          c.BraveEnabled,
+		BraveAPIKey:           c.BraveAPIKey,
+		BraveMinInterval:      time.Duration(c.BraveMinIntervalMS) * time.Millisecond,
+	}
+}
+
+// SearchSettings mirrors fetch.SearchSettings; config does not import fetch.
+type SearchSettings struct {
+	UserAgent             string
+	CacheTTL              time.Duration
+	NoResultTTL           time.Duration
+	DuckDuckGoEnabled     bool
+	DuckDuckGoMinInterval time.Duration
+	BraveEnabled          bool
+	BraveAPIKey           string
+	BraveMinInterval      time.Duration
+}
+
+// SearchFromEnv reads and checks only the search engine settings, for tools
+// such as sitectl that do not load the whole server configuration.
+func SearchFromEnv() (SearchSettings, error) {
+	cfg := buildConfig(newViper())
+	if err := ValidateSearch(cfg); err != nil {
+		return SearchSettings{}, err
+	}
+	return cfg.SearchSettings(), nil
 }

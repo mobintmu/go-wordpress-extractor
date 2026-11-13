@@ -10,7 +10,7 @@ import (
 
 // Engine is the Strategy for retrieving one product page. Each
 // implementation is one way of fetching (Colly over net/http, a real Chrome
-// browser, ...); the Router picks one per request from the site config's
+// browser, a search provider that never contacts the site, ...); the Router picks one per request from the site config's
 // fetch.engine. Every engine returns the same Page and Failure types, so
 // page checks, extraction and normalization do not depend on the engine.
 type Engine interface {
@@ -36,4 +36,5 @@ func (f *Fetcher) Name() string { return EngineHTTP }
 var (
 	_ Engine = (*Fetcher)(nil)
 	_ Engine = (*BrowserFetcher)(nil)
+	_ Engine = (*SearchFetcher)(nil)
 )

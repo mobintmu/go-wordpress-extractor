@@ -96,3 +96,62 @@ func TestProxyURL(t *testing.T) {
 		t.Fatalf("ProxyURLFromEnv = %v, %v", u, err)
 	}
 }
+
+func TestValidateSearch(t *testing.T) {
+	c := valid(t)
+	c.DuckDuckGoEnabled = true
+	if err := ValidateConfig(c); err != nil {
+		t.Fatalf("duckduckgo needs no key: %v", err)
+	}
+	if c.SearchUserAgent != DefaultSearchUserAgent {
+		t.Errorf("empty user agent not defaulted: %q", c.SearchUserAgent)
+	}
+
+	c = valid(t)
+	c.BraveEnabled = true
+	err := ValidateConfig(c)
+	if err == nil || !strings.Contains(err.Error(), "APP_BRAVE_API_KEY or APP_BRAVE_API_KEY_FILE is required") {
+		t.Fatalf("brave without a key must stop startup: %v", err)
+	}
+
+	c = valid(t)
+	c.BraveEnabled, c.BraveAPIKey = true, "  key-from-env \n"
+	if err := ValidateConfig(c); err != nil || c.BraveAPIKey != "key-from-env" {
+		t.Fatalf("key from env: %q %v", c.BraveAPIKey, err)
+	}
+
+	file := filepath.Join(t.TempDir(), "brave_api_key")
+	os.WriteFile(file, []byte("key-from-file\n"), 0o600)
+	c = valid(t)
+	c.BraveEnabled, c.BraveAPIKeyFile = true, file
+	if err := ValidateConfig(c); err != nil || c.BraveAPIKey != "key-from-file" {
+		t.Fatalf("key from file: %q %v", c.BraveAPIKey, err)
+	}
+	if s := c.SearchSettings(); s.BraveAPIKey != "key-from-file" || s.BraveMinInterval != 0 || !s.BraveEnabled {
+		t.Errorf("settings = %+v", s)
+	}
+
+	c = valid(t)
+	c.BraveEnabled, c.BraveAPIKey, c.BraveAPIKeyFile = true, "env-wins", file
+	if err := ValidateConfig(c); err != nil || c.BraveAPIKey != "env-wins" {
+		t.Fatalf("APP_BRAVE_API_KEY must win over the file: %q %v", c.BraveAPIKey, err)
+	}
+
+	c = valid(t)
+	c.BraveEnabled, c.BraveAPIKeyFile = true, "/nonexistent/brave"
+	if err := ValidateConfig(c); err == nil || !strings.Contains(err.Error(), "APP_BRAVE_API_KEY_FILE") {
+		t.Fatalf("missing key file: %v", err)
+	}
+
+	c = valid(t)
+	c.BraveEnabled, c.BraveAPIKey = true, "two words"
+	if err := ValidateConfig(c); err == nil || strings.Contains(err.Error(), "two words") {
+		t.Fatalf("a bad key must be rejected without printing it: %v", err)
+	}
+
+	c = valid(t)
+	c.DuckDuckGoMinIntervalMS = -1
+	if err := ValidateConfig(c); err == nil {
+		t.Fatal("negative interval accepted")
+	}
+}

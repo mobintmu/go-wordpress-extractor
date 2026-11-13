@@ -318,6 +318,14 @@
                         "type": "string"
                     }
                 },
+                "search": {
+                    "description": "What a search engine searched for. Set only for the duckduckgo and brave engines.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/SearchEvidence"
+                        }
+                    ]
+                },
                 "selector_trace": {
                     "description": "Match count for each step of the failing selector path.",
                     "type": "array",
@@ -340,7 +348,7 @@
             ],
             "properties": {
                 "code": {
-                    "description": "Failure code. New codes can be added over time, so treat unknown codes like INTERNAL_ERROR.\nKnown codes: SITE_NOT_CONFIGURED, SITE_DISABLED, CONFIG_INVALID, NOT_PRODUCT_URL, URL_NOT_ALLOWED,\nDNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,\nSOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,\nUNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,\nREQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE.",
+                    "description": "Failure code. New codes can be added over time, so treat unknown codes like INTERNAL_ERROR.\nKnown codes: SITE_NOT_CONFIGURED, SITE_DISABLED, CONFIG_INVALID, NOT_PRODUCT_URL, URL_NOT_ALLOWED,\nDNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,\nSOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,\nUNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,\nREQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,\nSEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR.",
                     "type": "string",
                     "example": "SELECTOR_NOT_FOUND"
                 },
@@ -421,6 +429,15 @@
                 "url"
             ],
             "properties": {
+                "completeness": {
+                    "description": "full when unavailable_fields is empty, partial otherwise. Set on success.",
+                    "type": "string",
+                    "enum": [
+                        "full",
+                        "partial"
+                    ],
+                    "example": "partial"
+                },
                 "config_version": {
                     "type": "string",
                     "example": "2026-11-08.1"
@@ -474,6 +491,14 @@
                     "type": "string",
                     "example": "badomjip"
                 },
+                "source": {
+                    "description": "Which fetch engine produced the data. Set once a fetch was attempted.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Source"
+                        }
+                    ]
+                },
                 "started_at": {
                     "type": "string",
                     "example": "2026-11-08T10:00:00Z"
@@ -485,6 +510,13 @@
                         "failed"
                     ],
                     "example": "success"
+                },
+                "unavailable_fields": {
+                    "description": "Every product field that is not in the response, with the reason. Always an array on success; also set on failed when partial.product is.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/UnavailableField"
+                    }
                 },
                 "url": {
                     "type": "string",
@@ -819,6 +851,59 @@
                 }
             }
         },
+        "SearchEvidence": {
+            "type": "object",
+            "required": [
+                "cached",
+                "engine",
+                "queries"
+            ],
+            "properties": {
+                "cached": {
+                    "description": "True when the answer came from the instance's cache and no query was sent for this request.",
+                    "type": "boolean",
+                    "example": false
+                },
+                "closest": {
+                    "description": "Up to 3 result URLs on the same site, for a person to check. Never used as the product.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "engine": {
+                    "type": "string",
+                    "example": "duckduckgo"
+                },
+                "queries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/SearchQuery"
+                    }
+                }
+            }
+        },
+        "SearchQuery": {
+            "type": "object",
+            "required": [
+                "query"
+            ],
+            "properties": {
+                "matched": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "query": {
+                    "type": "string",
+                    "example": "site:hafele.com.de universalverbinder haefele ixconnect uc 16 64"
+                },
+                "results": {
+                    "description": "Number of web results that came back.",
+                    "type": "integer",
+                    "example": 10
+                }
+            }
+        },
         "SelectorTraceStep": {
             "type": "object",
             "required": [
@@ -903,6 +988,45 @@
                 }
             }
         },
+        "Source": {
+            "type": "object",
+            "required": [
+                "engine",
+                "site_contacted"
+            ],
+            "properties": {
+                "cached": {
+                    "description": "True when the search answer came from the instance's cache.",
+                    "type": "boolean",
+                    "example": false
+                },
+                "engine": {
+                    "type": "string",
+                    "enum": [
+                        "http",
+                        "browser",
+                        "duckduckgo",
+                        "brave"
+                    ],
+                    "example": "duckduckgo"
+                },
+                "query": {
+                    "description": "The search query whose results held the product. Search engines only.",
+                    "type": "string",
+                    "example": "site:fergusonhome.com duravit 030549 0hole"
+                },
+                "result_rank": {
+                    "description": "The product's 1-based position in the search results. Search engines only.",
+                    "type": "integer",
+                    "example": 1
+                },
+                "site_contacted": {
+                    "description": "False for the search engines, which never contact the product's site.",
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
         "Spec": {
             "type": "object",
             "required": [
@@ -922,6 +1046,41 @@
                 "value": {
                     "type": "string",
                     "example": "Honed"
+                }
+            }
+        },
+        "UnavailableField": {
+            "type": "object",
+            "required": [
+                "field",
+                "message",
+                "reason"
+            ],
+            "properties": {
+                "field": {
+                    "type": "string",
+                    "enum": [
+                        "title",
+                        "image_url",
+                        "description",
+                        "price",
+                        "availability",
+                        "specs"
+                    ],
+                    "example": "price"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Search results do not include prices."
+                },
+                "reason": {
+                    "type": "string",
+                    "enum": [
+                        "NOT_ON_PAGE",
+                        "NOT_IN_SEARCH_RESULTS",
+                        "NOT_CONFIGURED"
+                    ],
+                    "example": "NOT_IN_SEARCH_RESULTS"
                 }
             }
         },

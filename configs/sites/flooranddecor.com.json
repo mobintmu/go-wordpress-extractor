@@ -2,11 +2,12 @@
   "$comment": "Salesforce Commerce Cloud (Demandware, SFRA-style 'b-pdp_' markup), US store. Prices are in US dollars per unit ($1.49 / piece, or per sq. ft. on other tiles) and are returned in cents with currency USD. The product form (title, price, gallery, Add to Cart) and the Specifications / Product Details accordions are both inside section.l-pdp-product; the smart-nav bar at its end repeats the Add to Cart button, so the order button is scoped to the product form. Spec names carry a hidden help tooltip ([data-js-tooltip]), which specs.exclude leaves out. The sample page has no sale price, so price_regular (a <del> in the price block) is not verified. Checked against a saved ceramic tile page on 2026-11-12.",
   "schema_version": 1,
   "site_id": "flooranddecor",
-  "version": "2026-11-12.1",
+  "version": "2026-11-13.1",
   "enabled": true,
   "domains": ["flooranddecor.com", "www.flooranddecor.com"],
 
   "fetch": {
+    "engine": "browser",
     "user_agents": [
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",

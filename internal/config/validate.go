@@ -27,6 +27,7 @@ func ValidateConfig(cfg *Config) error {
 		validateConcurrency,
 		validateProxy,
 		validateBrowser,
+		ValidateSearch,
 	}
 	for _, check := range checks {
 		if err := check(cfg); err != nil {
@@ -170,6 +171,45 @@ func validateBrowser(cfg *Config) error {
 	}
 	if cfg.BrowserMaxPages < 1 || cfg.BrowserMaxPages > 50 {
 		return fmt.Errorf("invalid BROWSER_MAX_PAGES: %d. Expected value between 1 and 50. Set APP_BROWSER_MAX_PAGES", cfg.BrowserMaxPages)
+	}
+	return nil
+}
+
+// ValidateSearch checks the search engine settings and loads the Brave API
+// key from APP_BRAVE_API_KEY_FILE when APP_BRAVE_API_KEY is empty. With
+// APP_BRAVE_ENABLED=true and no key the app does not start, so a missing key
+// shows up at deploy time and not as failed requests. The key is never put
+// in an error message.
+func ValidateSearch(cfg *Config) error {
+	if strings.TrimSpace(cfg.SearchUserAgent) == "" {
+		cfg.SearchUserAgent = DefaultSearchUserAgent
+	}
+	if cfg.SearchCacheTTL < 0 || cfg.SearchNoResultCacheTTL < 0 {
+		return fmt.Errorf("APP_SEARCH_CACHE_TTL and APP_SEARCH_NO_RESULT_CACHE_TTL must not be negative (0 turns the cache off)")
+	}
+	if cfg.DuckDuckGoMinIntervalMS < 0 || cfg.DuckDuckGoMinIntervalMS > 60000 {
+		return fmt.Errorf("invalid DUCKDUCKGO_MIN_INTERVAL_MS: %d. Expected value between 0 and 60000. Set APP_DUCKDUCKGO_MIN_INTERVAL_MS", cfg.DuckDuckGoMinIntervalMS)
+	}
+	if cfg.BraveMinIntervalMS < 0 || cfg.BraveMinIntervalMS > 60000 {
+		return fmt.Errorf("invalid BRAVE_MIN_INTERVAL_MS: %d. Expected value between 0 and 60000. Set APP_BRAVE_MIN_INTERVAL_MS", cfg.BraveMinIntervalMS)
+	}
+	cfg.BraveAPIKey = strings.TrimSpace(cfg.BraveAPIKey)
+	if !cfg.BraveEnabled {
+		return nil
+	}
+	if cfg.BraveAPIKey == "" && cfg.BraveAPIKeyFile != "" {
+		b, err := os.ReadFile(cfg.BraveAPIKeyFile)
+		if err != nil {
+			return fmt.Errorf("APP_BRAVE_API_KEY_FILE %q cannot be read: %w", cfg.BraveAPIKeyFile, err)
+		}
+		cfg.BraveAPIKey = strings.TrimSpace(string(b))
+	}
+	if cfg.BraveAPIKey == "" {
+		return fmt.Errorf("APP_BRAVE_API_KEY or APP_BRAVE_API_KEY_FILE is required when APP_BRAVE_ENABLED is true. " +
+			"Create a key in the Brave Search API dashboard; keep it out of committed files such as .env.development")
+	}
+	if strings.ContainsAny(cfg.BraveAPIKey, " \t\r\n") {
+		return fmt.Errorf("the Brave API key contains white space; check APP_BRAVE_API_KEY or APP_BRAVE_API_KEY_FILE")
 	}
 	return nil
 }

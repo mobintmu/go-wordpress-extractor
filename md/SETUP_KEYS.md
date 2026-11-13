@@ -51,6 +51,16 @@ The next steps read these two values. Run this again in every new terminal.
 
 ```bash
 go run ./cmd/apikey generate --name my-client
+
+PEP="$(grep '^APP_API_KEY_PEPPER=' .env | cut -d= -f2-)"
+
+# 10 years
+APP_API_KEY_PEPPER="$PEP" go run ./cmd/apikey generate --name my-client --expires-in 87600h
+
+# never expires
+APP_API_KEY_PEPPER="$PEP" go run ./cmd/apikey generate --name my-client --expires-in never
+
+
 ```
 
 Output:

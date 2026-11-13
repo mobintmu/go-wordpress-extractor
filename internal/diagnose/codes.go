@@ -62,6 +62,13 @@ const (
 	DeadlineExceeded     = "DEADLINE_EXCEEDED"
 	InternalError        = "INTERNAL_ERROR"
 	EngineUnavailable    = "ENGINE_UNAVAILABLE"
+
+	// Search engines (duckduckgo, brave).
+	SearchNoResult           = "SEARCH_NO_RESULT"
+	SearchProviderBlocked    = "SEARCH_PROVIDER_BLOCKED"
+	SearchQuotaExceeded      = "SEARCH_QUOTA_EXCEEDED"
+	SearchProviderAuthFailed = "SEARCH_PROVIDER_AUTH_FAILED"
+	SearchProviderError      = "SEARCH_PROVIDER_ERROR"
 )
 
 type codeInfo struct {
@@ -75,34 +82,39 @@ type codeInfo struct {
 // codes is the single table behind every failure. Stage "" means the
 // stage is set by the caller (DEADLINE_EXCEEDED, INTERNAL_ERROR).
 var codes = map[string]codeInfo{
-	SiteNotConfigured:    {StageConfig, OwnerSiteConfig, false, "No site config exists for this host.", "Add a site config under configs/sites/ for this host, or send a URL from a configured site."},
-	SiteDisabled:         {StageConfig, OwnerSiteConfig, false, "The site config for this host is disabled.", "Set enabled to true in the site config when the site should be served again."},
-	ConfigInvalid:        {StageConfig, OwnerSiteConfig, false, "The site config failed validation.", "Fix the site config file and run sitectl validate."},
-	NotProductURL:        {StageConfig, OwnerClient, false, "The URL is not a product page for this site.", "Send only product page URLs, or update pages.product.match in the site config."},
-	URLNotAllowed:        {StageFetch, OwnerClient, false, "The URL points to an address the service may not contact.", "Send a URL on a public host and a standard port."},
-	DNSFailed:            {StageFetch, OwnerSourceSite, true, "The host name did not resolve.", "Check the domain; retry later if the site's DNS is temporarily down."},
-	ConnectionFailed:     {StageFetch, OwnerSourceSite, true, "The connection to the site failed.", "Retry later; the site may be down."},
-	TLSFailed:            {StageFetch, OwnerSourceSite, false, "The TLS handshake with the site failed.", "Check the site's certificate; the site owner must fix it."},
-	FetchTimeout:         {StageFetch, OwnerSourceSite, true, "The site did not respond in time.", "Retry later, or raise fetch.timeout_seconds in the site config."},
-	HTTPNotFound:         {StageFetch, OwnerClient, false, "The site returned HTTP 404 or 410. The product is gone.", "Mark the product as removed."},
-	AccessDenied:         {StageFetch, OwnerSourceSite, false, "The site refused access.", "Ask the site owner for access or review the site's fetch settings."},
-	RateLimited:          {StageFetch, OwnerSourceSite, true, "The site rate-limited the request.", "Retry later, or raise fetch.delay_ms in the site config."},
-	SourceServerError:    {StageFetch, OwnerSourceSite, true, "The site returned a server error.", "Retry later."},
-	HTTPError:            {StageFetch, OwnerSourceSite, false, "The site returned an unexpected HTTP status.", "Open the URL in a browser to see what the site returns."},
-	RobotsDisallowed:     {StageFetch, OwnerSiteConfig, false, "The site's robots.txt disallows this URL.", "Respect the site's robots.txt, or set fetch.respect_robots_txt to false only with the site owner's permission."},
-	RedirectNotAllowed:   {StageFetch, OwnerSiteConfig, false, "The site redirected outside its configured domains.", "Add the target host to domains in the site config if it belongs to the same site."},
-	TooManyRedirects:     {StageFetch, OwnerSourceSite, false, "The site redirected too many times.", "The site has a redirect loop; retry later."},
-	UnsupportedContent:   {StageFetch, OwnerSourceSite, false, "The response is not HTML.", "Send a URL that serves an HTML product page."},
-	ResponseTooLarge:     {StageFetch, OwnerService, false, "The response exceeded the size limit.", "The page is larger than the service accepts."},
-	BotProtection:        {StagePageCheck, OwnerSourceSite, false, "The target site returned an anti-bot challenge.", "Ask the site owner for access or review the site's fetch settings."},
-	JSRenderedPage:       {StagePageCheck, OwnerSiteConfig, false, "The page is rendered by JavaScript and has no product markup.", "Set fetch.engine to \"browser\" in the site config so the page is rendered in Chrome."},
-	EmptyPage:            {StagePageCheck, OwnerSourceSite, true, "The page is empty.", "Retry later."},
-	SelectorNotFound:     {StageExtract, OwnerSiteConfig, false, "The product block was not found on the page.", "Update pages.product.root in the site config."},
-	RequiredFieldMissing: {StageValidate, OwnerSiteConfig, false, "A required field was not found.", "Update the field's selector in the site config."},
-	PriceParseFailed:     {StageNormalize, OwnerSiteConfig, false, "Price text was found but could not be parsed.", "Update the price selectors or locale words in the site config."},
-	EngineUnavailable:    {StageFetch, OwnerService, true, "The fetch engine the site config selects is not available on this instance.", "Enable the engine on this instance (APP_BROWSER_ENABLED=true for \"browser\"), or retry on an instance that has it."},
-	DeadlineExceeded:     {"", OwnerService, true, "The request reached its time limit.", "Retry later."},
-	InternalError:        {"", OwnerService, true, "An unexpected error occurred in the service.", "Retry; report the request_id if it persists."},
+	SiteNotConfigured:        {StageConfig, OwnerSiteConfig, false, "No site config exists for this host.", "Add a site config under configs/sites/ for this host, or send a URL from a configured site."},
+	SiteDisabled:             {StageConfig, OwnerSiteConfig, false, "The site config for this host is disabled.", "Set enabled to true in the site config when the site should be served again."},
+	ConfigInvalid:            {StageConfig, OwnerSiteConfig, false, "The site config failed validation.", "Fix the site config file and run sitectl validate."},
+	NotProductURL:            {StageConfig, OwnerClient, false, "The URL is not a product page for this site.", "Send only product page URLs, or update pages.product.match in the site config."},
+	URLNotAllowed:            {StageFetch, OwnerClient, false, "The URL points to an address the service may not contact.", "Send a URL on a public host and a standard port."},
+	DNSFailed:                {StageFetch, OwnerSourceSite, true, "The host name did not resolve.", "Check the domain; retry later if the site's DNS is temporarily down."},
+	ConnectionFailed:         {StageFetch, OwnerSourceSite, true, "The connection to the site failed.", "Retry later; the site may be down."},
+	TLSFailed:                {StageFetch, OwnerSourceSite, false, "The TLS handshake with the site failed.", "Check the site's certificate; the site owner must fix it."},
+	FetchTimeout:             {StageFetch, OwnerSourceSite, true, "The site did not respond in time.", "Retry later, or raise fetch.timeout_seconds in the site config."},
+	HTTPNotFound:             {StageFetch, OwnerClient, false, "The site returned HTTP 404 or 410. The product is gone.", "Mark the product as removed."},
+	AccessDenied:             {StageFetch, OwnerSourceSite, false, "The site refused access.", "Ask the site owner for access, or set fetch.engine to \"brave\" (or \"duckduckgo\") in the site config to return the data available from search results."},
+	RateLimited:              {StageFetch, OwnerSourceSite, true, "The site rate-limited the request.", "Retry later, or raise fetch.delay_ms in the site config."},
+	SourceServerError:        {StageFetch, OwnerSourceSite, true, "The site returned a server error.", "Retry later."},
+	HTTPError:                {StageFetch, OwnerSourceSite, false, "The site returned an unexpected HTTP status.", "Open the URL in a browser to see what the site returns."},
+	RobotsDisallowed:         {StageFetch, OwnerSiteConfig, false, "The site's robots.txt disallows this URL.", "Respect the site's robots.txt, or set fetch.respect_robots_txt to false only with the site owner's permission."},
+	RedirectNotAllowed:       {StageFetch, OwnerSiteConfig, false, "The site redirected outside its configured domains.", "Add the target host to domains in the site config if it belongs to the same site."},
+	TooManyRedirects:         {StageFetch, OwnerSourceSite, false, "The site redirected too many times.", "The site has a redirect loop; retry later."},
+	UnsupportedContent:       {StageFetch, OwnerSourceSite, false, "The response is not HTML.", "Send a URL that serves an HTML product page."},
+	ResponseTooLarge:         {StageFetch, OwnerService, false, "The response exceeded the size limit.", "The page is larger than the service accepts."},
+	BotProtection:            {StagePageCheck, OwnerSourceSite, false, "The target site returned an anti-bot challenge.", "Ask the site owner for access, or set fetch.engine to \"brave\" (or \"duckduckgo\") in the site config to return the data available from search results."},
+	JSRenderedPage:           {StagePageCheck, OwnerSiteConfig, false, "The page is rendered by JavaScript and has no product markup.", "Set fetch.engine to \"browser\" in the site config so the page is rendered in Chrome."},
+	EmptyPage:                {StagePageCheck, OwnerSourceSite, true, "The page is empty.", "Retry later."},
+	SelectorNotFound:         {StageExtract, OwnerSiteConfig, false, "The product block was not found on the page.", "Update pages.product.root in the site config."},
+	RequiredFieldMissing:     {StageValidate, OwnerSiteConfig, false, "A required field was not found.", "Update the field's selector in the site config."},
+	PriceParseFailed:         {StageNormalize, OwnerSiteConfig, false, "Price text was found but could not be parsed.", "Update the price selectors or locale words in the site config."},
+	EngineUnavailable:        {StageFetch, OwnerService, true, "The fetch engine the site config selects is not available on this instance.", "Enable the engine on this instance (APP_BROWSER_ENABLED=true for \"browser\", APP_DUCKDUCKGO_ENABLED=true for \"duckduckgo\", APP_BRAVE_ENABLED=true with APP_BRAVE_API_KEY for \"brave\"), or retry on an instance that has it."},
+	SearchNoResult:           {StageFetch, OwnerSourceSite, false, "The search engine has no result for this product URL.", "Retry in a few days, when the page may be indexed."},
+	SearchProviderBlocked:    {StageFetch, OwnerService, true, "The search provider answered with a rate-limit or challenge page.", "Retry later. Raise APP_DUCKDUCKGO_MIN_INTERVAL_MS if this happens often."},
+	SearchQuotaExceeded:      {StageFetch, OwnerService, true, "The search provider's rate limit or quota is used up.", "Retry later, raise APP_BRAVE_MIN_INTERVAL_MS, or move to a larger Brave plan."},
+	SearchProviderAuthFailed: {StageFetch, OwnerService, false, "The search provider refused the API key.", "Check APP_BRAVE_API_KEY and the plan in the Brave Search API dashboard."},
+	SearchProviderError:      {StageFetch, OwnerService, true, "The search provider failed.", "Retry. If it persists for duckduckgo, the results page layout may have changed."},
+	DeadlineExceeded:         {"", OwnerService, true, "The request reached its time limit.", "Retry later."},
+	InternalError:            {"", OwnerService, true, "An unexpected error occurred in the service.", "Retry; report the request_id if it persists."},
 }
 
 // Failure is the error part of a failed result.
@@ -112,7 +124,8 @@ type Failure struct {
 	// DNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,
 	// SOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,
 	// UNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,
-	// REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE.
+	// REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,
+	// SEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR.
 	Code            string `json:"code" binding:"required" example:"SELECTOR_NOT_FOUND"`
 	Stage           Stage  `json:"stage" binding:"required" enums:"config,fetch,page_check,extract,normalize,validate" swaggertype:"string" example:"extract"`
 	Owner           Owner  `json:"owner" binding:"required" enums:"client,site_config,source_site,service" swaggertype:"string" example:"site_config"`

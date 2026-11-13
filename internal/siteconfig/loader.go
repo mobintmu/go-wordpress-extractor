@@ -230,6 +230,85 @@ func decodeSite(m map[string]any) (*Site, error) {
 	return &s, nil
 }
 
+var regionPattern = regexp.MustCompile(`^[a-z]{2}-[a-z]{2}$`)
+
+// validateSearch checks fetch.alternate_engines and fetch.search, and fills
+// the search defaults for search sites.
+func validateSearch(s *Site, add func(string, ...any)) {
+	search := IsSearchEngine(s.Fetch.Engine)
+	if len(s.Fetch.AlternateEngines) > 0 && !search {
+		add("fetch.alternate_engines is only allowed when fetch.engine is %q or %q", EngineDuckDuckGo, EngineBrave)
+	}
+	seen := map[string]bool{s.Fetch.Engine: true}
+	for i, e := range s.Fetch.AlternateEngines {
+		if !IsSearchEngine(e) {
+			add("fetch.alternate_engines[%d] %q must be %q or %q", i, e, EngineDuckDuckGo, EngineBrave)
+		}
+		if seen[e] {
+			add("fetch.alternate_engines[%d] %q is listed twice or repeats fetch.engine", i, e)
+		}
+		seen[e] = true
+	}
+	if !search {
+		if s.Fetch.Search != nil {
+			add("fetch.search is only allowed when fetch.engine is %q or %q", EngineDuckDuckGo, EngineBrave)
+		}
+		return
+	}
+	if s.Fetch.Search == nil {
+		s.Fetch.Search = &Search{}
+	}
+	sc := s.Fetch.Search
+	if sc.Region == "" {
+		sc.Region = "wt-wt"
+	}
+	if !regionPattern.MatchString(sc.Region) {
+		add("fetch.search.region %q must look like \"us-en\" (<country>-<lang>), or \"wt-wt\" for no region", sc.Region)
+	}
+	if len(sc.Queries) == 0 {
+		sc.Queries = []string{QuerySiteSlug, QueryURL}
+	}
+	if len(sc.Queries) > 2 {
+		add("fetch.search.queries may list at most 2 queries")
+	}
+	used := map[string]bool{}
+	for i, q := range sc.Queries {
+		if q != QuerySiteSlug && q != QueryURL {
+			add("fetch.search.queries[%d] %q must be %q or %q", i, q, QuerySiteSlug, QueryURL)
+		}
+		if used[q] {
+			add("fetch.search.queries[%d] %q is listed twice", i, q)
+		}
+		used[q] = true
+	}
+	for i, t := range sc.TitleStrip {
+		if strings.TrimSpace(t) == "" {
+			add("fetch.search.title_strip[%d] must not be empty", i)
+		}
+	}
+	for i, p := range sc.IgnoreParams {
+		if strings.TrimSpace(p) == "" {
+			add("fetch.search.ignore_params[%d] must not be empty", i)
+		}
+	}
+}
+
+// SearchWarnings lists fetch settings that have no effect for a search
+// site, because the site is never fetched. sitectl validate prints them.
+func SearchWarnings(s *Site) []string {
+	if s == nil || !IsSearchEngine(s.Fetch.Engine) {
+		return nil
+	}
+	var out []string
+	if s.Fetch.UserAgent != "" && s.Fetch.UserAgent != defaultUserAgent || len(s.Fetch.UserAgents) > 0 {
+		out = append(out, "fetch.user_agents has no effect with a search engine: the site is never fetched")
+	}
+	if s.Fetch.RespectRobotsTxt != nil && !*s.Fetch.RespectRobotsTxt {
+		out = append(out, "fetch.respect_robots_txt has no effect with a search engine: the site is never fetched")
+	}
+	return out
+}
+
 // stripMeta removes "$schema", "$comment", and other "$" keys at any depth.
 func stripMeta(m map[string]any) {
 	for k, v := range m {
@@ -274,10 +353,11 @@ func Validate(s *Site) error {
 	switch s.Fetch.Engine {
 	case "":
 		s.Fetch.Engine = EngineHTTP
-	case EngineHTTP, EngineBrowser:
+	case EngineHTTP, EngineBrowser, EngineDuckDuckGo, EngineBrave:
 	default:
-		add("fetch.engine %q must be %q or %q", s.Fetch.Engine, EngineHTTP, EngineBrowser)
+		add("fetch.engine %q must be %q, %q, %q or %q", s.Fetch.Engine, EngineHTTP, EngineBrowser, EngineDuckDuckGo, EngineBrave)
 	}
+	validateSearch(s, add)
 	for i, ua := range s.Fetch.UserAgents {
 		if strings.TrimSpace(ua) == "" {
 			add("fetch.user_agents[%d] must not be empty", i)
