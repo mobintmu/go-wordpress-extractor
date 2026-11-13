@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -279,6 +280,13 @@ func (c CLI) live(dir, rawURL, htmlPath string) (*extract.Response, *fetch.Page,
 		bopts := fetch.DefaultBrowserOptions()
 		if ch := os.Getenv("APP_BROWSER_CHANNEL"); ch != "" {
 			bopts.Channel = ch
+		}
+		// A challenge that headless Chrome cannot pass (see hafele.com.de)
+		// needs the same window here as on the server.
+		if hl := os.Getenv("APP_BROWSER_HEADLESS"); hl != "" {
+			if bopts.Headless, err = strconv.ParseBool(hl); err != nil {
+				return nil, nil, fmt.Errorf("APP_BROWSER_HEADLESS: %w", err)
+			}
 		}
 		browser := fetch.NewBrowserFetcher(opts, bopts, lim, zap.NewNop())
 		defer func() { _ = browser.Stop(context.Background()) }()
