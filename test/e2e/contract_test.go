@@ -257,7 +257,8 @@ func TestSwaggerDocsUpToDate(t *testing.T) {
 	}
 }
 
-// TestSwaggerServedDoc checks /swagger/doc.json serves the generated doc.
+// TestSwaggerServedDoc checks /swagger/doc.json serves the OpenAPI 3
+// conversion of the generated doc, with the same paths and schemas.
 func TestSwaggerServedDoc(t *testing.T) {
 	e := Start(t, Options{Env: opsEnv(t)})
 	r := e.Get("/swagger/doc.json", map[string]string{"Authorization": opsAuthHeader()})
@@ -265,14 +266,38 @@ func TestSwaggerServedDoc(t *testing.T) {
 	if r.Status != 200 || json.Unmarshal(r.Raw, &served) != nil {
 		t.Fatalf("doc.json: %s", r)
 	}
+	if v, _ := served["openapi"].(string); !strings.HasPrefix(v, "3.") {
+		t.Fatalf("served doc is not OpenAPI 3: openapi = %v", served["openapi"])
+	}
 	raw, err := os.ReadFile(filepath.Join("..", "..", "docs", "swagger.json"))
 	must(t, err)
 	must(t, json.Unmarshal(raw, &file))
-	for _, k := range []string{"paths", "definitions", "securityDefinitions"} {
-		a, _ := json.Marshal(served[k])
-		b, _ := json.Marshal(file[k])
-		if !bytes.Equal(a, b) {
-			t.Errorf("served %s differs from docs/swagger.json", k)
+
+	for p, ops := range m(file["paths"]) {
+		for method := range m(ops) {
+			if m(m(served["paths"])[p])[method] == nil {
+				t.Errorf("served doc lacks %s %s", strings.ToUpper(method), p)
+			}
 		}
+	}
+	for name := range m(file["definitions"]) {
+		if m(m(served["components"])["schemas"])[name] == nil {
+			t.Errorf("served doc lacks schema %s", name)
+		}
+	}
+	for name := range m(file["securityDefinitions"]) {
+		if m(m(served["components"])["securitySchemes"])[name] == nil {
+			t.Errorf("served doc lacks security scheme %s", name)
+		}
+	}
+	body := m(m(m(m(served["paths"])["/api/v1/extract"])["post"])["requestBody"])
+	examples := m(m(m(body["content"])["application/json"])["examples"])
+	if len(examples) == 0 {
+		t.Error("served doc has no request examples for POST /api/v1/extract")
+	}
+
+	// The UI page itself is still served.
+	if r := e.Get("/swagger/index.html", map[string]string{"Authorization": opsAuthHeader()}); r.Status != 200 {
+		t.Errorf("index.html: %s", r)
 	}
 }

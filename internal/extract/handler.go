@@ -72,6 +72,9 @@ func (h *Handler) reject(c *gin.Context, status int, code, msg, reason string) {
 //	@Description	Fetches one product page and returns the product (status success) or the root cause with evidence (status failed).
 //	@Description	Both results return HTTP 200, so clients must read the status field. Only error.code HTTP_NOT_FOUND means the product is gone.
 //	@Description	Each request responds within APP_MAX_REQUEST_DURATION (3 minutes); set the client timeout to 190 seconds.
+//	@Description
+//	@Description	**Try it out:** click Authorize and enter a client key (gwp_...), pick a site under Examples above the request body, then click Execute.
+//	@Description	Each example's note says which engine and settings the site needs. If a call returns HTTP_NOT_FOUND, the sample product was removed; use a current product URL from the same site.
 //	@Tags			Extraction
 //	@Accept			json
 //	@Produce		json

@@ -179,7 +179,7 @@ Short summary:
 set -u
 urls=(
   "https://www.3-form.com/products/edge-lit-chroma-countertop"
-  "https://badomjip.com/product/premium-almond/"
+  "https://badomjip.com/product/%da%a9%d8%b1%d9%87-%d8%a8%d8%a7%d8%af%d8%a7%d9%85-%d8%b2%d9%85%db%8c%d9%86%db%8c-%d9%be%d8%b1%d9%88%d8%aa%d8%a6%db%8c%d9%86%db%8c-%d8%ac%db%8c%d9%be-%db%8c%da%a9-%da%a9%db%8c%d9%84%d9%88%da%af%d8%b1/"
   "https://www.emtek.com/all-products/door-hardware/front-door-entry-sets/tubular-entry-sets/select-smooth-grip-full-length-tubular-entry-set/"
   "https://www.fergusonhome.com/duravit-030549-0hole/s1666394?uid=3938155"
   "https://www.flooranddecor.com/ceramic-tile/zellige-oat-high-gloss-ceramic-tile-101130060.html"

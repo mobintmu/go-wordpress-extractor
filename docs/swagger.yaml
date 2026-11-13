@@ -139,12 +139,12 @@ definitions:
     properties:
       request_id:
         description: Echoed in the response and logs. Generated if missing.
-        example: client-generated-id-123
+        example: badomjip-1
         maxLength: 128
         type: string
       url:
         description: One product page, on a domain with a site config.
-        example: https://badomjip.com/product/example/
+        example: https://badomjip.com/product/almondbutter400/
         format: uri
         type: string
     required:
@@ -705,6 +705,9 @@ paths:
         Fetches one product page and returns the product (status success) or the root cause with evidence (status failed).
         Both results return HTTP 200, so clients must read the status field. Only error.code HTTP_NOT_FOUND means the product is gone.
         Each request responds within APP_MAX_REQUEST_DURATION (3 minutes); set the client timeout to 190 seconds.
+
+        **Try it out:** click Authorize and enter a client key (gwp_...), pick a site under Examples above the request body, then click Execute.
+        Each example's note says which engine and settings the site needs. If a call returns HTTP_NOT_FOUND, the sample product was removed; use a current product URL from the same site.
       parameters:
       - description: One product page URL
         in: body

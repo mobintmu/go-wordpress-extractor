@@ -14,6 +14,7 @@ import (
 	"go-wordpress/internal/health"
 	"go-wordpress/internal/limiter"
 	"go-wordpress/internal/metrics"
+	"go-wordpress/internal/openapi"
 	"go-wordpress/internal/server/drain"
 	"go-wordpress/internal/sites"
 
@@ -33,9 +34,12 @@ import (
 //	GET  /health, /ready      public
 //	GET  /swagger/*           operator credentials (Basic)
 //
-// Swagger docs are generated from the annotations with:
+// Swagger 2.0 docs are generated from the annotations with:
 //
 //	swag init --parseInternal -g cmd/server/main.go -o docs
+//
+// At startup that doc is converted to OpenAPI 3 (with the request examples
+// from internal/openapi) and served to Swagger UI as /swagger/doc.json.
 func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, st *sites.Handler, keys *apikey.Store, m *metrics.Metrics, lim *limiter.Limiter, d *drain.State, cfg *config.Config) {
 	engine.GET("/health", h.Handle)
 	engine.GET("/ready", h.Ready)
@@ -50,9 +54,9 @@ func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, s
 	// describes client API traffic.
 	engine.GET("/metrics", apikey.Middleware(keys, nil), MetricsHandler(m, lim, d))
 
-	// Swagger UI and its doc.json are served at /swagger/index.html and
-	// /swagger/doc.json. Host is left empty so the UI calls the server it
-	// was loaded from.
+	// Swagger UI is served at /swagger/index.html and its OpenAPI 3 doc at
+	// /swagger/doc.json. The doc's server is "/", so the UI calls the
+	// server it was loaded from.
 	docs.SwaggerInfo.Host = ""
 	docs.SwaggerInfo.BasePath = "/"
 	docs.SwaggerInfo.Schemes = []string{"http"}
@@ -67,9 +71,28 @@ func RegisterRoutes(engine *gin.Engine, h *health.Health, ex *extract.Handler, s
 			zap.String("pepper_fingerprint", apikey.PepperFingerprint(cfg.APIKeyPepper)))
 	}
 	ops := engine.Group("/", OpsAuth(cfg))
-	ops.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	ops.GET("/swagger/*any", swaggerHandler())
 
 	engine.NoRoute(notFound)
+}
+
+// swaggerHandler serves the OpenAPI 3 doc at /swagger/doc.json and the
+// Swagger UI assets for every other /swagger/ path. A doc that fails to
+// convert is a build bug, so it panics at startup instead of serving a
+// broken UI.
+func swaggerHandler() gin.HandlerFunc {
+	doc, err := openapi.FromSwagger2([]byte(docs.SwaggerInfo.ReadDoc()))
+	if err != nil {
+		panic("swagger: " + err.Error())
+	}
+	ui := ginSwagger.WrapHandler(swaggerFiles.Handler)
+	return func(c *gin.Context) {
+		if c.Param("any") == "/doc.json" {
+			c.Data(http.StatusOK, "application/json; charset=utf-8", doc)
+			return
+		}
+		ui(c)
+	}
 }
 
 // MetricsHandler godoc

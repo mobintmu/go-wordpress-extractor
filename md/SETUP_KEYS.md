@@ -33,7 +33,7 @@ All commands run from the project root. The examples use `.env.development`; to 
 ### Step 1: Create the pepper
 
 ```bash
-sed -i "s|^APP_API_KEY_PEPPER=.*|APP_API_KEY_PEPPER=$(go run ./cmd/apikey generate-pepper)|" .env.development
+sed -i "s|^APP_API_KEY_PEPPER=.*|APP_API_KEY_PEPPER=$(go run ./cmd/apikey generate-pepper)|" .env
 ```
 
 This writes a new random pepper into the file. Skip this step if the file already has the pepper you want to keep.
@@ -41,7 +41,7 @@ This writes a new random pepper into the file. Skip this step if the file alread
 ### Step 2: Load the pepper and key file into this terminal
 
 ```bash
-export APP_API_KEY_PEPPER=$(grep '^APP_API_KEY_PEPPER=' .env.development | cut -d= -f2-)
+export APP_API_KEY_PEPPER=$(grep '^APP_API_KEY_PEPPER=' .env | cut -d= -f2-)
 export APP_API_KEYS_FILE=secrets/api_keys.json
 ```
 
@@ -50,7 +50,7 @@ The next steps read these two values. Run this again in every new terminal.
 ### Step 3: Create an API key
 
 ```bash
-go run ./cmd/apikey generate --name my-client
+go run ./cmd/apikey generate --name my-client --expires-in never
 
 PEP="$(grep '^APP_API_KEY_PEPPER=' .env | cut -d= -f2-)"
 
@@ -85,7 +85,7 @@ go run ./cmd/apikey generate-bulk --count 10 --name-prefix app --plain-output se
 ```bash
 H=$(echo 'my-operator-password' | go run ./cmd/apikey hash-ops-password)
 sed -i -e "s|^APP_OPS_USER=.*|APP_OPS_USER=admin|" \
-       -e "s|^APP_OPS_PASSWORD_HASH=.*|APP_OPS_PASSWORD_HASH=$H|" .env.development
+       -e "s|^APP_OPS_PASSWORD_HASH=.*|APP_OPS_PASSWORD_HASH=$H|" .env
 ```
 
 Use your own password, at least 12 characters. You log in with `admin` and this password.

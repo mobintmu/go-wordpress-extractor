@@ -67,9 +67,9 @@ const (
 // Request is the body of POST /api/v1/extract.
 type Request struct {
 	// One product page, on a domain with a site config.
-	URL string `json:"url" binding:"required" example:"https://badomjip.com/product/example/" format:"uri"`
+	URL string `json:"url" binding:"required" example:"https://badomjip.com/product/almondbutter400/" format:"uri"`
 	// Echoed in the response and logs. Generated if missing.
-	RequestID string `json:"request_id,omitempty" example:"client-generated-id-123" maxLength:"128"`
+	RequestID string `json:"request_id,omitempty" example:"badomjip-1" maxLength:"128"`
 } //@name ExtractRequest
 
 // Response is the single object returned for both results.
