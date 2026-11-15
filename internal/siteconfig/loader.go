@@ -237,12 +237,12 @@ var regionPattern = regexp.MustCompile(`^[a-z]{2}-[a-z]{2}$`)
 func validateSearch(s *Site, add func(string, ...any)) {
 	search := IsSearchEngine(s.Fetch.Engine)
 	if len(s.Fetch.AlternateEngines) > 0 && !search {
-		add("fetch.alternate_engines is only allowed when fetch.engine is %q or %q", EngineDuckDuckGo, EngineBrave)
+		add("fetch.alternate_engines is only allowed when fetch.engine is a search engine (%s)", SearchEngineList())
 	}
 	seen := map[string]bool{s.Fetch.Engine: true}
 	for i, e := range s.Fetch.AlternateEngines {
 		if !IsSearchEngine(e) {
-			add("fetch.alternate_engines[%d] %q must be %q or %q", i, e, EngineDuckDuckGo, EngineBrave)
+			add("fetch.alternate_engines[%d] %q must be a search engine (%s)", i, e, SearchEngineList())
 		}
 		if seen[e] {
 			add("fetch.alternate_engines[%d] %q is listed twice or repeats fetch.engine", i, e)
@@ -251,7 +251,7 @@ func validateSearch(s *Site, add func(string, ...any)) {
 	}
 	if !search {
 		if s.Fetch.Search != nil {
-			add("fetch.search is only allowed when fetch.engine is %q or %q", EngineDuckDuckGo, EngineBrave)
+			add("fetch.search is only allowed when fetch.engine is a search engine (%s)", SearchEngineList())
 		}
 		return
 	}
@@ -306,6 +306,9 @@ func SearchWarnings(s *Site) []string {
 	if s.Fetch.RespectRobotsTxt != nil && !*s.Fetch.RespectRobotsTxt {
 		out = append(out, "fetch.respect_robots_txt has no effect with a search engine: the site is never fetched")
 	}
+	if sc := s.Fetch.Search; sc != nil && sc.Region != "" && sc.Region != "wt-wt" && !EngineUsesRegion(s.Fetch.Engine) {
+		out = append(out, fmt.Sprintf("fetch.search.region has no effect with the %s engine: it has no region parameter", s.Fetch.Engine))
+	}
 	return out
 }
 
@@ -353,9 +356,11 @@ func Validate(s *Site) error {
 	switch s.Fetch.Engine {
 	case "":
 		s.Fetch.Engine = EngineHTTP
-	case EngineHTTP, EngineBrowser, EngineDuckDuckGo, EngineBrave:
+	case EngineHTTP, EngineBrowser:
 	default:
-		add("fetch.engine %q must be %q, %q, %q or %q", s.Fetch.Engine, EngineHTTP, EngineBrowser, EngineDuckDuckGo, EngineBrave)
+		if !IsSearchEngine(s.Fetch.Engine) {
+			add("fetch.engine %q must be %q, %q or a search engine (%s)", s.Fetch.Engine, EngineHTTP, EngineBrowser, SearchEngineList())
+		}
 	}
 	validateSearch(s, add)
 	for i, ua := range s.Fetch.UserAgents {

@@ -153,7 +153,7 @@ Short summary:
 
 ## Sites using a search engine (`duckduckgo`, alternate `brave`)
 
-The site itself is not contacted (`source.site_contacted` is `false`). Only title, URL and description come from the search result. Image, price and specs are listed in `unavailable_fields` with reason `NOT_IN_SEARCH_RESULTS`, and `completeness` is `partial`. At least one of `APP_DUCKDUCKGO_ENABLED` or `APP_BRAVE_ENABLED` must be on, otherwise the call fails with `ENGINE_UNAVAILABLE`.
+The site itself is not contacted (`source.site_contacted` is `false`). Only title, URL and description come from the search result. Image, price and specs are listed in `unavailable_fields` with reason `NOT_IN_SEARCH_RESULTS`, and `completeness` is `partial`. At least one of the site's engines (`fetch.engine`, then `fetch.alternate_engines`) must be enabled on the instance (`APP_DUCKDUCKGO_ENABLED`, `APP_BRAVE_ENABLED`, `APP_MOJEEK_ENABLED`, `APP_YAHOO_ENABLED` or `APP_YANDEX_ENABLED`), otherwise the call fails with `ENGINE_UNAVAILABLE`. The response looks the same for every search engine; `source.engine` names the one that answered.
 
 ### 4. fergusonhome.com
 

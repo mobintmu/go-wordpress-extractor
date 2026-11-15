@@ -81,6 +81,17 @@ type Config struct {
 	BraveAPIKeyFile string
 	// BraveMinIntervalMS is the minimum gap between two Brave queries.
 	BraveMinIntervalMS int
+
+	// MojeekEnabled, YahooEnabled and YandexEnabled turn on the "mojeek",
+	// "yahoo" and "yandex" engines, which read that search engine's results
+	// page through github.com/jcalvert/metawebsearch. They need no key.
+	MojeekEnabled bool
+	// MojeekMinIntervalMS is the minimum gap between two Mojeek queries.
+	MojeekMinIntervalMS int
+	YahooEnabled        bool
+	YahooMinIntervalMS  int
+	YandexEnabled       bool
+	YandexMinIntervalMS int
 }
 
 const (
@@ -100,6 +111,9 @@ const (
 	DefaultSearchNoResultTTL     = time.Hour
 	DefaultDuckDuckGoIntervalMS  = 2000
 	DefaultBraveIntervalMS       = 1000
+	// DefaultScrapedIntervalMS spaces queries to Mojeek, Yahoo and Yandex,
+	// whose results pages are read without an API.
+	DefaultScrapedIntervalMS = 3000
 )
 
 func newViper() *viper.Viper {
@@ -123,7 +137,8 @@ func NewConfig() (*Config, error) {
 		zap.String("env", cfg.ENV), zap.Int("port", cfg.HTTPPort), zap.String("sites", cfg.SiteConfigDir),
 		zap.String("keys", cfg.APIKeysFile), zap.Bool("tls", cfg.TLSEnabled()), zap.Bool("ops", cfg.OpsEnabled()),
 		zap.String("proxy", proxy), zap.Bool("browser", cfg.BrowserEnabled),
-		zap.Bool("duckduckgo", cfg.DuckDuckGoEnabled), zap.Bool("brave", cfg.BraveEnabled))
+		zap.Bool("duckduckgo", cfg.DuckDuckGoEnabled), zap.Bool("brave", cfg.BraveEnabled),
+		zap.Bool("mojeek", cfg.MojeekEnabled), zap.Bool("yahoo", cfg.YahooEnabled), zap.Bool("yandex", cfg.YandexEnabled))
 
 	return cfg, nil
 }
@@ -147,6 +162,12 @@ func buildConfig(v *viper.Viper) *Config {
 	v.SetDefault("DUCKDUCKGO_MIN_INTERVAL_MS", DefaultDuckDuckGoIntervalMS)
 	v.SetDefault("BRAVE_ENABLED", false)
 	v.SetDefault("BRAVE_MIN_INTERVAL_MS", DefaultBraveIntervalMS)
+	v.SetDefault("MOJEEK_ENABLED", false)
+	v.SetDefault("MOJEEK_MIN_INTERVAL_MS", DefaultScrapedIntervalMS)
+	v.SetDefault("YAHOO_ENABLED", false)
+	v.SetDefault("YAHOO_MIN_INTERVAL_MS", DefaultScrapedIntervalMS)
+	v.SetDefault("YANDEX_ENABLED", false)
+	v.SetDefault("YANDEX_MIN_INTERVAL_MS", DefaultScrapedIntervalMS)
 
 	cfg := &Config{
 		ENV:                   v.GetString("ENV"),
@@ -180,6 +201,12 @@ func buildConfig(v *viper.Viper) *Config {
 		BraveAPIKey:             v.GetString("BRAVE_API_KEY"),
 		BraveAPIKeyFile:         v.GetString("BRAVE_API_KEY_FILE"),
 		BraveMinIntervalMS:      v.GetInt("BRAVE_MIN_INTERVAL_MS"),
+		MojeekEnabled:           v.GetBool("MOJEEK_ENABLED"),
+		MojeekMinIntervalMS:     v.GetInt("MOJEEK_MIN_INTERVAL_MS"),
+		YahooEnabled:            v.GetBool("YAHOO_ENABLED"),
+		YahooMinIntervalMS:      v.GetInt("YAHOO_MIN_INTERVAL_MS"),
+		YandexEnabled:           v.GetBool("YANDEX_ENABLED"),
+		YandexMinIntervalMS:     v.GetInt("YANDEX_MIN_INTERVAL_MS"),
 	}
 	if cfg.APIKeysFile == "" {
 		cfg.APIKeysFile = DefaultAPIKeysFile(cfg.ENV)
@@ -298,6 +325,12 @@ func (c *Config) SearchSettings() SearchSettings {
 		BraveEnabled:          c.BraveEnabled,
 		BraveAPIKey:           c.BraveAPIKey,
 		BraveMinInterval:      time.Duration(c.BraveMinIntervalMS) * time.Millisecond,
+		MojeekEnabled:         c.MojeekEnabled,
+		MojeekMinInterval:     time.Duration(c.MojeekMinIntervalMS) * time.Millisecond,
+		YahooEnabled:          c.YahooEnabled,
+		YahooMinInterval:      time.Duration(c.YahooMinIntervalMS) * time.Millisecond,
+		YandexEnabled:         c.YandexEnabled,
+		YandexMinInterval:     time.Duration(c.YandexMinIntervalMS) * time.Millisecond,
 	}
 }
 
@@ -311,6 +344,12 @@ type SearchSettings struct {
 	BraveEnabled          bool
 	BraveAPIKey           string
 	BraveMinInterval      time.Duration
+	MojeekEnabled         bool
+	MojeekMinInterval     time.Duration
+	YahooEnabled          bool
+	YahooMinInterval      time.Duration
+	YandexEnabled         bool
+	YandexMinInterval     time.Duration
 }
 
 // SearchFromEnv reads and checks only the search engine settings, for tools

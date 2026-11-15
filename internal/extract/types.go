@@ -51,7 +51,7 @@ const (
 const (
 	// The page was fetched, but the field was not on it (http, browser).
 	ReasonNotOnPage = "NOT_ON_PAGE"
-	// The search engine cannot provide the field (duckduckgo, brave).
+	// The search engine cannot provide the field (duckduckgo, brave, mojeek, yahoo, yandex).
 	ReasonNotInSearchResults = "NOT_IN_SEARCH_RESULTS"
 	// The site config does not extract the field for this site.
 	ReasonNotConfigured = "NOT_CONFIGURED"
@@ -135,7 +135,7 @@ func (r Response) MarshalJSON() ([]byte, error) {
 
 // Source says which fetch engine produced the data.
 type Source struct {
-	Engine string `json:"engine" binding:"required" enums:"http,browser,duckduckgo,brave" example:"duckduckgo"`
+	Engine string `json:"engine" binding:"required" enums:"http,browser,duckduckgo,brave,mojeek,yahoo,yandex" example:"duckduckgo"`
 	// False for the search engines, which never contact the product's site.
 	SiteContacted bool `json:"site_contacted" binding:"required" example:"false"`
 	// The search query whose results held the product. Search engines only.

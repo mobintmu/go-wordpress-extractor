@@ -1,7 +1,8 @@
 // Package search looks a product URL up in a web search provider
-// (DuckDuckGo's HTML results page or the Brave Search API). The product's own
-// site is never contacted: the search engines exist for sites whose bot
-// protection the service does not get past.
+// (DuckDuckGo's HTML results page, the Brave Search API, or the results
+// pages of Mojeek, Yahoo and Yandex). The product's own site is never
+// contacted: the search engines exist for sites whose bot protection the
+// service does not get past.
 package search
 
 import (
@@ -17,6 +18,11 @@ import (
 const (
 	ProviderDuckDuckGo = "duckduckgo"
 	ProviderBrave      = "brave"
+	// ProviderMojeek, ProviderYahoo and ProviderYandex read the engine's
+	// results page through github.com/jcalvert/metawebsearch (scraped.go).
+	ProviderMojeek = "mojeek"
+	ProviderYahoo  = "yahoo"
+	ProviderYandex = "yandex"
 )
 
 // Query is one search.

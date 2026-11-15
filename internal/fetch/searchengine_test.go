@@ -197,6 +197,20 @@ func TestNewSearchEngines(t *testing.T) {
 	if len(got) != 2 || got[0].Name() != EngineDuckDuckGo || got[1].Name() != EngineBrave {
 		t.Fatalf("engines = %v", got)
 	}
+	got = NewSearchEngines(DefaultOptions(), SearchSettings{MojeekEnabled: true, YahooEnabled: true, YandexEnabled: true}, nil)
+	if len(got) != 3 || got[0].Name() != EngineMojeek || got[1].Name() != EngineYahoo || got[2].Name() != EngineYandex {
+		t.Fatalf("scraped engines = %v", got)
+	}
+	got = NewSearchEngines(DefaultOptions(), SearchSettings{YandexEnabled: true}, nil)
+	if len(got) != 1 || got[0].Name() != EngineYandex {
+		t.Fatalf("yandex alone = %v", got)
+	}
+	// Every search engine is a search engine to the site config too.
+	for _, e := range NewSearchEngines(DefaultOptions(), SearchSettings{DuckDuckGoEnabled: true, BraveEnabled: true, BraveAPIKey: "k", MojeekEnabled: true, YahooEnabled: true, YandexEnabled: true}, nil) {
+		if !siteconfig.IsSearchEngine(e.Name()) {
+			t.Errorf("%s is not in siteconfig.SearchEngines", e.Name())
+		}
+	}
 }
 
 // The search client applies the same egress rules as page fetches.

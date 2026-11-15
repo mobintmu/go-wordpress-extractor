@@ -326,7 +326,7 @@ const docTemplate = `{
                     }
                 },
                 "search": {
-                    "description": "What a search engine searched for. Set only for the duckduckgo and brave engines.",
+                    "description": "What a search engine searched for. Set only for the search engines (duckduckgo, brave, mojeek, yahoo, yandex).",
                     "allOf": [
                         {
                             "$ref": "#/definitions/SearchEvidence"
@@ -1013,7 +1013,10 @@ const docTemplate = `{
                         "http",
                         "browser",
                         "duckduckgo",
-                        "brave"
+                        "brave",
+                        "mojeek",
+                        "yahoo",
+                        "yandex"
                     ],
                     "example": "duckduckgo"
                 },

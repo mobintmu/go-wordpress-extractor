@@ -8,6 +8,7 @@ require (
 	github.com/getkin/kin-openapi v0.127.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gocolly/colly/v2 v2.3.0
+	github.com/jcalvert/metawebsearch v0.0.0-20260401212850-2b51795e5ee8
 	github.com/joho/godotenv v1.5.1
 	github.com/playwright-community/playwright-go v0.5700.1
 	github.com/spf13/viper v1.21.0
@@ -23,10 +24,18 @@ require (
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/antchfx/htmlquery v1.3.7 // indirect
 	github.com/antchfx/xmlquery v1.5.2 // indirect
 	github.com/antchfx/xpath v1.3.9 // indirect
+	github.com/bdandy/go-errors v1.2.2 // indirect
+	github.com/bdandy/go-socks4 v1.2.3 // indirect
 	github.com/bits-and-blooms/bitset v1.29.0 // indirect
+	github.com/bogdanfinn/fhttp v0.6.8 // indirect
+	github.com/bogdanfinn/quic-go-utls v1.0.9-utls // indirect
+	github.com/bogdanfinn/tls-client v1.14.0 // indirect
+	github.com/bogdanfinn/utls v1.7.7-barnius // indirect
+	github.com/bogdanfinn/websocket v1.5.5-barnius // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.5 // indirect
 	github.com/bytedance/sonic/loader v0.5.3 // indirect
@@ -61,6 +70,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.2 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -79,6 +89,7 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.1.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/tam7t/hpkp v0.0.0-20160821193359-2b70b4024ed5 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.2 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.10.0 // indirect

@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"regexp"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -72,12 +75,38 @@ const (
 	// EngineBrave builds the product from the Brave Search API. The site
 	// itself is never contacted.
 	EngineBrave = "brave"
+	// EngineMojeek, EngineYahoo and EngineYandex build the product from
+	// that engine's HTML results page, read through
+	// github.com/jcalvert/metawebsearch. The site itself is never contacted.
+	EngineMojeek = "mojeek"
+	EngineYahoo  = "yahoo"
+	EngineYandex = "yandex"
 )
+
+// SearchEngines lists every engine that reads search results instead of
+// the site, in the order the documentation uses.
+var SearchEngines = []string{EngineDuckDuckGo, EngineBrave, EngineMojeek, EngineYahoo, EngineYandex}
 
 // IsSearchEngine reports whether name is an engine that reads search
 // results instead of the site.
 func IsSearchEngine(name string) bool {
-	return name == EngineDuckDuckGo || name == EngineBrave
+	return slices.Contains(SearchEngines, name)
+}
+
+// EngineUsesRegion reports whether the search engine sends fetch.search.region
+// with its queries. Yahoo and Yandex have no region parameter.
+func EngineUsesRegion(name string) bool {
+	return name == EngineDuckDuckGo || name == EngineBrave || name == EngineMojeek
+}
+
+// SearchEngineList returns the search engine names quoted and joined, for
+// messages: `"duckduckgo", "brave", "mojeek", "yahoo" or "yandex"`.
+func SearchEngineList() string {
+	q := make([]string, len(SearchEngines))
+	for i, e := range SearchEngines {
+		q[i] = strconv.Quote(e)
+	}
+	return strings.Join(q[:len(q)-1], ", ") + " or " + q[len(q)-1]
 }
 
 // Search query kinds, as listed in fetch.search.queries.
@@ -90,8 +119,8 @@ const (
 
 // Fetch controls how a site's pages are retrieved.
 type Fetch struct {
-	// Engine selects the fetch strategy: "http" (default), "browser",
-	// "duckduckgo" or "brave".
+	// Engine selects the fetch strategy: "http" (default), "browser", or a
+	// search engine ("duckduckgo", "brave", "mojeek", "yahoo", "yandex").
 	Engine string `json:"engine"`
 	// AlternateEngines are used, in order, when Engine is not enabled on
 	// the instance. The choice is made once per request; a failed fetch is
@@ -113,7 +142,8 @@ type Fetch struct {
 // Search configures how a search engine looks a product URL up.
 type Search struct {
 	// Region is "<country>-<lang>", for example "us-en"; "wt-wt" means no
-	// region. Sent as kl to DuckDuckGo and as country + search_lang to Brave.
+	// region. Sent as kl to DuckDuckGo, as country + search_lang to Brave
+	// and as the arc + lb cookies to Mojeek. Yahoo and Yandex ignore it.
 	Region string `json:"region"`
 	// TitleStrip lists suffixes and prefixes removed from the result title.
 	TitleStrip []string `json:"title_strip"`

@@ -41,6 +41,10 @@ type Options struct {
 	// Proxy, when set, is an HTTP proxy that every request goes through.
 	// When nil, pages are fetched directly.
 	Proxy *url.URL
+	// SearchEndpoints replaces where a search engine sends its queries, by
+	// engine name ("duckduckgo", "mojeek", ...), so tests can point an
+	// engine at a fake provider. Production leaves it empty.
+	SearchEndpoints map[string]string
 }
 
 // DefaultOptions returns production settings.
@@ -66,8 +70,9 @@ type Page struct {
 	BodyLength   int64
 	// Engine is the fetch engine that produced the page, set by the Router.
 	Engine string
-	// Search is set by the search engines (duckduckgo, brave). They never
-	// contact the site, so the page then has no Body, Status or Headers.
+	// Search is set by the search engines (duckduckgo, brave, mojeek, yahoo,
+	// yandex). They never contact the site, so the page then has no Body,
+	// Status or Headers.
 	Search *SearchPage
 }
 

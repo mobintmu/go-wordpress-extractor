@@ -461,7 +461,25 @@ search_engine_enabled() { [ "$(env_get "APP_$(printf '%s' "$1" | tr '[:lower:]' 
 
 # sites_using_search -> config files whose fetch.engine or alternate_engines names a search engine
 sites_using_search() {
-  grep -lE '"(engine|alternate_engines)"[[:space:]]*:[[:space:]]*\[?[^]]*"(brave|duckduckgo)"' "$CONFIG_DIR"/sites/*.json 2>/dev/null | xargs -r -n1 basename || true
+  grep -lE '"(engine|alternate_engines)"[[:space:]]*:[[:space:]]*\[?[^]]*"(brave|duckduckgo|mojeek|yahoo|yandex)"' "$CONFIG_DIR"/sites/*.json 2>/dev/null | xargs -r -n1 basename || true
+}
+
+# Search engines that read a results page without a key (Mojeek, Yahoo and
+# Yandex, through github.com/jcalvert/metawebsearch).
+SCRAPED_ENGINES="mojeek yahoo yandex"
+scraped_engine_label() {
+  case "$1" in
+    mojeek) echo "Mojeek (own index)" ;;
+    yahoo)  echo "Yahoo (Bing's index)" ;;
+    yandex) echo "Yandex (own index)" ;;
+  esac
+}
+scraped_engine_terms() {
+  case "$1" in
+    mojeek) echo "https://www.mojeek.com/about/terms/" ;;
+    yahoo)  echo "https://legal.yahoo.com/" ;;
+    yandex) echo "https://yandex.com/legal/" ;;
+  esac
 }
 
 search_status() {
@@ -478,6 +496,15 @@ search_status() {
   else
     echo "Search engine brave     : off (API key $key)"
   fi
+  local e var
+  for e in $SCRAPED_ENGINES; do
+    var="APP_$(printf '%s' "$e" | tr '[:lower:]' '[:upper:]')_MIN_INTERVAL_MS"
+    if search_engine_enabled "$e"; then
+      printf 'Search engine %-10s: ENABLED (min interval %s ms, no key)\n' "$e" "$(v=$(env_get "$var"); echo "${v:-3000}")"
+    else
+      printf 'Search engine %-10s: off\n' "$e"
+    fi
+  done
   local sites; sites="$(sites_using_search | tr '\n' ' ')"
   [ -n "$sites" ] && echo "  sites using a search engine: $sites"
   return 0
@@ -486,8 +513,17 @@ search_status() {
 search_enable() {
   need_root "search"
   local engine="${1:-}"
-  [ -n "$engine" ] || engine="$(ask "Which search engine (brave or duckduckgo)" "brave")"
+  [ -n "$engine" ] || engine="$(ask "Which search engine (brave, duckduckgo, mojeek, yahoo or yandex)" "brave")"
   case "$engine" in
+    mojeek|yahoo|yandex)
+      echo "The $engine engine reads $(scraped_engine_label "$engine")'s public results page with the honest"
+      echo "APP_SEARCH_USER_AGENT; there is no API, no key and no SLA, and the provider has not approved this"
+      echo "project. Check that your use fits its terms: $(scraped_engine_terms "$engine")"
+      confirm "Enable the $engine engine?" n || { ok "$engine stays off"; return; }
+      env_set "APP_$(printf '%s' "$engine" | tr '[:lower:]' '[:upper:]')_ENABLED" true
+      local ivar="APP_$(printf '%s' "$engine" | tr '[:lower:]' '[:upper:]')_MIN_INTERVAL_MS"
+      [ -n "$(env_get "$ivar")" ] || env_set "$ivar" 3000
+      ;;
     duckduckgo)
       echo "DuckDuckGo has no API for web results and has not approved this project; the engine reads its"
       echo "HTML results page, which its robots.txt allows. Check that your use fits DuckDuckGo's terms:"
@@ -511,7 +547,7 @@ search_enable() {
       env_set APP_BRAVE_ENABLED true
       [ -n "$(env_get APP_BRAVE_MIN_INTERVAL_MS)" ] || env_set APP_BRAVE_MIN_INTERVAL_MS 1000
       ;;
-    *) die "choose brave or duckduckgo" ;;
+    *) die "choose brave, duckduckgo, mojeek, yahoo or yandex" ;;
   esac
   [ -n "$(env_get APP_SEARCH_USER_AGENT)" ] || env_set APP_SEARCH_USER_AGENT "go-wordpress-extractor/1.0"
   fix_perms
@@ -521,14 +557,15 @@ search_enable() {
 search_disable() {
   need_root "search"
   local engine="${1:-}"
-  [ -n "$engine" ] || engine="$(ask "Which search engine to turn off (brave or duckduckgo)" "")"
+  [ -n "$engine" ] || engine="$(ask "Which search engine to turn off (brave, duckduckgo, mojeek, yahoo or yandex)" "")"
   case "$engine" in
     duckduckgo) env_set APP_DUCKDUCKGO_ENABLED false ;;
+    mojeek|yahoo|yandex) env_set "APP_$(printf '%s' "$engine" | tr '[:lower:]' '[:upper:]')_ENABLED" false ;;
     brave)
       env_set APP_BRAVE_ENABLED false
       confirm "Also remove the Brave API key from $ENV_FILE?" n && env_set APP_BRAVE_API_KEY ""
       ;;
-    *) die "choose brave or duckduckgo" ;;
+    *) die "choose brave, duckduckgo, mojeek, yahoo or yandex" ;;
   esac
   fix_perms
   ok "$engine engine disabled. Restart the service to apply: $0 restart"
@@ -550,6 +587,13 @@ setup_search() {
   if confirm "Enable the brave engine (needs your own Brave Search API key)?" "$brave_def"; then
     search_enable brave
   fi
+  local e e_def
+  for e in $SCRAPED_ENGINES; do
+    e_def=n; search_engine_enabled "$e" && e_def=y
+    if confirm "Enable the $e engine (no key; reads $(scraped_engine_label "$e")'s results page; check its terms first)?" "$e_def"; then
+      search_enable "$e"
+    fi
+  done
   search_status
 }
 
@@ -611,10 +655,11 @@ APP_BROWSER_MAX_PAGES=3
 # false = Chrome in a window on the Xvfb virtual display (needed for Cloudflare).
 APP_BROWSER_HEADLESS=true
 
-# Search engines for sites whose config sets "fetch": {"engine": "brave"} or
-# "duckduckgo". They never contact the product's site; they return what the
-# search result shows and list the rest in unavailable_fields.
-# Turn on with: sudo ./deploy.sh search enable brave|duckduckgo
+# Search engines for sites whose config sets "fetch": {"engine": "brave"},
+# "duckduckgo", "mojeek", "yahoo" or "yandex". They never contact the
+# product's site; they return what the search result shows and list the rest
+# in unavailable_fields.
+# Turn on with: sudo ./deploy.sh search enable brave|duckduckgo|mojeek|yahoo|yandex
 APP_SEARCH_USER_AGENT=go-wordpress-extractor/1.0
 APP_SEARCH_CACHE_TTL=6h
 APP_SEARCH_NO_RESULT_CACHE_TTL=1h
@@ -625,6 +670,14 @@ APP_DUCKDUCKGO_MIN_INTERVAL_MS=2000
 APP_BRAVE_ENABLED=false
 APP_BRAVE_API_KEY=
 APP_BRAVE_MIN_INTERVAL_MS=1000
+# No key needed: the engine's results page through github.com/jcalvert/metawebsearch.
+# Enable only the providers whose terms fit your use (README, "Responsible use").
+APP_MOJEEK_ENABLED=false
+APP_MOJEEK_MIN_INTERVAL_MS=3000
+APP_YAHOO_ENABLED=false
+APP_YAHOO_MIN_INTERVAL_MS=3000
+APP_YANDEX_ENABLED=false
+APP_YANDEX_MIN_INTERVAL_MS=3000
 EOF
   fi
   env_set APP_ENV production
@@ -1067,14 +1120,16 @@ Browser fetch engine (off by default; for sites with fetch.engine "browser")
   browser install      Install or update Playwright and the browser without changing settings
   browser disable      Turn off (keeps the files)
 
-Search engines (off by default; for sites with fetch.engine "brave" or "duckduckgo")
+Search engines (off by default; for sites with fetch.engine "brave", "duckduckgo", "mojeek", "yahoo" or "yandex")
   search               Show status (never shows the API key)
   search enable brave  Turn on Brave; asks for your Brave Search API key without echoing it
                        and writes it to $ENV_FILE
   search enable duckduckgo
                        Turn on DuckDuckGo (no key); shows DuckDuckGo's terms first
+  search enable mojeek|yahoo|yandex
+                       Turn on that engine (no key; reads its results page); shows its terms first
   search disable <engine>
-                       Turn off brave or duckduckgo
+                       Turn off brave, duckduckgo, mojeek, yahoo or yandex
 
 API keys
   keys                 Interactive key menu

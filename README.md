@@ -2,7 +2,7 @@
 
 A stateless HTTP service that extracts one product from one product page. A client application sends a product URL with an API key. The service finds that site's parsing rules in a JSON file, fetches the page, and returns either the product or a structured root cause with evidence, in the same response.
 
-For sites behind bot protection that the service does not get past (fergusonhome.com, hafele.com.de), a search engine (`duckduckgo` or `brave`) builds the product from the search result instead, without contacting the site. Whatever is found is returned, and every field that could not be found is listed in `unavailable_fields`. See [Search engines](#search-engines-duckduckgo-brave) and [Responsible use](#responsible-use).
+For sites behind bot protection that the service does not get past (fergusonhome.com, lumens.com), a search engine (`duckduckgo`, `brave`, `mojeek`, `yahoo` or `yandex`) builds the product from the search result instead, without contacting the site. Whatever is found is returned, and every field that could not be found is listed in `unavailable_fields`. See [Search engines](#search-engines-duckduckgo-brave-mojeek-yahoo-yandex), [md/ENGINES.md](md/ENGINES.md) and [Responsible use](#responsible-use).
 
 There is no database and no Redis. Site configs and API keys are files that are re-read every 30 seconds. The design is in [md/SYNC_EXTRACTION_PROPOSAL.md](md/SYNC_EXTRACTION_PROPOSAL.md).
 
@@ -29,13 +29,13 @@ internal/apikey         Key format, HMAC hashing, .env and JSON key files, reloa
 internal/siteconfig     Loader, template merge, validation, registry with hot reload
 internal/extract        Pipeline (config, fetch, page_check, extract, normalize, validate) and handler
 internal/fetch          Fetch engines (http/Colly, browser, search) and router; SSRF-safe dialer, retries, redirects, size limit
-internal/fetch/search   DuckDuckGo and Brave providers, URL matching, query building
+internal/fetch/search   DuckDuckGo, Brave, Mojeek, Yahoo and Yandex providers, URL matching, query building
 internal/normalize      Digits, prices (ranges, rial to toman), text, URLs
 internal/diagnose       Failure codes, page checks, selector trace, HTML samples
 internal/limiter        Per-instance and per-site concurrency, per-site request spacing
 internal/metrics        Prometheus text metrics
 testdata/sites/         Saved HTML and expected output per site
-testdata/search/        Saved DuckDuckGo result pages (real) and a Brave response (synthetic)
+testdata/search/        Saved DuckDuckGo result pages (real); synthetic Brave, Mojeek, Yahoo and Yandex responses
 test/e2e/               End-to-end tests against the real server and a fake shop
 ```
 
@@ -131,13 +131,14 @@ docker compose run --rm apikey generate-pepper
 
 This service downloads product pages from shop websites. When a search engine is enabled, it also sends queries to third-party search services. Whoever runs an instance decides which websites and services it contacts, and is responsible for that use.
 
-**The license covers this code only.** The MIT license ([LICENSE](LICENSE)) lets you use, copy and change the code in this repository. It gives you no rights to the websites listed in `configs/sites/` or their content, or to the services of DuckDuckGo, Brave or any other provider. Those rights can only come from the website owners and the providers, under their own terms.
+**The license covers this code only.** The MIT license ([LICENSE](LICENSE)) lets you use, copy and change the code in this repository. It gives you no rights to the websites listed in `configs/sites/` or their content, or to the services of DuckDuckGo, Brave, Mojeek, Yahoo, Yandex or any other provider. Those rights can only come from the website owners and the providers, under their own terms.
 
 **Before you enable a site or an engine, check that your use is allowed by:**
 
 - **The website's terms of use.** A config in this repository shows how a site's pages are built. It does not mean the site allows automated extraction.
 - **DuckDuckGo's [Terms of Service](https://duckduckgo.com/terms) and [Acceptable Use Policy](https://duckduckgo.com/acceptable-use)**, for the `duckduckgo` engine. DuckDuckGo offers no API for web results and has not approved this project. The engine is off by default.
 - **Brave's terms for your [Brave Search API](https://brave.com/search/api) plan**, for the `brave` engine, including whether you may store results. Use your own API key. The engine is off by default.
+- **[Mojeek's](https://www.mojeek.com/about/terms/), [Yahoo's](https://legal.yahoo.com/) and [Yandex's](https://yandex.com/legal/) terms**, for the `mojeek`, `yahoo` and `yandex` engines. These engines read the provider's public results page with the honest `APP_SEARCH_USER_AGENT`; none of the three providers has approved this project, and none is contacted through an API. Each engine is off by default, and each has its own switch.
 - **The laws that apply to you**, for example on copyright, databases and personal data.
 
 **What each engine does:**
@@ -146,9 +147,9 @@ This service downloads product pages from shop websites. When a search engine is
 |---|---|---|
 | `http` | Yes, with plain HTTP requests | Follows the site's `robots.txt` unless the site config sets `respect_robots_txt` to `false` |
 | `browser` | Yes, in a real Chrome browser | Runs the page's JavaScript like a normal visitor's browser. This can get past some anti-bot checks, for example Cloudflare's "Just a moment..." page. Some websites' terms forbid this, so check before you use it for a site |
-| `duckduckgo`, `brave` | No | Sends search queries to the provider only, and builds the product from the search result |
+| `duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex` | No | Sends search queries to the provider only, and builds the product from the search result. The queries carry the honest `APP_SEARCH_USER_AGENT`; the service never pretends to be a browser and never retries a block |
 
-**No affiliation.** DuckDuckGo, Brave, and the shop names used in `configs/sites/` are trademarks of their owners. This project is not affiliated with or endorsed by any of them.
+**No affiliation.** DuckDuckGo, Brave, Mojeek, Yahoo, Yandex, and the shop names used in `configs/sites/` are trademarks of their owners. This project is not affiliated with or endorsed by any of them.
 
 **Not legal advice.** This section is general information, not legal advice. If you are unsure whether your use is allowed, ask a lawyer. As [LICENSE](LICENSE) states, the software is provided "as is", without warranty of any kind.
 
@@ -381,6 +382,12 @@ func pick(nodes []Node, site string) *Node {
 | `APP_BRAVE_API_KEY` | none | **Secret.** Your Brave Search API key, sent as `X-Subscription-Token`. Never logged. Never put it in `.env.development` or `.env.test`: they are committed |
 | `APP_BRAVE_API_KEY_FILE` | none | A file holding only the key (for example `secrets/brave_api_key`; `secrets/` is git-ignored). Used when `APP_BRAVE_API_KEY` is empty |
 | `APP_BRAVE_MIN_INTERVAL_MS` | `1000` | Minimum time between two Brave queries. `1000` fits the free tier's 1 query per second |
+| `APP_MOJEEK_ENABLED` | `false` | Turn on the `mojeek` engine (Mojeek's results page through `github.com/jcalvert/metawebsearch`). No key |
+| `APP_MOJEEK_MIN_INTERVAL_MS` | `3000` | Minimum time between two Mojeek queries from this instance |
+| `APP_YAHOO_ENABLED` | `false` | Turn on the `yahoo` engine (Yahoo's results page, Bing's index). No key |
+| `APP_YAHOO_MIN_INTERVAL_MS` | `3000` | Minimum time between two Yahoo queries |
+| `APP_YANDEX_ENABLED` | `false` | Turn on the `yandex` engine (Yandex's results page). No key. Its own switch, so an operator who does not want Yandex traffic leaves it off |
+| `APP_YANDEX_MIN_INTERVAL_MS` | `3000` | Minimum time between two Yandex queries |
 
 ### Fetch engines
 
@@ -392,14 +399,25 @@ Each site picks how its pages are fetched with `fetch.engine` in its config (Str
 | `browser` | `fetch.BrowserFetcher`: Playwright drives Chrome | Pages rendered by JavaScript (`JS_RENDERED_PAGE`). 3-10 s per page |
 | `duckduckgo` | `fetch.SearchFetcher` with DuckDuckGo's HTML results page | Sites behind bot protection that should not be fetched at all. Never contacts the site. About 1-3 s |
 | `brave` | `fetch.SearchFetcher` with the Brave Search API | The same, through a paid, licensed API with your own key |
+| `mojeek`, `yahoo`, `yandex` | `fetch.SearchFetcher` with that engine's HTML results page, parsed by [`github.com/jcalvert/metawebsearch`](https://github.com/jcalvert/metawebsearch) | The same, through other indexes (Mojeek's own, Bing's through Yahoo, Yandex's own). No key. Each engine has its own switch |
 
-A site can also list `alternate_engines` (search engines only). The router uses the first engine from `[engine, ...alternate_engines]` that is enabled on the instance. That choice is made once per request: a failed fetch is never retried on another engine, and a request never switches from `http` or `browser` to search.
+Every engine is described in [md/ENGINES.md](md/ENGINES.md). A site can also list `alternate_engines` (search engines only). The router uses the first engine from `[engine, ...alternate_engines]` that is enabled on the instance. That choice is made once per request: a failed fetch is never retried on another engine, and a request never switches from `http` or `browser` to search.
 
 All of Chrome's traffic goes through an in-process egress proxy that dials with the same SSRF checks and outbound proxy as the `http` engine. Build the image with Chrome with `docker build --target runtime-browser .`. See [md/browser-engine.md](md/browser-engine.md) for how to run, start and stop it, and [md/real-chrome-playwright.md](md/real-chrome-playwright.md) for the design. For local development without a Chrome window on screen, start the server with `./deploy.sh dev` (`xvfb-run -a go run ./cmd/server`).
 
-### Search engines (duckduckgo, brave)
+### Search engines (duckduckgo, brave, mojeek, yahoo, yandex)
 
-For a site behind bot protection (Cloudflare, Akamai, ...) that the service should not get past, set a search engine. The service then never contacts the site: it looks the product URL up in the search engine and builds the product from the matching result. Used today by `fergusonhome.com` and `hafele.com.de`. The design and the tests behind it are in [md/SEARCH_ENGINE_PROPOSAL.md](md/SEARCH_ENGINE_PROPOSAL.md).
+For a site behind bot protection (Cloudflare, Akamai, ...) that the service should not get past, set a search engine. The service then never contacts the site: it looks the product URL up in the search engine and builds the product from the matching result. Used today by `fergusonhome.com` and `lumens.com`. The design and the tests behind it are in [md/SEARCH_ENGINE_PROPOSAL.md](md/SEARCH_ENGINE_PROPOSAL.md) (DuckDuckGo, Brave) and [md/METAWEBSEARCH_ENGINE_PROPOSAL.md](md/METAWEBSEARCH_ENGINE_PROPOSAL.md) (Mojeek, Yahoo, Yandex).
+
+| Engine | Source | Index | Key | Region |
+|---|---|---|---|---|
+| `duckduckgo` | DuckDuckGo's HTML results page | Mostly Bing | No | Yes |
+| `brave` | Brave Search API | Brave's own | **Yes** | Yes |
+| `mojeek` | Mojeek's results page, through `metawebsearch` | Mojeek's own | No | Yes |
+| `yahoo` | Yahoo's results page, through `metawebsearch` | Bing | No | No |
+| `yandex` | Yandex's results page, through `metawebsearch` | Yandex's own | No | No |
+
+Pick an engine and an alternate that use **different indexes**: a product DuckDuckGo lacks is usually missing from Yahoo too. The `mojeek`, `yahoo` and `yandex` engines use only the request builders and result parsers of `github.com/jcalvert/metawebsearch`, not its browser-impersonating HTTP client: their queries go through the service's egress client with `APP_SEARCH_USER_AGENT`, a block is reported as `SEARCH_PROVIDER_BLOCKED` and never retried, and the results page is capped at 2 MiB.
 
 ```json
 "fetch": {
@@ -417,12 +435,12 @@ For a site behind bot protection (Cloudflare, Akamai, ...) that the service shou
 
 | Key | Default | Meaning |
 |---|---|---|
-| `search.region` | `wt-wt` (none) | `<country>-<lang>`, for example `us-en`, `de-de`. Sent as `kl` to DuckDuckGo and as `country` + `search_lang` to Brave |
+| `search.region` | `wt-wt` (none) | `<country>-<lang>`, for example `us-en`, `de-de`. Sent as `kl` to DuckDuckGo, as `country` + `search_lang` to Brave and as the `arc` + `lb` cookies to Mojeek. Yahoo and Yandex have no region parameter (the loader warns when a region is set for them) |
 | `search.title_strip` | `[]` | Suffixes or prefixes removed from the result title |
 | `search.ignore_params` | `[]` | Query parameters ignored when comparing a result URL with the requested URL (Ferguson's variant `uid`) |
 | `search.queries` | `["site_slug", "url"]` | Queries tried in order, at most 2: `site_slug` = `site:<domain> <words of the URL slug>`, `url` = the product URL in quotes |
 
-**How a request runs.** The engine sends the first query, and the second only if the first had no match. A result is used only if its URL is exactly the requested URL (lowercase host without `www.`, no scheme, no trailing `/`, no tracking or ignored parameters), so a similar product (another size, another colour) is never returned instead. Queries to one provider are spaced by `APP_DUCKDUCKGO_MIN_INTERVAL_MS` / `APP_BRAVE_MIN_INTERVAL_MS`, and answers are cached in memory.
+**How a request runs.** The engine sends the first query, and the second only if the first had no match. A result is used only if its URL is exactly the requested URL (lowercase host without `www.`, no scheme, no trailing `/`, no tracking or ignored parameters), so a similar product (another size, another colour) is never returned instead. Queries to one provider are spaced by its `APP_<ENGINE>_MIN_INTERVAL_MS`, and answers are cached in memory.
 
 **What comes back.** A search result has a title, a URL and a snippet, so a search response is almost always `"completeness": "partial"`:
 
@@ -438,29 +456,44 @@ For a site behind bot protection (Cloudflare, Akamai, ...) that the service shou
 | Failure code | Meaning |
 |---|---|
 | `SEARCH_NO_RESULT` | No result is the requested product URL |
-| `SEARCH_PROVIDER_BLOCKED` | DuckDuckGo answered with a rate-limit or bot-check page. The service does not work around it |
+| `SEARCH_PROVIDER_BLOCKED` | DuckDuckGo, Mojeek, Yahoo or Yandex answered HTTP 202, 403 or 429, or a bot-check page. The service does not work around it and does not retry |
 | `SEARCH_QUOTA_EXCEEDED` | Brave answered 429 (per-second limit or plan quota) |
 | `SEARCH_PROVIDER_AUTH_FAILED` | Brave answered 401/403: wrong or revoked key, or the plan lacks web search |
-| `SEARCH_PROVIDER_ERROR` | Network error, 5xx, or a response the parser cannot read |
+| `SEARCH_PROVIDER_ERROR` | Network error, 5xx, or a response the parser cannot read (for the results-page engines, usually a layout change) |
 
-**Turning them on.** Both are off by default; see [Responsible use](#responsible-use) first.
+**Turning them on.** All are off by default; see [Responsible use](#responsible-use) first.
 
 ```bash
 sudo ./deploy.sh search                     # status (never shows the key)
 sudo ./deploy.sh search enable duckduckgo   # no key; shows DuckDuckGo's terms and asks
 sudo ./deploy.sh search enable brave        # asks for your Brave API key without echoing it
+sudo ./deploy.sh search enable mojeek       # no key; also yahoo, yandex
 sudo ./deploy.sh search disable brave
 sudo ./deploy.sh restart
 ```
 
-Locally, `.env.development` turns `duckduckgo` on. For Brave, put the key alone in `secrets/brave_api_key` (git-ignored) and set `APP_BRAVE_ENABLED=true`, or export `APP_BRAVE_API_KEY` in your shell. `.env.example` lists every search setting.
+Locally, `.env.development` turns `duckduckgo` on and lists `mojeek`, `yahoo` and `yandex` off. For Brave, put the key alone in `secrets/brave_api_key` (git-ignored) and set `APP_BRAVE_ENABLED=true`, or export `APP_BRAVE_API_KEY` in your shell. `.env.example` lists every search setting.
 
-Unit tests never send real queries: they use the saved pages in `testdata/search/`. To query the real providers once:
+Unit tests never send real queries: they use the saved pages in `testdata/search/` (real DuckDuckGo pages; synthetic Brave, Mojeek, Yahoo and Yandex responses in each provider's markup). The end-to-end tests in `test/e2e/scraped_search_test.go` run the service with the three results-page engines pointed at the fake shop. To query the real providers once:
 
 ```bash
-SEARCH_LIVE_TEST=1 go test ./internal/fetch/search/ -run Live -v                        # DuckDuckGo
+SEARCH_LIVE_TEST=1 go test ./internal/fetch/search/ -run Live -v                        # DuckDuckGo, Mojeek, Yahoo, Yandex
 SEARCH_LIVE_TEST=1 APP_BRAVE_API_KEY=... go test ./internal/fetch/search/ -run Live -v   # also Brave
+SEARCH_LIVE_TEST=1 SEARCH_LIVE_SAVE=/tmp/pages go test ./internal/fetch/search/ -run Live -v  # also save every raw answer
 ```
+
+The live test sends the Ferguson sample request with the settings of `configs/sites/fergusonhome.com.json` through every engine, uses `APP_PROXY_HOST`/`APP_PROXY_PORT` when set (as the server does), and ends with a summary that ranks the engines. A `SEARCH_PROVIDER_BLOCKED` answer from Mojeek, Yahoo or Yandex is a finding about that engine and the honest client, not a test bug. Result on 2026-11-15:
+
+| Engine | Ferguson sample product |
+|---|---|
+| `duckduckgo` | Found, rank 1 of the first query (about 0.9-1.5 s). This network reaches it only through the proxy |
+| `yahoo` | Found, rank 1 of the first query (about 0.9-1.2 s), with or without the proxy |
+| `mojeek` | `SEARCH_PROVIDER_BLOCKED`: a CAPTCHA page |
+| `yandex` | `SEARCH_PROVIDER_BLOCKED`: "Are you not a robot?" (once, through curl: other Ferguson products, not the requested one) |
+| `brave` | Not tried (no API key) |
+| `http` | HTTP 403 from the site, which is why it uses a search engine |
+
+The saved answers are the fixtures in `testdata/search/` and are replayed through the real Ferguson config by `test/e2e/fergusonhome_search_test.go`.
 
 ### Response: completeness and unavailable_fields
 
@@ -469,7 +502,7 @@ For every engine, the response returns whatever product data was found and lists
 | Reason | Meaning |
 |---|---|
 | `NOT_ON_PAGE` | The page was fetched, but the field was not on it (`http`, `browser`) |
-| `NOT_IN_SEARCH_RESULTS` | The search result does not include it (`duckduckgo`, `brave`) |
+| `NOT_IN_SEARCH_RESULTS` | The search result does not include it (`duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`) |
 | `NOT_CONFIGURED` | The site config does not extract it for this site |
 
 `completeness` is `full` when the list is empty and `partial` otherwise. The existing `FIELD_MISSING` and `PRICE_MISSING` warnings are unchanged.

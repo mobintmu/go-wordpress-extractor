@@ -154,4 +154,45 @@ func TestValidateSearch(t *testing.T) {
 	if err := ValidateConfig(c); err == nil {
 		t.Fatal("negative interval accepted")
 	}
+
+	// Mojeek, Yahoo and Yandex need no key; their intervals are checked.
+	c = valid(t)
+	c.MojeekEnabled, c.YahooEnabled, c.YandexEnabled = true, true, true
+	c.MojeekMinIntervalMS, c.YahooMinIntervalMS, c.YandexMinIntervalMS = 3000, 0, 60000
+	if err := ValidateConfig(c); err != nil {
+		t.Fatalf("scraped engines need no key: %v", err)
+	}
+	if s := c.SearchSettings(); !s.MojeekEnabled || !s.YahooEnabled || !s.YandexEnabled ||
+		s.MojeekMinInterval != 3*time.Second || s.YahooMinInterval != 0 || s.YandexMinInterval != time.Minute {
+		t.Errorf("settings = %+v", s)
+	}
+	for name, set := range map[string]func(*Config){
+		"MOJEEK": func(c *Config) { c.MojeekMinIntervalMS = 60001 },
+		"YAHOO":  func(c *Config) { c.YahooMinIntervalMS = -5 },
+		"YANDEX": func(c *Config) { c.YandexMinIntervalMS = 100000 },
+	} {
+		c = valid(t)
+		set(c)
+		if err := ValidateConfig(c); err == nil || !strings.Contains(err.Error(), "APP_"+name+"_MIN_INTERVAL_MS") {
+			t.Errorf("%s: bad interval accepted or not named: %v", name, err)
+		}
+	}
+}
+
+// The scraped engines are off and spaced by 3 s unless the environment says
+// otherwise.
+func TestScrapedEngineDefaults(t *testing.T) {
+	c := buildConfig(newViper())
+	if c.MojeekEnabled || c.YahooEnabled || c.YandexEnabled {
+		t.Errorf("scraped engines must be off by default: %+v", c)
+	}
+	if c.MojeekMinIntervalMS != DefaultScrapedIntervalMS || c.YahooMinIntervalMS != DefaultScrapedIntervalMS || c.YandexMinIntervalMS != DefaultScrapedIntervalMS {
+		t.Errorf("intervals = %d %d %d", c.MojeekMinIntervalMS, c.YahooMinIntervalMS, c.YandexMinIntervalMS)
+	}
+	t.Setenv("APP_YANDEX_ENABLED", "true")
+	t.Setenv("APP_YANDEX_MIN_INTERVAL_MS", "5000")
+	c = buildConfig(newViper())
+	if !c.YandexEnabled || c.YandexMinIntervalMS != 5000 || c.MojeekEnabled {
+		t.Errorf("env not read: %+v", c)
+	}
 }

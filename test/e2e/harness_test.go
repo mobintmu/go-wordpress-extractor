@@ -59,10 +59,13 @@ type Env struct {
 
 // Options change how an Env starts.
 type Options struct {
-	Env        map[string]string // extra APP_* variables
-	Fetch      func(*fetch.Options)
-	TLS        bool
-	ExtraSites map[string]map[string]any
+	Env   map[string]string // extra APP_* variables
+	Fetch func(*fetch.Options)
+	// SearchEndpoints points search engines at the fake shop. It returns
+	// engine name -> base URL, built from the shop once it is listening.
+	SearchEndpoints func(*Shop) map[string]string
+	TLS             bool
+	ExtraSites      map[string]map[string]any
 }
 
 // Start boots a service instance and stops it when the test ends.
@@ -116,6 +119,9 @@ func Start(t *testing.T, o Options) *Env {
 			opts.AllowedNets = shop.AllowedNets()
 			opts.BackoffBase = 20 * time.Millisecond
 			opts.MaxBodyBytes = 256 * 1024
+			if o.SearchEndpoints != nil {
+				opts.SearchEndpoints = o.SearchEndpoints(shop)
+			}
 			if o.Fetch != nil {
 				o.Fetch(&opts)
 			}

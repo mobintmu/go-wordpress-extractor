@@ -7,7 +7,7 @@ The browser engine loads a product page in a real Google Chrome (or Chromium) br
 
 Every other site keeps using the HTTP engine (Colly), which is faster and lighter.
 
-> **Since 2026-11-13 no site config in the repo uses the browser engine.** hafele.com.de, the first site that used it, moved to the `duckduckgo` search engine (alternate `brave`), which never contacts the site. The project does not get past bot protection for the sites it ships ([SEARCH_ENGINE_PROPOSAL.md](SEARCH_ENGINE_PROPOSAL.md), README "Responsible use"). The engine stays available for pages rendered by JavaScript; sherwin-williams.com is the planned next user. The Häfele results on this page are kept as the test record from 2026-11-12.
+> **Which sites use it (configs as of 2026-11-14):** hafele.com.de (config `2026-11-13.2`) and flooranddecor.com (`2026-11-13.1`) set `"engine": "browser"`. On 2026-11-13 hafele.com.de briefly used the `duckduckgo` search engine (alternate `brave`), but DuckDuckGo had not indexed the sample product, so the config went back to the browser engine; its `$comment` keeps the search settings to fall back to. Sites that should not be fetched at all use a search engine instead ([ENGINES.md](ENGINES.md), README "Responsible use"). sherwin-williams.com is a planned browser user for its JavaScript-rendered price.
 
 | | HTTP engine | Browser engine |
 |---|---|---|
@@ -163,7 +163,7 @@ curl -s -X POST http://127.0.0.1:4000/api/v1/extract \
   -d '{"url":"https://www.hafele.com.de/de/product/universalverbinder-haefele-ixconnect-uc-16-64/P-01901571/"}'
 ```
 
-hafele.com.de now uses the `duckduckgo` engine, so this request no longer goes through the browser. To check the browser engine, point it at a site whose config sets `"engine": "browser"` (for example a local copy of a config). With the browser engine, Häfele returned `"status": "success"`, the product title, and an `image_url` ending in `ppic-04786994.jpg`. Tests:
+hafele.com.de's config selects the browser engine again (since config `2026-11-13.2`), so this request goes through Chrome when `APP_BROWSER_ENABLED` is on. With the browser engine, Häfele returned `"status": "success"`, the product title, and an `image_url` ending in `ppic-04786994.jpg`. Tests:
 
 ```bash
 go test ./internal/fetch/ ./test/e2e/ -run 'Browser|Gate|Router|Engine' -v   # skip when Playwright is not installed

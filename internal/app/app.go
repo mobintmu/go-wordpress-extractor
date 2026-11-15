@@ -95,8 +95,8 @@ func newBrowserFetcher(lc fx.Lifecycle, cfg *config.Config, opts fetch.Options, 
 // newFetchRouter registers the fetch engines (strategies). The router picks
 // one per request from the site config's fetch.engine (or the first enabled
 // fetch.alternate_engines entry). The search engines ("duckduckgo",
-// "brave") are registered only when APP_DUCKDUCKGO_ENABLED or
-// APP_BRAVE_ENABLED is on.
+// "brave", "mojeek", "yahoo", "yandex") are registered only when their
+// APP_<ENGINE>_ENABLED switch is on.
 func newFetchRouter(cfg *config.Config, opts fetch.Options, httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher, log *zap.Logger) extract.Fetcher {
 	engines := []fetch.Engine{httpEngine, browser}
 	engines = append(engines, fetch.NewSearchEngines(opts, fetch.SearchSettings(cfg.SearchSettings()), log)...)

@@ -175,7 +175,8 @@ func validateBrowser(cfg *Config) error {
 	return nil
 }
 
-// ValidateSearch checks the search engine settings and loads the Brave API
+// ValidateSearch checks the search engine settings (DuckDuckGo, Brave,
+// Mojeek, Yahoo, Yandex) and loads the Brave API
 // key from APP_BRAVE_API_KEY_FILE when APP_BRAVE_API_KEY is empty. With
 // APP_BRAVE_ENABLED=true and no key the app does not start, so a missing key
 // shows up at deploy time and not as failed requests. The key is never put
@@ -192,6 +193,11 @@ func ValidateSearch(cfg *Config) error {
 	}
 	if cfg.BraveMinIntervalMS < 0 || cfg.BraveMinIntervalMS > 60000 {
 		return fmt.Errorf("invalid BRAVE_MIN_INTERVAL_MS: %d. Expected value between 0 and 60000. Set APP_BRAVE_MIN_INTERVAL_MS", cfg.BraveMinIntervalMS)
+	}
+	for name, ms := range map[string]int{"MOJEEK": cfg.MojeekMinIntervalMS, "YAHOO": cfg.YahooMinIntervalMS, "YANDEX": cfg.YandexMinIntervalMS} {
+		if ms < 0 || ms > 60000 {
+			return fmt.Errorf("invalid %s_MIN_INTERVAL_MS: %d. Expected value between 0 and 60000. Set APP_%s_MIN_INTERVAL_MS", name, ms, name)
+		}
 	}
 	cfg.BraveAPIKey = strings.TrimSpace(cfg.BraveAPIKey)
 	if !cfg.BraveEnabled {

@@ -42,6 +42,7 @@ type Shop struct {
 	Started     chan string // receives the path when a hanging handler starts
 	Cancelled   chan string // receives the path when a hanging request is cancelled
 	pages       map[string]string
+	handlers    map[string]http.HandlerFunc // by path prefix
 }
 
 // Host names used by the tests.
@@ -70,6 +71,7 @@ func NewShop(t *testing.T) *Shop {
 		hitTimes:    map[string][]time.Time{},
 		lastHeaders: map[string]http.Header{},
 		pages:       map[string]string{},
+		handlers:    map[string]http.HandlerFunc{},
 		Started:     make(chan string, 16),
 		Cancelled:   make(chan string, 16),
 	}
@@ -151,6 +153,30 @@ func (s *Shop) Handle(path, body string) {
 	s.pages[path] = body
 }
 
+// HandleFunc serves every path that starts with prefix through fn, for
+// routes that need a status other than 200 or a path with a variable part
+// (Yahoo's /search;_ylt=<random>). Pages registered with Handle win; the
+// longest matching prefix wins among handlers.
+func (s *Shop) HandleFunc(prefix string, fn http.HandlerFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.handlers[prefix] = fn
+}
+
+// handler returns the registered handler for path, if any.
+func (s *Shop) handler(path string) http.HandlerFunc {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var best string
+	var fn http.HandlerFunc
+	for prefix, h := range s.handlers {
+		if strings.HasPrefix(path, prefix) && len(prefix) > len(best) {
+			best, fn = prefix, h
+		}
+	}
+	return fn
+}
+
 func (s *Shop) record(r *http.Request) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -172,6 +198,10 @@ func (s *Shop) serve(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	if ok {
 		html(200, body)
+		return
+	}
+	if fn := s.handler(r.URL.Path); fn != nil {
+		fn(w, r)
 		return
 	}
 	switch p := r.URL.Path; p {

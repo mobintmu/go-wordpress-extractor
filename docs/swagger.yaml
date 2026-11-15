@@ -68,8 +68,8 @@ definitions:
       search:
         allOf:
         - $ref: '#/definitions/SearchEvidence'
-        description: What a search engine searched for. Set only for the duckduckgo
-          and brave engines.
+        description: What a search engine searched for. Set only for the search engines
+          (duckduckgo, brave, mojeek, yahoo, yandex).
       selector_trace:
         description: Match count for each step of the failing selector path.
         items:
@@ -589,6 +589,9 @@ definitions:
         - browser
         - duckduckgo
         - brave
+        - mojeek
+        - yahoo
+        - yandex
         example: duckduckgo
         type: string
       query:

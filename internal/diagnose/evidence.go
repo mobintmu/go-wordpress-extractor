@@ -27,7 +27,7 @@ type Evidence struct {
 	HTMLSample    *HTMLSample `json:"html_sample,omitempty"`
 	// Raw text found for each field.
 	FieldSamples map[string]string `json:"field_samples,omitempty"`
-	// What a search engine searched for. Set only for the duckduckgo and brave engines.
+	// What a search engine searched for. Set only for the search engines (duckduckgo, brave, mojeek, yahoo, yandex).
 	Search *SearchEvidence `json:"search,omitempty"`
 } //@name Evidence
 

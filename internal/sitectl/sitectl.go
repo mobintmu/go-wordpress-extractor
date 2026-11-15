@@ -297,8 +297,9 @@ func (c CLI) live(dir, rawURL, htmlPath string) (*extract.Response, *fetch.Page,
 		}
 		browser := fetch.NewBrowserFetcher(opts, bopts, lim, zap.NewNop())
 		defer func() { _ = browser.Stop(context.Background()) }()
-		// Search engines follow the same APP_DUCKDUCKGO_* and APP_BRAVE_*
-		// settings as the server, so a search site is checked the same way.
+		// Search engines follow the same APP_DUCKDUCKGO_*, APP_BRAVE_*,
+		// APP_MOJEEK_*, APP_YAHOO_* and APP_YANDEX_* settings as the server,
+		// so a search site is checked the same way.
 		st, err := config.SearchFromEnv()
 		if err != nil {
 			return nil, nil, err

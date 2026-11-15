@@ -296,4 +296,38 @@ func TestSearchEngines(t *testing.T) {
 	if w := SearchWarnings(loadFetch(map[string]any{"engine": "brave"}).Site); len(w) != 0 {
 		t.Errorf("unexpected warnings: %v", w)
 	}
+
+	// Mojeek, Yahoo and Yandex are search engines like the other two.
+	for _, engine := range []string{EngineMojeek, EngineYahoo, EngineYandex} {
+		e := loadFetch(map[string]any{"engine": engine, "alternate_engines": []string{EngineDuckDuckGo}, "search": map[string]any{"ignore_params": []string{"uid"}}})
+		if e.Err != nil {
+			t.Fatalf("%s: %v", engine, e.Err)
+		}
+		if got := e.Site.Engines(); !reflect.DeepEqual(got, []string{engine, EngineDuckDuckGo}) || !IsSearchEngine(engine) {
+			t.Errorf("%s: Engines() = %v", engine, got)
+		}
+		if w := SearchWarnings(e.Site); len(w) != 0 {
+			t.Errorf("%s: unexpected warnings %v", engine, w)
+		}
+	}
+	e = loadFetch(map[string]any{"engine": "duckduckgo", "alternate_engines": []string{"yandex"}})
+	if e.Err != nil || e.Site.Engines()[1] != EngineYandex {
+		t.Errorf("yandex as alternate: %v %v", e.Err, e.Site.Engines())
+	}
+	// Yahoo and Yandex have no region parameter: a region on them is a warning, not an error.
+	for _, engine := range []string{EngineYahoo, EngineYandex} {
+		e := loadFetch(map[string]any{"engine": engine, "search": map[string]any{"region": "de-de"}})
+		if e.Err != nil {
+			t.Fatalf("%s with region: %v", engine, e.Err)
+		}
+		if w := SearchWarnings(e.Site); len(w) != 1 || !strings.Contains(w[0], "fetch.search.region has no effect with the "+engine) {
+			t.Errorf("%s with region: warnings = %v", engine, w)
+		}
+	}
+	if w := SearchWarnings(loadFetch(map[string]any{"engine": "mojeek", "search": map[string]any{"region": "de-de"}}).Site); len(w) != 0 {
+		t.Errorf("mojeek uses the region; unexpected warnings %v", w)
+	}
+	if SearchEngineList() != `"duckduckgo", "brave", "mojeek", "yahoo" or "yandex"` {
+		t.Errorf("SearchEngineList() = %s", SearchEngineList())
+	}
 }

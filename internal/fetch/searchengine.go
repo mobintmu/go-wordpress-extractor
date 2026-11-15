@@ -19,6 +19,9 @@ import (
 const (
 	EngineDuckDuckGo = siteconfig.EngineDuckDuckGo
 	EngineBrave      = siteconfig.EngineBrave
+	EngineMojeek     = siteconfig.EngineMojeek
+	EngineYahoo      = siteconfig.EngineYahoo
+	EngineYandex     = siteconfig.EngineYandex
 )
 
 // closestLimit is how many non-matching result URLs are kept as evidence.
@@ -63,9 +66,10 @@ type SearchOptions struct {
 	NoResultTTL time.Duration
 }
 
-// SearchFetcher is the Engine for one search provider ("duckduckgo" or
-// "brave"). It looks the product URL up and returns the matching result in
-// Page.Search. It never sends a request to the product's site.
+// SearchFetcher is the Engine for one search provider ("duckduckgo",
+// "brave", "mojeek", "yahoo" or "yandex"). It looks the product URL up and
+// returns the matching result in Page.Search. It never sends a request to
+// the product's site.
 type SearchFetcher struct {
 	provider search.Provider
 	opts     SearchOptions
@@ -253,7 +257,8 @@ func plural(n int, one, many string) string {
 }
 
 // SearchSettings are the instance settings for the search engines, read
-// from the APP_SEARCH_*, APP_DUCKDUCKGO_* and APP_BRAVE_* variables.
+// from the APP_SEARCH_*, APP_DUCKDUCKGO_*, APP_BRAVE_*, APP_MOJEEK_*,
+// APP_YAHOO_* and APP_YANDEX_* variables.
 type SearchSettings struct {
 	UserAgent   string
 	CacheTTL    time.Duration
@@ -265,29 +270,67 @@ type SearchSettings struct {
 	BraveEnabled     bool
 	BraveAPIKey      string
 	BraveMinInterval time.Duration
+
+	MojeekEnabled     bool
+	MojeekMinInterval time.Duration
+
+	YahooEnabled     bool
+	YahooMinInterval time.Duration
+
+	YandexEnabled     bool
+	YandexMinInterval time.Duration
 }
 
-// NewSearchEngines builds the enabled search engines. Their HTTP client
-// follows the same egress rules as page fetches (blocked addresses and
-// ports, the outbound proxy).
+// NewSearchEngines builds the enabled search engines, in the order of
+// siteconfig.SearchEngines. Their HTTP client follows the same egress
+// rules as page fetches (blocked addresses and ports, the outbound proxy).
 func NewSearchEngines(opts Options, st SearchSettings, log *zap.Logger) []Engine {
 	if log == nil {
 		log = zap.NewNop()
 	}
 	var out []Engine
-	if !st.DuckDuckGoEnabled && !st.BraveEnabled {
+	if !st.DuckDuckGoEnabled && !st.BraveEnabled && !st.MojeekEnabled && !st.YahooEnabled && !st.YandexEnabled {
 		return out
 	}
 	client := NewEgressClient(opts)
+	add := func(p search.Provider, minInterval time.Duration) {
+		out = append(out, NewSearchFetcher(p, SearchOptions{
+			MinInterval: minInterval, CacheTTL: st.CacheTTL, NoResultTTL: st.NoResultTTL,
+		}, log.Named(p.Name())))
+	}
 	if st.DuckDuckGoEnabled {
-		out = append(out, NewSearchFetcher(search.NewDuckDuckGo(client, st.UserAgent), SearchOptions{
-			MinInterval: st.DuckDuckGoMinInterval, CacheTTL: st.CacheTTL, NoResultTTL: st.NoResultTTL,
-		}, log.Named("duckduckgo")))
+		p := search.NewDuckDuckGo(client, st.UserAgent)
+		if ep := opts.SearchEndpoints[EngineDuckDuckGo]; ep != "" {
+			p = p.WithEndpoint(ep)
+		}
+		add(p, st.DuckDuckGoMinInterval)
 	}
 	if st.BraveEnabled {
-		out = append(out, NewSearchFetcher(search.NewBrave(client, st.BraveAPIKey, st.UserAgent, log.Named("brave")), SearchOptions{
-			MinInterval: st.BraveMinInterval, CacheTTL: st.CacheTTL, NoResultTTL: st.NoResultTTL,
-		}, log.Named("brave")))
+		p := search.NewBrave(client, st.BraveAPIKey, st.UserAgent, log.Named(EngineBrave))
+		if ep := opts.SearchEndpoints[EngineBrave]; ep != "" {
+			p = p.WithEndpoint(ep)
+		}
+		add(p, st.BraveMinInterval)
+	}
+	scraped := []struct {
+		enabled     bool
+		minInterval time.Duration
+		name        string
+		build       func(*http.Client, string, *zap.Logger) *search.Scraped
+	}{
+		{st.MojeekEnabled, st.MojeekMinInterval, EngineMojeek, search.NewMojeek},
+		{st.YahooEnabled, st.YahooMinInterval, EngineYahoo, search.NewYahoo},
+		{st.YandexEnabled, st.YandexMinInterval, EngineYandex, search.NewYandex},
+	}
+	for _, s := range scraped {
+		if !s.enabled {
+			continue
+		}
+		p := s.build(client, st.UserAgent, log.Named(s.name))
+		if ep := opts.SearchEndpoints[s.name]; ep != "" {
+			p = p.WithEndpoint(ep)
+		}
+		add(p, s.minInterval)
 	}
 	return out
 }

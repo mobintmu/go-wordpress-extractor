@@ -63,7 +63,7 @@ const (
 	InternalError        = "INTERNAL_ERROR"
 	EngineUnavailable    = "ENGINE_UNAVAILABLE"
 
-	// Search engines (duckduckgo, brave).
+	// Search engines (duckduckgo, brave, mojeek, yahoo, yandex).
 	SearchNoResult           = "SEARCH_NO_RESULT"
 	SearchProviderBlocked    = "SEARCH_PROVIDER_BLOCKED"
 	SearchQuotaExceeded      = "SEARCH_QUOTA_EXCEEDED"
@@ -92,7 +92,7 @@ var codes = map[string]codeInfo{
 	TLSFailed:                {StageFetch, OwnerSourceSite, false, "The TLS handshake with the site failed.", "Check the site's certificate; the site owner must fix it."},
 	FetchTimeout:             {StageFetch, OwnerSourceSite, true, "The site did not respond in time.", "Retry later, or raise fetch.timeout_seconds in the site config."},
 	HTTPNotFound:             {StageFetch, OwnerClient, false, "The site returned HTTP 404 or 410. The product is gone.", "Mark the product as removed."},
-	AccessDenied:             {StageFetch, OwnerSourceSite, false, "The site refused access.", "Ask the site owner for access, or set fetch.engine to \"brave\" (or \"duckduckgo\") in the site config to return the data available from search results."},
+	AccessDenied:             {StageFetch, OwnerSourceSite, false, "The site refused access.", "Ask the site owner for access, or set fetch.engine to a search engine (\"brave\", \"duckduckgo\", \"mojeek\", \"yahoo\" or \"yandex\") in the site config to return the data available from search results."},
 	RateLimited:              {StageFetch, OwnerSourceSite, true, "The site rate-limited the request.", "Retry later, or raise fetch.delay_ms in the site config."},
 	SourceServerError:        {StageFetch, OwnerSourceSite, true, "The site returned a server error.", "Retry later."},
 	HTTPError:                {StageFetch, OwnerSourceSite, false, "The site returned an unexpected HTTP status.", "Open the URL in a browser to see what the site returns."},
@@ -101,18 +101,18 @@ var codes = map[string]codeInfo{
 	TooManyRedirects:         {StageFetch, OwnerSourceSite, false, "The site redirected too many times.", "The site has a redirect loop; retry later."},
 	UnsupportedContent:       {StageFetch, OwnerSourceSite, false, "The response is not HTML.", "Send a URL that serves an HTML product page."},
 	ResponseTooLarge:         {StageFetch, OwnerService, false, "The response exceeded the size limit.", "The page is larger than the service accepts."},
-	BotProtection:            {StagePageCheck, OwnerSourceSite, false, "The target site returned an anti-bot challenge.", "Ask the site owner for access, or set fetch.engine to \"brave\" (or \"duckduckgo\") in the site config to return the data available from search results."},
+	BotProtection:            {StagePageCheck, OwnerSourceSite, false, "The target site returned an anti-bot challenge.", "Ask the site owner for access, or set fetch.engine to a search engine (\"brave\", \"duckduckgo\", \"mojeek\", \"yahoo\" or \"yandex\") in the site config to return the data available from search results."},
 	JSRenderedPage:           {StagePageCheck, OwnerSiteConfig, false, "The page is rendered by JavaScript and has no product markup.", "Set fetch.engine to \"browser\" in the site config so the page is rendered in Chrome."},
 	EmptyPage:                {StagePageCheck, OwnerSourceSite, true, "The page is empty.", "Retry later."},
 	SelectorNotFound:         {StageExtract, OwnerSiteConfig, false, "The product block was not found on the page.", "Update pages.product.root in the site config."},
 	RequiredFieldMissing:     {StageValidate, OwnerSiteConfig, false, "A required field was not found.", "Update the field's selector in the site config."},
 	PriceParseFailed:         {StageNormalize, OwnerSiteConfig, false, "Price text was found but could not be parsed.", "Update the price selectors or locale words in the site config."},
-	EngineUnavailable:        {StageFetch, OwnerService, true, "The fetch engine the site config selects is not available on this instance.", "Enable the engine on this instance (APP_BROWSER_ENABLED=true for \"browser\", APP_DUCKDUCKGO_ENABLED=true for \"duckduckgo\", APP_BRAVE_ENABLED=true with APP_BRAVE_API_KEY for \"brave\"), or retry on an instance that has it."},
+	EngineUnavailable:        {StageFetch, OwnerService, true, "The fetch engine the site config selects is not available on this instance.", "Enable the engine on this instance (APP_BROWSER_ENABLED=true for \"browser\", APP_DUCKDUCKGO_ENABLED=true for \"duckduckgo\", APP_BRAVE_ENABLED=true with APP_BRAVE_API_KEY for \"brave\", APP_MOJEEK_ENABLED, APP_YAHOO_ENABLED or APP_YANDEX_ENABLED=true for \"mojeek\", \"yahoo\" or \"yandex\"), or retry on an instance that has it."},
 	SearchNoResult:           {StageFetch, OwnerSourceSite, false, "The search engine has no result for this product URL.", "Retry in a few days, when the page may be indexed."},
-	SearchProviderBlocked:    {StageFetch, OwnerService, true, "The search provider answered with a rate-limit or challenge page.", "Retry later. Raise APP_DUCKDUCKGO_MIN_INTERVAL_MS if this happens often."},
+	SearchProviderBlocked:    {StageFetch, OwnerService, true, "The search provider answered with a rate-limit or challenge page.", "Retry later. Raise the engine's minimum interval (APP_DUCKDUCKGO_MIN_INTERVAL_MS, APP_MOJEEK_MIN_INTERVAL_MS, APP_YAHOO_MIN_INTERVAL_MS or APP_YANDEX_MIN_INTERVAL_MS) if this happens often."},
 	SearchQuotaExceeded:      {StageFetch, OwnerService, true, "The search provider's rate limit or quota is used up.", "Retry later, raise APP_BRAVE_MIN_INTERVAL_MS, or move to a larger Brave plan."},
 	SearchProviderAuthFailed: {StageFetch, OwnerService, false, "The search provider refused the API key.", "Check APP_BRAVE_API_KEY and the plan in the Brave Search API dashboard."},
-	SearchProviderError:      {StageFetch, OwnerService, true, "The search provider failed.", "Retry. If it persists for duckduckgo, the results page layout may have changed."},
+	SearchProviderError:      {StageFetch, OwnerService, true, "The search provider failed.", "Retry. If it persists for duckduckgo, mojeek, yahoo or yandex, the results page layout may have changed."},
 	DeadlineExceeded:         {"", OwnerService, true, "The request reached its time limit.", "Retry later."},
 	InternalError:            {"", OwnerService, true, "An unexpected error occurred in the service.", "Retry; report the request_id if it persists."},
 }
