@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -30,6 +31,15 @@ type Snapshot struct {
 	active map[*Entry]bool
 	// UnknownActive lists domains in ActiveFile that no site config claims.
 	UnknownActive []string
+
+	// Learned holds every file in the learned directory, whatever its
+	// status. Only active, valid ones are indexed for Lookup, and only for
+	// hosts no site config claims.
+	Learned       []*Entry
+	learnedByHost map[string]*Entry
+	// Default is the built-in AI rule for hosts without a config, or nil
+	// when APP_AI_CRAWLER_ENABLED or APP_AI_CRAWLER_DEFAULT_RULE is off.
+	Default *Entry
 }
 
 // IsActive reports whether e is listed in ActiveFile. Without that file,
@@ -50,8 +60,36 @@ func (s *Snapshot) WithActive(domains []string) *Snapshot {
 	return s
 }
 
-// Lookup returns the entry claiming host, or nil.
+// Lookup returns the entry claiming host, or nil. Site configs come first,
+// then active learned configs. The default AI rule is not returned here.
 func (s *Snapshot) Lookup(host string) *Entry { return s.byHost[NormalizeHost(host)] }
+
+// LearnedFor returns the learned entry for host in any status, or nil.
+func (s *Snapshot) LearnedFor(host string) *Entry {
+	if s.learnedByHost == nil {
+		return nil
+	}
+	return s.learnedByHost[NormalizeHost(host)]
+}
+
+// WithLearned adds the learned entries. An active, valid one claims its
+// domains unless a site config already does.
+func (s *Snapshot) WithLearned(entries []*Entry) *Snapshot {
+	s.Learned = entries
+	s.learnedByHost = map[string]*Entry{}
+	for _, e := range entries {
+		for _, d := range e.Domains {
+			s.learnedByHost[d] = e
+			if e.LearnedStatus() != LearnedActive {
+				continue
+			}
+			if _, taken := s.byHost[d]; !taken {
+				s.byHost[d] = e
+			}
+		}
+	}
+	return s
+}
 
 // NewSnapshot indexes entries by domain.
 func NewSnapshot(entries []*Entry) *Snapshot {
@@ -69,6 +107,9 @@ func NewSnapshot(entries []*Entry) *Snapshot {
 // Registry serves the current snapshot and reloads it when files change.
 type Registry struct {
 	dir         string
+	learnedDir  string
+	aiDefault   bool
+	aiDelayMS   int
 	log         *zap.Logger
 	current     atomic.Pointer[Snapshot]
 	fingerprint string
@@ -77,7 +118,11 @@ type Registry struct {
 // NewRegistry loads every site config. Invalid sites are logged and marked
 // unavailable; only an unreadable directory stops startup.
 func NewRegistry(cfg *config.Config, log *zap.Logger) (*Registry, error) {
-	r := &Registry{dir: cfg.SiteConfigDir, log: log}
+	r := &Registry{dir: cfg.SiteConfigDir, log: log,
+		learnedDir: cfg.LearnedDir(),
+		aiDefault:  cfg.AICrawlerEnabled && cfg.AICrawlerDefaultRule,
+		aiDelayMS:  cfg.AICrawlerDefaultDelayMS,
+	}
 	if err := r.Reload(); err != nil {
 		return nil, fmt.Errorf("load site configs: %w", err)
 	}
@@ -90,7 +135,7 @@ func (r *Registry) Snapshot() *Snapshot { return r.current.Load() }
 // Reload loads a complete new snapshot. If it cannot be loaded, the
 // previous snapshot stays active.
 func (r *Registry) Reload() error {
-	fp, err := fingerprint(r.dir)
+	fp, err := r.dirsFingerprint()
 	if err != nil {
 		return err
 	}
@@ -102,7 +147,21 @@ func (r *Registry) Reload() error {
 	if err != nil {
 		return err
 	}
-	snap := NewSnapshot(entries)
+	learned, err := LoadLearned(r.learnedDir)
+	if err != nil {
+		return err
+	}
+	snap := NewSnapshot(entries).WithLearned(learned)
+	if r.aiDefault {
+		snap.Default = DefaultAIEntry(r.aiDelayMS)
+	}
+	for _, e := range learned {
+		if e.Err != nil {
+			r.log.Error("learned config invalid", zap.String("file", filepath.Base(e.File)), zap.Error(e.Err))
+		} else {
+			r.log.Info("learned config loaded", zap.String("site_id", e.SiteID), zap.String("status", e.LearnedStatus()), zap.String("file", filepath.Base(e.File)))
+		}
+	}
 	if hasActive {
 		snap.WithActive(active)
 		for _, d := range snap.UnknownActive {
@@ -131,6 +190,25 @@ func (r *Registry) Reload() error {
 	}
 	r.log.Info("site configs loaded", zap.Int("sites", len(entries)), zap.Int("valid", valid), zap.String("fingerprint", fp))
 	return nil
+}
+
+// dirsFingerprint covers the config directory and, when it lies outside it,
+// the learned directory.
+func (r *Registry) dirsFingerprint() (string, error) {
+	fp, err := fingerprint(r.dir)
+	if err != nil || r.learnedDir == "" || isWithin(r.learnedDir, r.dir) {
+		return fp, err
+	}
+	if _, serr := os.Stat(r.learnedDir); serr != nil {
+		return fp, nil
+	}
+	lfp, err := fingerprint(r.learnedDir)
+	return fp + lfp, err
+}
+
+func isWithin(path, dir string) bool {
+	rel, err := filepath.Rel(dir, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // fingerprint hashes the names, sizes, and modification times of every
@@ -177,7 +255,7 @@ func RegisterReloader(lc fx.Lifecycle, r *Registry, cfg *config.Config) {
 					case <-ctx.Done():
 						return
 					case <-t.C:
-						fp, err := fingerprint(r.dir)
+						fp, err := r.dirsFingerprint()
 						if err == nil && fp == r.fingerprint {
 							continue
 						}

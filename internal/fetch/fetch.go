@@ -74,6 +74,9 @@ type Page struct {
 	// yandex). They never contact the site, so the page then has no Body,
 	// Status or Headers.
 	Search *SearchPage
+	// AI is set by the ai-crawler-avalai engine. The page was fetched, so
+	// Body, Status and Headers are set too.
+	AI *AIPage
 }
 
 // ContentType returns the response Content-Type header.
@@ -259,9 +262,9 @@ func (f *Fetcher) collector(ctx context.Context, site *siteconfig.Site, page *Pa
 		transport.Proxy = f.proxyFor
 		transport.DialContext = f.dialProxy
 	}
-	jar := f.cookieJar(site.SiteID)
+	jar := f.cookieJar(site.LimitKey())
 	c.SetClient(&http.Client{
-		Transport: &throttled{base: transport, ctx: ctx, limiter: f.limiter, siteID: site.SiteID, delay: site.Delay()},
+		Transport: &throttled{base: transport, ctx: ctx, limiter: f.limiter, siteID: site.LimitKey(), delay: site.Delay()},
 		Jar:       jar,
 		Timeout:   site.Timeout(),
 	})

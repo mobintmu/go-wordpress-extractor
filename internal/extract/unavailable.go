@@ -59,8 +59,9 @@ func unavailableFields(site *siteconfig.Site, prod *Product, fromSearch bool) []
 	return out
 }
 
-func unavailableMessage(field, reason string) string {
-	name := map[string]string{
+// unavailableName is the field's name in messages.
+func unavailableName(field string) string {
+	return map[string]string{
 		siteconfig.FieldTitle:       "title",
 		siteconfig.FieldImageURL:    "product image",
 		siteconfig.FieldDescription: "description",
@@ -68,7 +69,13 @@ func unavailableMessage(field, reason string) string {
 		FieldAvailability:           "stock status",
 		FieldSpecs:                  "specifications",
 	}[field]
+}
+
+func unavailableMessage(field, reason string) string {
+	name := unavailableName(field)
 	switch reason {
+	case ReasonAINotGrounded:
+		return fmt.Sprintf("The AI crawler returned a %s that is not on the page, so it was left out.", name)
 	case ReasonNotConfigured:
 		return fmt.Sprintf("The site config does not extract the %s for this site.", name)
 	case ReasonNotInSearchResults:

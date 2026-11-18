@@ -1,6 +1,24 @@
 # Proposal: AI-Crawler-Avalai (engine `ai-crawler-avalai`), an LLM extraction engine and the default rule for unknown sites
 
-Status: draft, 2026-11-17 · not implemented · all open questions decided (section 13)
+Status: implemented on 2026-11-17 (see "Implementation status" below) · all open questions decided (section 13)
+
+## Implementation status
+
+Built on 2026-11-17. Where the code differs from the sections below, the code and this list are what holds:
+
+| Topic | As built |
+|---|---|
+| Code | `internal/aicrawler/` (client on `github.com/openai/openai-go/v3` v3.100.0, cleaner, prompts, outline, cache), `internal/fetch/aiengine.go` (`AIEngine`), `internal/extract/fromai.go` (grounding), `internal/extract/learn.go` (`Learner`), `internal/siteconfig/learned.go` (learned configs, default rule), `internal/sitectl/learned.go`, `internal/sites/handler.go`, `internal/config` (`APP_AI_CRAWLER_*`), `internal/diagnose` (`AI_*` codes, `evidence.ai`), `deploy.sh ai` / `deploy.sh learned`, `menu.sh` items 7 and 8 |
+| Errors | `AI_UNAVAILABLE`, `AI_RATE_LIMITED`, `AI_QUOTA_EXCEEDED`, `AI_AUTH_FAILED`, `AI_INPUT_TOO_LARGE`, `AI_BAD_OUTPUT` are reported at stage `extract`, owner `service`. A provider 400 other than a context error is `AI_UNAVAILABLE` |
+| Unknown currency | When `price_unit` is `auto` and neither the model's currency code nor the price text names a currency, the price is dropped (`AI_NOT_GROUNDED`) and `price.currency` is `USD` |
+| Default rule fetches | Throttling, cookies and the per-site limiter are keyed per host (`ai:<host>`), not on `ai-crawler-default`. `APP_AI_CRAWLER_DEFAULT_DELAY_MS` (2000) spaces fetches of one host |
+| Learning | Learning and shadow checks run in the background after the response. A host is only learned when the AI result has a price (its unit is needed for the config). Learned configs are written atomically and picked up by the registry's reload poll (`APP_RELOAD_INTERVAL`) |
+| Learned fallback | A learned config whose selectors fail (`SELECTOR_NOT_FOUND`, `REQUIRED_FIELD_MISSING`, `PRICE_PARSE_FAILED`) is answered by the AI crawler; the response keeps `config_origin: learned` and adds `LEARNED_CONFIG_FAILED` |
+| `GET /api/v1/sites` | Every entry has `origin`; active learned configs are listed; the default rule is the last entry |
+| Browser | For an AI site the browser engine has no root selector to wait for, so it waits for network idle |
+| `/metrics` | Every provider call is counted by model, purpose (`extract`, `repair`, `learn`), host (first 200 hosts, then `other`) and outcome: `extract_ai_calls_total`, `extract_ai_tokens_total{kind}`, `extract_ai_call_seconds_total`, `extract_ai_cache_hits_total`; the JSON report has an `ai` block with totals. The names differ from the `ai_tokens_total` sketch in section 12 so they share the `extract_` prefix |
+| Tests | `test/e2e/aicrawler_test.go`, 21 scenarios against a fake OpenAI-compatible server; the JavaScript-with-Chrome scenario runs only when Playwright is installed (skipped with `-short`) |
+| Not built yet | A `deepseek-v4.1-flash` live test against AvalAI (plan step 1's live check) and the accuracy report (plan step 7) |
 
 ## 1. Summary
 

@@ -21,6 +21,7 @@ type Metrics struct {
 	durations map[string]*histogram
 	active    func() int
 	started   time.Time
+	ai        aiState
 }
 
 type histogram struct {
@@ -36,6 +37,7 @@ func New() *Metrics {
 		rejected:  map[string]uint64{},
 		durations: map[string]*histogram{},
 		started:   time.Now().UTC(),
+		ai:        newAIState(),
 	}
 }
 
@@ -120,6 +122,8 @@ func (m *Metrics) Write(w io.Writer) {
 		active = m.active()
 	}
 	fmt.Fprintf(w, "extract_active_requests %d\n", active)
+
+	m.writeAI(w)
 }
 
 func esc(s string) string { return strings.ReplaceAll(s, "\n", " ") }

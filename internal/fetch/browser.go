@@ -275,7 +275,7 @@ func (b *BrowserFetcher) attempt(ctx context.Context, browser playwright.Browser
 	if timeout <= 0 {
 		return classifyError(ctx, context.DeadlineExceeded, page)
 	}
-	if err := b.limiter.Throttle(ctx, site.SiteID, site.Delay()); err != nil {
+	if err := b.limiter.Throttle(ctx, site.LimitKey(), site.Delay()); err != nil {
 		return classifyError(ctx, err, page)
 	}
 	start := time.Now()
@@ -284,7 +284,7 @@ func (b *BrowserFetcher) attempt(ctx context.Context, browser playwright.Browser
 		AcceptDownloads: playwright.Bool(false),
 		ServiceWorkers:  playwright.ServiceWorkerPolicyBlock, // their requests would skip the route checks below
 		Locale:          playwright.String(browserLocale(site)),
-		StorageState:    b.storageState(site.SiteID),
+		StorageState:    b.storageState(site.LimitKey()),
 	}
 	// Chrome's own user agent matches its TLS fingerprint and client hints.
 	// Only an explicit user_agents list in the site config overrides it.
@@ -383,6 +383,16 @@ func (b *BrowserFetcher) attempt(ctx context.Context, browser playwright.Browser
 					Timeout: playwright.Float(float64(left.Milliseconds())),
 				})
 			}
+		} else if site.IsAI() {
+			// The AI crawler has no root selector to wait for: wait until
+			// the network is quiet (500 ms without requests), so the
+			// script-rendered content is there.
+			if left := timeout - time.Since(start); left > 0 {
+				_ = p.WaitForLoadState(playwright.PageWaitForLoadStateOptions{
+					State:   playwright.LoadStateNetworkidle,
+					Timeout: playwright.Float(float64(left.Milliseconds())),
+				})
+			}
 		}
 	}
 
@@ -427,7 +437,7 @@ func (b *BrowserFetcher) attempt(ctx context.Context, browser playwright.Browser
 		return fail
 	}
 	if st, err := bctx.StorageState(); err == nil && st != nil {
-		b.saveStorageState(site.SiteID, st.ToOptionalStorageState())
+		b.saveStorageState(site.LimitKey(), st.ToOptionalStorageState())
 	}
 	return nil
 }

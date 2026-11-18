@@ -92,6 +92,55 @@ type Config struct {
 	YahooMinIntervalMS  int
 	YandexEnabled       bool
 	YandexMinIntervalMS int
+
+	// AI crawler: the "ai-crawler-avalai" engine extracts products with an
+	// LLM over an OpenAI-compatible API (AvalAI by default).
+
+	// AICrawlerEnabled turns the engine on. It needs an API key.
+	AICrawlerEnabled bool
+	// AICrawlerDefaultRule serves every host without a site config with
+	// the AI crawler. When false, such hosts get SITE_NOT_CONFIGURED.
+	AICrawlerDefaultRule bool
+	// AICrawlerBaseURL is the OpenAI-compatible API base, ending in /v1.
+	AICrawlerBaseURL string
+	// AICrawlerModel is the only model used; there is no fallback model.
+	AICrawlerModel string
+	// AICrawlerAPIKey is the provider's API key. Secret: never logged.
+	AICrawlerAPIKey string
+	// AICrawlerAPIKeyFile holds only the key; read when AICrawlerAPIKey is empty.
+	AICrawlerAPIKeyFile string
+	// AICrawlerTimeout bounds one LLM call (each retry gets its own).
+	AICrawlerTimeout time.Duration
+	// AICrawlerMaxInputChars caps the cleaned page sent to the model.
+	AICrawlerMaxInputChars int
+	// AICrawlerMaxOutputTokens caps the model's answer.
+	AICrawlerMaxOutputTokens int
+	// AICrawlerTemperature is the sampling temperature, 0 for stable answers.
+	AICrawlerTemperature float64
+	// AICrawlerRetries is how often a 408, 409, 429 or 5xx answer is retried.
+	AICrawlerRetries int
+	// AICrawlerMinIntervalMS is the minimum gap between two LLM calls.
+	AICrawlerMinIntervalMS int
+	// AICrawlerCacheTTL keeps an extraction for the same page and model.
+	AICrawlerCacheTTL time.Duration
+	// AICrawlerResponseFormat is "json_object" or "json_schema".
+	AICrawlerResponseFormat string
+	// AICrawlerDefaultDelayMS is the gap between two fetches of the same
+	// host under the default rule.
+	AICrawlerDefaultDelayMS int
+
+	// AICrawlerLearnSelectors turns on selector learning.
+	AICrawlerLearnSelectors bool
+	// AICrawlerLearnDir holds learned configs. Empty means <SITE_CONFIG_DIR>/learned.
+	AICrawlerLearnDir string
+	// AICrawlerLearnPromoteAfter is how many different URLs must match in
+	// shadow before a learned config becomes active.
+	AICrawlerLearnPromoteAfter int
+	// AICrawlerLearnDemoteAfter is how many failures in a row demote an
+	// active learned config.
+	AICrawlerLearnDemoteAfter int
+	// AICrawlerLearnMaxAttemptsPerDay caps learning calls per host per day.
+	AICrawlerLearnMaxAttemptsPerDay int
 }
 
 const (
@@ -114,6 +163,20 @@ const (
 	// DefaultScrapedIntervalMS spaces queries to Mojeek, Yahoo and Yandex,
 	// whose results pages are read without an API.
 	DefaultScrapedIntervalMS = 3000
+
+	DefaultAICrawlerBaseURL         = "https://api.avalai.ir/v1"
+	DefaultAICrawlerModel           = "deepseek-v4.1-flash"
+	DefaultAICrawlerTimeout         = 45 * time.Second
+	DefaultAICrawlerMaxInputChars   = 60000
+	DefaultAICrawlerMaxOutputTokens = 2000
+	DefaultAICrawlerRetries         = 2
+	DefaultAICrawlerIntervalMS      = 500
+	DefaultAICrawlerCacheTTL        = 6 * time.Hour
+	DefaultAICrawlerResponseFormat  = "json_object"
+	DefaultAICrawlerDelayMS         = 2000
+	DefaultAICrawlerPromoteAfter    = 3
+	DefaultAICrawlerDemoteAfter     = 3
+	DefaultAICrawlerLearnAttempts   = 3
 )
 
 func newViper() *viper.Viper {
@@ -138,7 +201,9 @@ func NewConfig() (*Config, error) {
 		zap.String("keys", cfg.APIKeysFile), zap.Bool("tls", cfg.TLSEnabled()), zap.Bool("ops", cfg.OpsEnabled()),
 		zap.String("proxy", proxy), zap.Bool("browser", cfg.BrowserEnabled),
 		zap.Bool("duckduckgo", cfg.DuckDuckGoEnabled), zap.Bool("brave", cfg.BraveEnabled),
-		zap.Bool("mojeek", cfg.MojeekEnabled), zap.Bool("yahoo", cfg.YahooEnabled), zap.Bool("yandex", cfg.YandexEnabled))
+		zap.Bool("mojeek", cfg.MojeekEnabled), zap.Bool("yahoo", cfg.YahooEnabled), zap.Bool("yandex", cfg.YandexEnabled),
+		zap.Bool("ai_crawler", cfg.AICrawlerEnabled), zap.String("ai_model", cfg.AICrawlerModel), zap.String("ai_base_url", cfg.AICrawlerBaseURL),
+		zap.Bool("ai_default_rule", cfg.AICrawlerEnabled && cfg.AICrawlerDefaultRule), zap.Bool("ai_learn", cfg.AICrawlerEnabled && cfg.AICrawlerLearnSelectors))
 
 	return cfg, nil
 }
@@ -168,6 +233,23 @@ func buildConfig(v *viper.Viper) *Config {
 	v.SetDefault("YAHOO_MIN_INTERVAL_MS", DefaultScrapedIntervalMS)
 	v.SetDefault("YANDEX_ENABLED", false)
 	v.SetDefault("YANDEX_MIN_INTERVAL_MS", DefaultScrapedIntervalMS)
+	v.SetDefault("AI_CRAWLER_ENABLED", false)
+	v.SetDefault("AI_CRAWLER_DEFAULT_RULE", true)
+	v.SetDefault("AI_CRAWLER_BASE_URL", DefaultAICrawlerBaseURL)
+	v.SetDefault("AI_CRAWLER_MODEL", DefaultAICrawlerModel)
+	v.SetDefault("AI_CRAWLER_TIMEOUT", DefaultAICrawlerTimeout)
+	v.SetDefault("AI_CRAWLER_MAX_INPUT_CHARS", DefaultAICrawlerMaxInputChars)
+	v.SetDefault("AI_CRAWLER_MAX_OUTPUT_TOKENS", DefaultAICrawlerMaxOutputTokens)
+	v.SetDefault("AI_CRAWLER_TEMPERATURE", 0)
+	v.SetDefault("AI_CRAWLER_RETRIES", DefaultAICrawlerRetries)
+	v.SetDefault("AI_CRAWLER_MIN_INTERVAL_MS", DefaultAICrawlerIntervalMS)
+	v.SetDefault("AI_CRAWLER_CACHE_TTL", DefaultAICrawlerCacheTTL)
+	v.SetDefault("AI_CRAWLER_RESPONSE_FORMAT", DefaultAICrawlerResponseFormat)
+	v.SetDefault("AI_CRAWLER_DEFAULT_DELAY_MS", DefaultAICrawlerDelayMS)
+	v.SetDefault("AI_CRAWLER_LEARN_SELECTORS", true)
+	v.SetDefault("AI_CRAWLER_LEARN_PROMOTE_AFTER", DefaultAICrawlerPromoteAfter)
+	v.SetDefault("AI_CRAWLER_LEARN_DEMOTE_AFTER", DefaultAICrawlerDemoteAfter)
+	v.SetDefault("AI_CRAWLER_LEARN_MAX_ATTEMPTS_PER_DAY", DefaultAICrawlerLearnAttempts)
 
 	cfg := &Config{
 		ENV:                   v.GetString("ENV"),
@@ -207,11 +289,44 @@ func buildConfig(v *viper.Viper) *Config {
 		YahooMinIntervalMS:      v.GetInt("YAHOO_MIN_INTERVAL_MS"),
 		YandexEnabled:           v.GetBool("YANDEX_ENABLED"),
 		YandexMinIntervalMS:     v.GetInt("YANDEX_MIN_INTERVAL_MS"),
+
+		AICrawlerEnabled:                v.GetBool("AI_CRAWLER_ENABLED"),
+		AICrawlerDefaultRule:            v.GetBool("AI_CRAWLER_DEFAULT_RULE"),
+		AICrawlerBaseURL:                v.GetString("AI_CRAWLER_BASE_URL"),
+		AICrawlerModel:                  v.GetString("AI_CRAWLER_MODEL"),
+		AICrawlerAPIKey:                 v.GetString("AI_CRAWLER_API_KEY"),
+		AICrawlerAPIKeyFile:             v.GetString("AI_CRAWLER_API_KEY_FILE"),
+		AICrawlerTimeout:                v.GetDuration("AI_CRAWLER_TIMEOUT"),
+		AICrawlerMaxInputChars:          v.GetInt("AI_CRAWLER_MAX_INPUT_CHARS"),
+		AICrawlerMaxOutputTokens:        v.GetInt("AI_CRAWLER_MAX_OUTPUT_TOKENS"),
+		AICrawlerTemperature:            v.GetFloat64("AI_CRAWLER_TEMPERATURE"),
+		AICrawlerRetries:                v.GetInt("AI_CRAWLER_RETRIES"),
+		AICrawlerMinIntervalMS:          v.GetInt("AI_CRAWLER_MIN_INTERVAL_MS"),
+		AICrawlerCacheTTL:               v.GetDuration("AI_CRAWLER_CACHE_TTL"),
+		AICrawlerResponseFormat:         v.GetString("AI_CRAWLER_RESPONSE_FORMAT"),
+		AICrawlerDefaultDelayMS:         v.GetInt("AI_CRAWLER_DEFAULT_DELAY_MS"),
+		AICrawlerLearnSelectors:         v.GetBool("AI_CRAWLER_LEARN_SELECTORS"),
+		AICrawlerLearnDir:               v.GetString("AI_CRAWLER_LEARN_DIR"),
+		AICrawlerLearnPromoteAfter:      v.GetInt("AI_CRAWLER_LEARN_PROMOTE_AFTER"),
+		AICrawlerLearnDemoteAfter:       v.GetInt("AI_CRAWLER_LEARN_DEMOTE_AFTER"),
+		AICrawlerLearnMaxAttemptsPerDay: v.GetInt("AI_CRAWLER_LEARN_MAX_ATTEMPTS_PER_DAY"),
 	}
 	if cfg.APIKeysFile == "" {
 		cfg.APIKeysFile = DefaultAPIKeysFile(cfg.ENV)
 	}
 	return cfg
+}
+
+// LearnedDir is where learned site configs are kept: APP_AI_CRAWLER_LEARN_DIR,
+// or <SITE_CONFIG_DIR>/learned. Empty when the AI crawler is off.
+func (cfg *Config) LearnedDir() string {
+	if !cfg.AICrawlerEnabled {
+		return ""
+	}
+	if cfg.AICrawlerLearnDir != "" {
+		return cfg.AICrawlerLearnDir
+	}
+	return filepath.Join(cfg.SiteConfigDir, "learned")
 }
 
 // DefaultAPIKeysFile returns the key file used when APP_API_KEYS_FILE is unset.

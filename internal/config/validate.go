@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ func ValidateConfig(cfg *Config) error {
 		validateProxy,
 		validateBrowser,
 		ValidateSearch,
+		ValidateAICrawler,
 	}
 	for _, check := range checks {
 		if err := check(cfg); err != nil {
@@ -218,4 +220,80 @@ func ValidateSearch(cfg *Config) error {
 		return fmt.Errorf("the Brave API key contains white space; check APP_BRAVE_API_KEY or APP_BRAVE_API_KEY_FILE")
 	}
 	return nil
+}
+
+// ValidateAICrawler checks the AI crawler settings and loads the API key
+// from APP_AI_CRAWLER_API_KEY_FILE when APP_AI_CRAWLER_API_KEY is empty.
+// With APP_AI_CRAWLER_ENABLED=true and no key the app does not start. The
+// key is never put in an error message.
+func ValidateAICrawler(cfg *Config) error {
+	cfg.AICrawlerAPIKey = strings.TrimSpace(cfg.AICrawlerAPIKey)
+	if !cfg.AICrawlerEnabled {
+		return nil
+	}
+	u, err := url.Parse(cfg.AICrawlerBaseURL)
+	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
+		return fmt.Errorf("invalid AI_CRAWLER_BASE_URL: %q. Expected an absolute URL such as %s. Set APP_AI_CRAWLER_BASE_URL", cfg.AICrawlerBaseURL, DefaultAICrawlerBaseURL)
+	}
+	if u.Scheme == "http" && !isLoopback(u.Hostname()) {
+		return fmt.Errorf("AI_CRAWLER_BASE_URL %q must use https: the API key would travel in clear text. Plain http is only accepted for localhost", cfg.AICrawlerBaseURL)
+	}
+	if strings.TrimSpace(cfg.AICrawlerModel) == "" {
+		return fmt.Errorf("AI_CRAWLER_MODEL is empty. Set APP_AI_CRAWLER_MODEL, for example %s", DefaultAICrawlerModel)
+	}
+	if cfg.AICrawlerAPIKey == "" && cfg.AICrawlerAPIKeyFile != "" {
+		b, err := os.ReadFile(cfg.AICrawlerAPIKeyFile)
+		if err != nil {
+			return fmt.Errorf("APP_AI_CRAWLER_API_KEY_FILE %q cannot be read: %w", cfg.AICrawlerAPIKeyFile, err)
+		}
+		cfg.AICrawlerAPIKey = strings.TrimSpace(string(b))
+	}
+	if cfg.AICrawlerAPIKey == "" {
+		return fmt.Errorf("APP_AI_CRAWLER_API_KEY or APP_AI_CRAWLER_API_KEY_FILE is required when APP_AI_CRAWLER_ENABLED is true. " +
+			"Put the key alone in secrets/avalai_api_key; keep it out of committed files such as .env")
+	}
+	if strings.ContainsAny(cfg.AICrawlerAPIKey, " \t\r\n") {
+		return fmt.Errorf("the AI crawler API key contains white space; check APP_AI_CRAWLER_API_KEY or APP_AI_CRAWLER_API_KEY_FILE")
+	}
+	checks := []struct {
+		name      string
+		v, lo, hi int
+	}{
+		{"AI_CRAWLER_MAX_INPUT_CHARS", cfg.AICrawlerMaxInputChars, 1000, 1000000},
+		{"AI_CRAWLER_MAX_OUTPUT_TOKENS", cfg.AICrawlerMaxOutputTokens, 100, 100000},
+		{"AI_CRAWLER_RETRIES", cfg.AICrawlerRetries, 0, 5},
+		{"AI_CRAWLER_MIN_INTERVAL_MS", cfg.AICrawlerMinIntervalMS, 0, 60000},
+		{"AI_CRAWLER_DEFAULT_DELAY_MS", cfg.AICrawlerDefaultDelayMS, 0, 60000},
+		{"AI_CRAWLER_LEARN_PROMOTE_AFTER", cfg.AICrawlerLearnPromoteAfter, 1, 100},
+		{"AI_CRAWLER_LEARN_DEMOTE_AFTER", cfg.AICrawlerLearnDemoteAfter, 1, 100},
+		{"AI_CRAWLER_LEARN_MAX_ATTEMPTS_PER_DAY", cfg.AICrawlerLearnMaxAttemptsPerDay, 1, 1000},
+	}
+	for _, c := range checks {
+		if c.v < c.lo || c.v > c.hi {
+			return fmt.Errorf("invalid %s: %d. Expected value between %d and %d. Set APP_%s", c.name, c.v, c.lo, c.hi, c.name)
+		}
+	}
+	if cfg.AICrawlerTimeout < time.Second || cfg.AICrawlerTimeout > 10*time.Minute {
+		return fmt.Errorf("invalid AI_CRAWLER_TIMEOUT: %s. Expected between 1s and 10m", cfg.AICrawlerTimeout)
+	}
+	if cfg.AICrawlerTemperature < 0 || cfg.AICrawlerTemperature > 2 {
+		return fmt.Errorf("invalid AI_CRAWLER_TEMPERATURE: %v. Expected between 0 and 2", cfg.AICrawlerTemperature)
+	}
+	if cfg.AICrawlerCacheTTL < 0 {
+		return fmt.Errorf("APP_AI_CRAWLER_CACHE_TTL must not be negative (0 turns the cache off)")
+	}
+	switch cfg.AICrawlerResponseFormat {
+	case "json_object", "json_schema":
+	default:
+		return fmt.Errorf("invalid AI_CRAWLER_RESPONSE_FORMAT: %q. Expected json_object or json_schema", cfg.AICrawlerResponseFormat)
+	}
+	return nil
+}
+
+func isLoopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

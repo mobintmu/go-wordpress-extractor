@@ -23,6 +23,9 @@ type parsed struct {
 	trace    []diagnose.TraceStep
 	sample   *diagnose.HTMLSample
 	fields   map[string]string
+	// dropped lists the fields the AI crawler returned but that are not
+	// on the page (AI_NOT_GROUNDED). Only set for the AI crawler.
+	dropped map[string]bool
 }
 
 // PageInput is everything the parser needs from a fetched page.
@@ -107,6 +110,9 @@ func parsePage(in PageInput) parsed {
 	prod.URL = productURL(in)
 	if p.Specs != nil {
 		prod.Specs = readSpecs(el, *p.Specs)
+	}
+	if p.Features != nil {
+		prod.Features = readFeatures(el, p.Features.Selector)
 	}
 
 	currentText := normalize.Text(pick(values[siteconfig.FieldPriceCurrent], p.Fields[siteconfig.FieldPriceCurrent], " "))
@@ -295,6 +301,20 @@ func readSpecs(el *goquery.Selection, sp siteconfig.Specs) []Spec {
 			title = text(g.Find(sp.Title).First())
 		}
 		read(g, title)
+	})
+	return out
+}
+
+// readFeatures returns the text of every element sel matches under el,
+// skipping empty ones and repeats.
+func readFeatures(el *goquery.Selection, sel string) []string {
+	var out []string
+	seen := map[string]bool{}
+	el.Find(sel).Each(func(_ int, s *goquery.Selection) {
+		if t := normalize.Text(nodesText(s, false)); t != "" && !seen[t] {
+			seen[t] = true
+			out = append(out, t)
+		}
 	})
 	return out
 }

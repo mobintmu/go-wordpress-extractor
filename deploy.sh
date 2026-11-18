@@ -597,6 +597,133 @@ setup_search() {
   search_status
 }
 
+# ================================================================ 3c. AI crawler
+# Engine "ai-crawler-avalai": fetches the product page and extracts it with an
+# LLM over an OpenAI-compatible API (AvalAI by default). It is the default rule
+# for every host without a site config, and learns CSS selectors per host.
+AI_KEY_FILE="$SECRETS_DIR/avalai_api_key"
+LEARNED_DIR="$CONFIG_DIR/learned"
+
+ai_enabled() { [ "$(env_get APP_AI_CRAWLER_ENABLED)" = "true" ]; }
+
+sites_using_ai() {
+  grep -lE '"engine"[[:space:]]*:[[:space:]]*"ai-crawler-avalai"' "$CONFIG_DIR"/sites/*.json 2>/dev/null | xargs -r -n1 basename || true
+}
+
+ai_status() {
+  local key="not set"
+  [ -n "$(env_get APP_AI_CRAWLER_API_KEY)" ] && key="set in $ENV_FILE (hidden)"
+  [ -z "$(env_get APP_AI_CRAWLER_API_KEY)" ] && [ -s "$(env_get APP_AI_CRAWLER_API_KEY_FILE)" ] && key="from file $(env_get APP_AI_CRAWLER_API_KEY_FILE)"
+  if ai_enabled; then
+    echo "AI crawler (ai-crawler-avalai): ENABLED"
+    echo "  base URL     : $(v=$(env_get APP_AI_CRAWLER_BASE_URL); echo "${v:-https://api.avalai.ir/v1}")"
+    echo "  model        : $(v=$(env_get APP_AI_CRAWLER_MODEL); echo "${v:-deepseek-v4.1-flash}")"
+    echo "  API key      : $key"
+    echo "  default rule : $(v=$(env_get APP_AI_CRAWLER_DEFAULT_RULE); [ "${v:-true}" = "true" ] && echo "on (any host without a site config)" || echo "off")"
+    echo "  learning     : $(v=$(env_get APP_AI_CRAWLER_LEARN_SELECTORS); [ "${v:-true}" = "true" ] && echo "on (learned configs in $LEARNED_DIR)" || echo "off")"
+  else
+    echo "AI crawler (ai-crawler-avalai): off (API key $key)"
+  fi
+  local sites; sites="$(sites_using_ai | tr '\n' ' ')"
+  [ -n "$sites" ] && echo "  sites using the AI crawler: $sites"
+  if [ -x "$BIN_DIR/sitectl" ] && ls "$LEARNED_DIR"/*.json >/dev/null 2>&1; then
+    echo "  learned configs:"
+    "$BIN_DIR/sitectl" learned list --dir "$CONFIG_DIR" --learned-dir "$LEARNED_DIR" | sed 's/^/    /' || true
+  fi
+  return 0
+}
+
+ai_enable() {
+  need_root "ai"
+  echo "The AI crawler sends the content of every product page it serves, and the page URL, to the"
+  echo "AI provider (AvalAI and its upstream model provider). Check that this fits your provider"
+  echo "agreement and the sites' terms. Every value is checked against the page before it is returned."
+  confirm "Enable the AI crawler?" n || { ok "the AI crawler stays off"; return; }
+
+  local base model key=""
+  base="$(ask "OpenAI-compatible base URL" "$(v=$(env_get APP_AI_CRAWLER_BASE_URL); echo "${v:-https://api.avalai.ir/v1}")")"
+  case "$base" in https://*) ;; *) die "the base URL must start with https://" ;; esac
+  model="$(ask "Model" "$(v=$(env_get APP_AI_CRAWLER_MODEL); echo "${v:-deepseek-v4.1-flash}")")"
+  [ -n "$model" ] || die "the model must not be empty"
+
+  if [ -s "$AI_KEY_FILE" ] && confirm "An AI API key is already in $AI_KEY_FILE. Keep it?" y; then
+    :
+  else
+    read -r -s -p "AI provider API key (input hidden): " key </dev/tty; echo
+    key="$(printf '%s' "$key" | tr -d '[:space:]')"
+    [ -n "$key" ] || die "no key entered; the AI crawler stays off"
+    mkdir -p "$SECRETS_DIR"
+    ( umask 077; printf '%s\n' "$key" >"$AI_KEY_FILE" )
+  fi
+
+  env_set APP_AI_CRAWLER_ENABLED true
+  env_set APP_AI_CRAWLER_BASE_URL "$base"
+  env_set APP_AI_CRAWLER_MODEL "$model"
+  env_set APP_AI_CRAWLER_API_KEY ""
+  env_set APP_AI_CRAWLER_API_KEY_FILE "$AI_KEY_FILE"
+  local rule_def=y learn_def=y
+  [ "$(env_get APP_AI_CRAWLER_DEFAULT_RULE)" = "false" ] && rule_def=n
+  [ "$(env_get APP_AI_CRAWLER_LEARN_SELECTORS)" = "false" ] && learn_def=n
+  if confirm "Serve every host without a site config with the AI crawler (default rule)?" "$rule_def"; then
+    env_set APP_AI_CRAWLER_DEFAULT_RULE true
+  else
+    env_set APP_AI_CRAWLER_DEFAULT_RULE false
+  fi
+  if confirm "Learn CSS selectors from AI results, so proven hosts need no LLM calls?" "$learn_def"; then
+    env_set APP_AI_CRAWLER_LEARN_SELECTORS true
+  else
+    env_set APP_AI_CRAWLER_LEARN_SELECTORS false
+  fi
+  env_set APP_AI_CRAWLER_LEARN_DIR "$LEARNED_DIR"
+
+  # The service writes learned configs; nothing else under configs/ is writable.
+  mkdir -p "$LEARNED_DIR"
+  if id "$SERVICE_USER" >/dev/null 2>&1; then chown "$SERVICE_USER:$SERVICE_USER" "$LEARNED_DIR"; fi
+  chmod 755 "$LEARNED_DIR"
+  fix_perms
+  ok "AI crawler enabled. Restart the service to apply: $0 restart"
+}
+
+ai_disable() {
+  need_root "ai"
+  env_set APP_AI_CRAWLER_ENABLED false
+  if [ -f "$AI_KEY_FILE" ] && confirm "Also delete the API key file $AI_KEY_FILE?" n; then
+    rm -f "$AI_KEY_FILE"
+  fi
+  fix_perms
+  ok "AI crawler disabled; unknown hosts fail with SITE_NOT_CONFIGURED again. Learned configs in $LEARNED_DIR are kept but not used. Restart to apply: $0 restart"
+}
+
+setup_ai() {
+  title "AI crawler"
+  local sites; sites="$(sites_using_ai | tr '\n' ' ')"
+  if [ -n "$sites" ]; then
+    echo "These site configs use the AI crawler (fetch.engine \"ai-crawler-avalai\"): $sites"
+    echo "Without it they fail with ENGINE_UNAVAILABLE."
+  fi
+  local def=n
+  { ai_enabled || [ -n "$sites" ]; } && def=y
+  if confirm "Enable the AI crawler (LLM extraction over AvalAI; needs an API key)?" "$def"; then
+    ai_enable
+  fi
+  ai_status
+}
+
+# ai_learned runs "sitectl learned <action> [domain]" on the learned configs.
+ai_learned() {
+  [ -x "$BIN_DIR/sitectl" ] || die "bin/sitectl is missing. Run: sudo $0 build"
+  local action="${1:-list}"; shift || true
+  case "$action" in
+    activate|reject|adopt) need_root "learned" ;;
+  esac
+  "$BIN_DIR/sitectl" learned "$action" --dir "$CONFIG_DIR" --learned-dir "$LEARNED_DIR" "$@"
+  if [ "$(id -u)" -eq 0 ] && id "$SERVICE_USER" >/dev/null 2>&1 && [ -d "$LEARNED_DIR" ]; then
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$LEARNED_DIR"
+  fi
+  [ "$action" = "adopt" ] && echo "Restart to load the adopted config: $0 restart"
+  return 0
+}
+
 # ================================================================ 4. env file
 setup_env() {
   need_root "env"
@@ -678,6 +805,21 @@ APP_YAHOO_ENABLED=false
 APP_YAHOO_MIN_INTERVAL_MS=3000
 APP_YANDEX_ENABLED=false
 APP_YANDEX_MIN_INTERVAL_MS=3000
+
+# AI crawler (engine ai-crawler-avalai): extracts products with an LLM over an
+# OpenAI-compatible API (AvalAI), as the default rule for hosts without a site
+# config. Sends page content to the provider. Off by default.
+# Turn on with: sudo ./deploy.sh ai enable (writes the key to secrets/avalai_api_key)
+APP_AI_CRAWLER_ENABLED=false
+APP_AI_CRAWLER_DEFAULT_RULE=true
+APP_AI_CRAWLER_BASE_URL=https://api.avalai.ir/v1
+APP_AI_CRAWLER_MODEL=deepseek-v4.1-flash
+APP_AI_CRAWLER_API_KEY=
+APP_AI_CRAWLER_API_KEY_FILE=$AI_KEY_FILE
+APP_AI_CRAWLER_CACHE_TTL=6h
+APP_AI_CRAWLER_MIN_INTERVAL_MS=500
+APP_AI_CRAWLER_LEARN_SELECTORS=true
+APP_AI_CRAWLER_LEARN_DIR=$LEARNED_DIR
 EOF
   fi
   env_set APP_ENV production
@@ -1071,13 +1213,14 @@ run_dev() {
 # ================================================================ install
 install_all() {
   need_root "install"
-  title "1/9 Go";            install_go
-  title "2/9 Build";         build
-  title "3/9 Env file";      setup_env
-  title "4/9 Browser";       setup_browser
-  title "5/9 Search";        setup_search
-  title "6/9 Pepper";        setup_pepper
-  title "7/9 API keys"
+  title "1/10 Go";            install_go
+  title "2/10 Build";         build
+  title "3/10 Env file";      setup_env
+  title "4/10 Browser";       setup_browser
+  title "5/10 Search";        setup_search
+  title "6/10 AI crawler";    setup_ai
+  title "7/10 Pepper";        setup_pepper
+  title "8/10 API keys"
   load_key_env
   if [ -s "$APP_API_KEYS_FILE" ]; then
     apikey list || true
@@ -1087,9 +1230,9 @@ install_all() {
     key_generate
   fi
   confirm "Open the key menu for more key tasks?" n && keys_menu
-  title "8/9 Websites";      setup_sites; validate_sites
+  title "9/10 Websites";      setup_sites; validate_sites
                              setup_swagger
-  title "9/9 Service";       install_service; restart
+  title "10/10 Service";       install_service; restart
 
   title "Done"
   echo "  Env file : $ENV_FILE"
@@ -1099,6 +1242,7 @@ install_all() {
   swagger_status | sed 's/^/  /'
   browser_status | sed 's/^/  /'
   search_status | sed 's/^/  /'
+  ai_status | sed 's/^/  /'
 }
 
 usage() {
@@ -1106,7 +1250,7 @@ usage() {
 Usage: sudo $0 <command>
 
 Setup
-  install              Full setup: Go, build, env, browser, search, pepper, key, websites, Swagger, service
+  install              Full setup: Go, build, env, browser, search, AI crawler, pepper, key, websites, Swagger, service
   go                   Install or update Go to the latest version (GO_VERSION=go1.x.y to pin)
   build                Build bin/server, bin/apikey, bin/sitectl
   env                  Create or edit $ENV_FILE
@@ -1130,6 +1274,16 @@ Search engines (off by default; for sites with fetch.engine "brave", "duckduckgo
                        Turn on that engine (no key; reads its results page); shows its terms first
   search disable <engine>
                        Turn off brave, duckduckgo, mojeek, yahoo or yandex
+
+AI crawler (off by default; engine "ai-crawler-avalai", default rule for hosts without a site config)
+  ai                   Show status and learned configs (never shows the API key)
+  ai enable            Turn on; asks for base URL, model and the API key (input hidden) and
+                       writes the key to $SECRETS_DIR/avalai_api_key
+  ai disable           Turn off (unknown hosts get SITE_NOT_CONFIGURED again)
+  learned [list]       List configs the AI crawler learned ($CONFIG_DIR/learned)
+  learned show <domain>
+  learned activate|reject|adopt <domain>
+                       Serve it now / never relearn the host / move it to configs/sites/
 
 API keys
   keys                 Interactive key menu
@@ -1181,6 +1335,13 @@ main() {
         disable|off) shift; search_disable "${1:-}" ;;
         *)           search_status ;;
       esac ;;
+    ai)
+      case "${1:-status}" in
+        enable|on)   ai_enable ;;
+        disable|off) ai_disable ;;
+        *)           ai_status ;;
+      esac ;;
+    learned)  ai_learned "$@" ;;
     keys)     keys_menu ;;
     key)
       need_root key

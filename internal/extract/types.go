@@ -39,6 +39,14 @@ const (
 	WarnSearchSnippet = "SEARCH_SNIPPET"
 	// The search engine shortened the title.
 	WarnSearchTitleTruncated = "SEARCH_TITLE_TRUNCATED"
+	// The values were extracted by the AI crawler's LLM and checked against the page.
+	WarnAIExtracted = "AI_EXTRACTED"
+	// The AI crawler returned a value that is not on the page; it was dropped.
+	WarnAINotGrounded = "AI_NOT_GROUNDED"
+	// The data came from selectors the AI crawler learned, not reviewed by a person.
+	WarnLearnedConfig = "LEARNED_CONFIG"
+	// The learned selectors failed on this page; the AI crawler extracted it instead.
+	WarnLearnedConfigFailed = "LEARNED_CONFIG_FAILED"
 )
 
 // Completeness values.
@@ -55,6 +63,8 @@ const (
 	ReasonNotInSearchResults = "NOT_IN_SEARCH_RESULTS"
 	// The site config does not extract the field for this site.
 	ReasonNotConfigured = "NOT_CONFIGURED"
+	// The AI crawler returned a value that is not on the page, so it was dropped (ai-crawler-avalai).
+	ReasonAINotGrounded = "AI_NOT_GROUNDED"
 )
 
 // Names used in unavailable_fields that are not product JSON fields.
@@ -83,11 +93,13 @@ type Response struct {
 	RequestID string `json:"request_id" binding:"required" example:"client-generated-id-123"`
 	URL       string `json:"url" binding:"required" format:"uri" example:"https://badomjip.com/product/example/"`
 	// Missing when no site config matched.
-	SiteID        string    `json:"site_id,omitempty" example:"badomjip"`
-	ConfigVersion string    `json:"config_version,omitempty" example:"2026-11-08.1"`
-	StartedAt     time.Time `json:"started_at" example:"2026-11-08T10:00:00Z"`
-	FinishedAt    time.Time `json:"finished_at" example:"2026-11-08T10:00:03Z"`
-	DurationMS    int64     `json:"duration_ms" binding:"required" example:"3120"`
+	SiteID        string `json:"site_id,omitempty" example:"badomjip"`
+	ConfigVersion string `json:"config_version,omitempty" example:"2026-11-08.1"`
+	// Where the site config came from: config (configs/sites/), learned (selectors learned by the AI crawler) or default (the built-in AI rule for hosts without a config). Missing when no config matched.
+	ConfigOrigin string    `json:"config_origin,omitempty" enums:"config,learned,default" example:"config"`
+	StartedAt    time.Time `json:"started_at" example:"2026-11-08T10:00:00Z"`
+	FinishedAt   time.Time `json:"finished_at" example:"2026-11-08T10:00:03Z"`
+	DurationMS   int64     `json:"duration_ms" binding:"required" example:"3120"`
 	// Which fetch engine produced the data. Set once a fetch was attempted.
 	Source *Source `json:"source,omitempty"`
 	// full when unavailable_fields is empty, partial otherwise. Set on success.
@@ -135,7 +147,7 @@ func (r Response) MarshalJSON() ([]byte, error) {
 
 // Source says which fetch engine produced the data.
 type Source struct {
-	Engine string `json:"engine" binding:"required" enums:"http,browser,duckduckgo,brave,mojeek,yahoo,yandex" example:"duckduckgo"`
+	Engine string `json:"engine" binding:"required" enums:"http,browser,duckduckgo,brave,mojeek,yahoo,yandex,ai-crawler-avalai" example:"duckduckgo"`
 	// False for the search engines, which never contact the product's site.
 	SiteContacted bool `json:"site_contacted" binding:"required" example:"false"`
 	// The search query whose results held the product. Search engines only.
@@ -144,12 +156,26 @@ type Source struct {
 	ResultRank int `json:"result_rank,omitempty" example:"1"`
 	// True when the search answer came from the instance's cache.
 	Cached bool `json:"cached,omitempty" example:"false"`
+	// The LLM model that read the page. ai-crawler-avalai only.
+	Model string `json:"model,omitempty" example:"deepseek-v4.1-flash"`
+	// Version of the extraction prompt. ai-crawler-avalai only.
+	PromptVersion string `json:"prompt_version,omitempty" example:"1"`
+	// The engine that fetched the HTML for the LLM: http, or browser for a page rendered in Chrome. ai-crawler-avalai only.
+	FetchedWith string `json:"fetched_with,omitempty" enums:"http,browser" example:"http"`
+	// Tokens the LLM call used. ai-crawler-avalai only; the counts of the original call when cached.
+	Tokens *Tokens `json:"tokens,omitempty"`
 } //@name Source
+
+// Tokens counts the tokens of an LLM call.
+type Tokens struct {
+	Input  int64 `json:"input" binding:"required" example:"8421"`
+	Output int64 `json:"output" binding:"required" example:"512"`
+} //@name Tokens
 
 // UnavailableField is one product field that is not in the response.
 type UnavailableField struct {
 	Field   string `json:"field" binding:"required" enums:"title,image_url,description,price,availability,specs" example:"price"`
-	Reason  string `json:"reason" binding:"required" enums:"NOT_ON_PAGE,NOT_IN_SEARCH_RESULTS,NOT_CONFIGURED" example:"NOT_IN_SEARCH_RESULTS"`
+	Reason  string `json:"reason" binding:"required" enums:"NOT_ON_PAGE,NOT_IN_SEARCH_RESULTS,NOT_CONFIGURED,AI_NOT_GROUNDED" example:"NOT_IN_SEARCH_RESULTS"`
 	Message string `json:"message" binding:"required" example:"Search results do not include prices."`
 } //@name UnavailableField
 
@@ -165,6 +191,8 @@ type Product struct {
 	// set when the site config defines pages.product.specs and the page has
 	// at least one pair.
 	Specs []Spec `json:"specs,omitempty"`
+	// Short feature or highlight bullet points, in page order. Set by the AI crawler, or by a site config that defines pages.product.features.
+	Features []string `json:"features,omitempty" example:"Solid oak,Hand finished"`
 } //@name Product
 
 // Spec is one name/value pair from the product's specifications.
