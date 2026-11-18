@@ -2,7 +2,7 @@
 
 This page explains every fetch engine in the product extractor: what each one does, when to use it, how to turn it on, and which sites use it. It reflects the code and site configs as of 2026-11-15.
 
-Engines: `http`, `browser`, `duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`. The last three were added on 2026-11-14 ([METAWEBSEARCH_ENGINE_PROPOSAL.md](METAWEBSEARCH_ENGINE_PROPOSAL.md)).
+Engines: `http`, `browser`, `ai-crawler-avalai`, `duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`. `mojeek`, `yahoo` and `yandex` were added on 2026-11-14 ([METAWEBSEARCH_ENGINE_PROPOSAL.md](METAWEBSEARCH_ENGINE_PROPOSAL.md)); `ai-crawler-avalai` on 2026-11-17 ([AI_CRAWLER_AVALAI_PROPOSAL.md](AI_CRAWLER_AVALAI_PROPOSAL.md)).
 
 ## 1. Overview
 
@@ -10,6 +10,7 @@ Engines: `http`, `browser`, `duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`. 
 |---|---|---|---|---|---|---|---|
 | `http` (default) | Page fetch | Yes | The product page, through Colly over Go's HTTP client | No | Full (all selectors) | Under 1 s | Always on |
 | `browser` | Page fetch | Yes | The product page, loaded in real Chrome through Playwright | No | Full, including JavaScript-rendered pages | 3–10 s | `APP_BROWSER_ENABLED` |
+| `ai-crawler-avalai` | Page fetch + LLM | Yes | The product page (http, or Chrome for JavaScript pages), read by an LLM over an OpenAI-compatible API (AvalAI) | **Yes**: `APP_AI_CRAWLER_API_KEY` | Full: name, price, image, description, specs, features, each checked against the page | 3–15 s, costs tokens | `APP_AI_CRAWLER_ENABLED` |
 | `duckduckgo` | Search | **No** | DuckDuckGo's HTML results page (`html.duckduckgo.com/html/`) | No | Partial: title, URL, snippet | About 1 s | `APP_DUCKDUCKGO_ENABLED` |
 | `brave` | Search | **No** | Brave Search API (`api.search.brave.com`) | **Yes**: `APP_BRAVE_API_KEY` | Partial: title, URL, snippet | About 1 s | `APP_BRAVE_ENABLED` |
 | `mojeek` | Search | **No** | Mojeek results page, parsed by `jcalvert/metawebsearch` | No | Partial: title, URL, snippet | About 1 s | `APP_MOJEEK_ENABLED` |
@@ -159,6 +160,16 @@ The service never returns data for the wrong product. If no result matches the r
 - **Live result (2026-11-15, Ferguson sample product):** `yahoo` found it at rank 1 of the first query, like `duckduckgo`. `mojeek` and `yandex` answered the honest client with a CAPTCHA page, so they are `SEARCH_PROVIDER_BLOCKED` today. Check again before giving a site one of them.
 - **Tests:** unit tests use synthetic pages in each engine's markup and the real answers saved on 2026-11-15 (`testdata/search/{mojeek,yahoo,yandex}/`); [test/e2e/scraped_search_test.go](../test/e2e/scraped_search_test.go) runs the service with the three engines pointed at the fake shop, and [test/e2e/fergusonhome_search_test.go](../test/e2e/fergusonhome_search_test.go) replays the real answers through the real Ferguson config. `SEARCH_LIVE_TEST=1 go test ./internal/fetch/search/ -run Live -v` queries the real engines and ranks them; add `SEARCH_LIVE_SAVE=<dir>` to save the raw answers.
 
+### 3.7 `ai-crawler-avalai`
+
+- **What it does:** fetches the page with the `http` engine (and once more in Chrome for a JavaScript shell when `APP_BROWSER_ENABLED=true`), cleans it to title, meta, JSON-LD and visible text, and asks an LLM (`APP_AI_CRAWLER_MODEL`, default `deepseek-v4.1-flash` on AvalAI) for the product as JSON through the official `openai-go` SDK. Every value is checked against the page; one that is not on it is dropped with reason `AI_NOT_GROUNDED`.
+- **Default rule:** with `APP_AI_CRAWLER_DEFAULT_RULE=true` (the default once the engine is on) it serves every host that has no site config, as `site_id` `ai-crawler-default`. A site config always wins.
+- **Per site:** `"fetch": {"engine": "ai-crawler-avalai"}`; `root` and `fields` are not needed. `"locale": {"price_unit": "auto"}` reads the currency per page; `"fetch": {"ai_fetch": "browser"}` always uses Chrome.
+- **Selector learning:** an AI result teaches CSS selectors for the host (`configs/learned/<domain>.json`), which take over after 3 product pages match in shadow; a learned config that fails falls back to the AI crawler and is demoted after 3 failures in a row. `sitectl learned list|show|activate|reject|adopt`.
+- **Turn on:** `sudo ./deploy.sh ai enable`, or `APP_AI_CRAWLER_ENABLED=true` with `APP_AI_CRAWLER_API_KEY_FILE=secrets/avalai_api_key`.
+- **Failures:** `AI_UNAVAILABLE`, `AI_RATE_LIMITED`, `AI_QUOTA_EXCEEDED`, `AI_AUTH_FAILED`, `AI_INPUT_TOO_LARGE`, `AI_BAD_OUTPUT`, with `evidence.ai`.
+- **Tests:** [test/e2e/aicrawler_test.go](../test/e2e/aicrawler_test.go) runs every scenario against a fake OpenAI-compatible server: default rule, rule off, per-site engine, grounding and prompt injection, provider errors, retry and repair, cache, JavaScript pages with and without Chrome, the sites list, and the whole learning life cycle.
+
 ## 4. Engine per site (configs/sites, 2026-11-14)
 
 | Site | `fetch.engine` | `fetch.alternate_engines` |
@@ -182,6 +193,7 @@ The service never returns data for the wrong product. If no result matches the r
 1. **Start with `http`.** If the page returns product HTML, you're done.
 2. **The page needs JavaScript** (`JS_RENDERED_PAGE`, or no product markup in the HTML): use `browser` and enable it on the instance.
 3. **The site blocks automated requests** (403, a challenge page) and its product pages are indexed: use a search engine and accept partial data. Use `duckduckgo`, `mojeek`, `yahoo` or `yandex` for no key, or `brave` for a stable API with a key. Set another one as `alternate_engines`, so an instance that has only one of them enabled still serves the site. Choose an engine and alternate that use **different indexes**: DuckDuckGo and Yahoo both rely largely on Bing, while Mojeek, Brave and Yandex have their own. The engine order is decided per site, in its config; there is no global default.
-4. **None of these work:** the site isn't supported. The service doesn't solve CAPTCHAs or get past bot protection.
+4. **No config yet, or the layout changes often:** leave the site without a config and let the AI crawler's default rule serve it, or set `ai-crawler-avalai` in its config. It returns full data at the cost of tokens, and learns selectors for the host on its own.
+5. **None of these work:** the site isn't supported. The service doesn't solve CAPTCHAs or get past bot protection.
 
 Search engines are off by default on every instance. Turn one on with `sudo ./deploy.sh search enable <engine>`, or by setting `APP_<ENGINE>_ENABLED=true` in the instance's env file. The server reads only the first env file it finds: `.env.<APP_ENV>`, then `.env`.

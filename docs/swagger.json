@@ -115,7 +115,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns the sites named in configs/active_sites.json whose config is valid and enabled, sorted by site_id.\nDisabled and invalid configs, and active domains without a config, are left out. Without active_sites.json, every enabled site is returned.\nThe list follows config hot reloads; loaded_at is when the current configs were loaded.",
+                "description": "Returns the sites named in configs/active_sites.json whose config is valid and enabled, sorted by site_id.\nDisabled and invalid configs, and active domains without a config, are left out. Without active_sites.json, every enabled site is returned.\nThe list follows config hot reloads; loaded_at is when the current configs were loaded.\nActive configs learned by the AI crawler are listed with origin learned. When the AI crawler's default rule is on, the list ends with the entry ai-crawler-default (origin default, domains [\"*\"]) and accepts_any_domain is true.",
                 "produces": [
                     "application/json"
                 ],
@@ -229,6 +229,55 @@
         }
     },
     "definitions": {
+        "AIEvidence": {
+            "type": "object",
+            "required": [
+                "model"
+            ],
+            "properties": {
+                "finish_reason": {
+                    "type": "string",
+                    "example": "length"
+                },
+                "http_status": {
+                    "description": "HTTP status of the provider's last answer; 0 when no answer came.",
+                    "type": "integer",
+                    "example": 429
+                },
+                "input_chars": {
+                    "description": "Characters of cleaned page sent to the model.",
+                    "type": "integer",
+                    "example": 24000
+                },
+                "input_tokens": {
+                    "type": "integer",
+                    "example": 8421
+                },
+                "model": {
+                    "type": "string",
+                    "example": "deepseek-v4.1-flash"
+                },
+                "output": {
+                    "description": "Start of the model's answer, at most 500 characters. Untrusted text.",
+                    "type": "string",
+                    "example": "{is_product: true, name: Oak Chair ..."
+                },
+                "output_tokens": {
+                    "type": "integer",
+                    "example": 512
+                },
+                "provider_code": {
+                    "description": "The provider's error.code, such as rate_limit_exceeded or invalid_api_key.",
+                    "type": "string",
+                    "example": "rate_limit_exceeded"
+                },
+                "provider_request_id": {
+                    "description": "The provider's request id (avalai-request-id or x-request-id header), for support tickets.",
+                    "type": "string",
+                    "example": "req_0123456789"
+                }
+            }
+        },
         "ActiveRequests": {
             "type": "object",
             "required": [
@@ -261,6 +310,14 @@
         "Evidence": {
             "type": "object",
             "properties": {
+                "ai": {
+                    "description": "What the AI crawler sent to and got back from the LLM. Set only for the ai-crawler-avalai engine. Never holds the API key or the prompt.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/AIEvidence"
+                        }
+                    ]
+                },
                 "attempts": {
                     "type": "integer",
                     "example": 1
@@ -348,7 +405,7 @@
             ],
             "properties": {
                 "code": {
-                    "description": "Failure code. New codes can be added over time, so treat unknown codes like INTERNAL_ERROR.\nKnown codes: SITE_NOT_CONFIGURED, SITE_DISABLED, CONFIG_INVALID, NOT_PRODUCT_URL, URL_NOT_ALLOWED,\nDNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,\nSOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,\nUNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,\nREQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,\nSEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR.",
+                    "description": "Failure code. New codes can be added over time, so treat unknown codes like INTERNAL_ERROR.\nKnown codes: SITE_NOT_CONFIGURED, SITE_DISABLED, CONFIG_INVALID, NOT_PRODUCT_URL, URL_NOT_ALLOWED,\nDNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,\nSOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,\nUNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,\nREQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,\nSEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR,\nAI_UNAVAILABLE, AI_RATE_LIMITED, AI_QUOTA_EXCEEDED, AI_AUTH_FAILED, AI_INPUT_TOO_LARGE, AI_BAD_OUTPUT.",
                     "type": "string",
                     "example": "SELECTOR_NOT_FOUND"
                 },
@@ -437,6 +494,16 @@
                         "partial"
                     ],
                     "example": "partial"
+                },
+                "config_origin": {
+                    "description": "Where the site config came from: config (configs/sites/), learned (selectors learned by the AI crawler) or default (the built-in AI rule for hosts without a config). Missing when no config matched.",
+                    "type": "string",
+                    "enum": [
+                        "config",
+                        "learned",
+                        "default"
+                    ],
+                    "example": "config"
                 },
                 "config_version": {
                     "type": "string",
@@ -571,6 +638,112 @@
                 }
             }
         },
+        "MetricsAICallCount": {
+            "type": "object",
+            "required": [
+                "calls",
+                "host",
+                "input_tokens",
+                "model",
+                "outcome",
+                "output_tokens",
+                "purpose",
+                "sum_seconds"
+            ],
+            "properties": {
+                "calls": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "host": {
+                    "description": "Host is the shop's host, \"other\" once 200 hosts are tracked.",
+                    "type": "string",
+                    "example": "www.wayfair.com"
+                },
+                "input_tokens": {
+                    "type": "integer",
+                    "example": 32000
+                },
+                "model": {
+                    "type": "string",
+                    "example": "deepseek-v4.1-flash"
+                },
+                "outcome": {
+                    "description": "Outcome is \"ok\" or the failure code.",
+                    "type": "string",
+                    "example": "ok"
+                },
+                "output_tokens": {
+                    "type": "integer",
+                    "example": 1600
+                },
+                "purpose": {
+                    "type": "string",
+                    "enum": [
+                        "extract",
+                        "repair",
+                        "learn"
+                    ],
+                    "example": "extract"
+                },
+                "sum_seconds": {
+                    "type": "number",
+                    "example": 14.2
+                }
+            }
+        },
+        "MetricsAIReport": {
+            "type": "object",
+            "required": [
+                "cache_hits",
+                "cache_hits_by_host",
+                "calls",
+                "failed",
+                "input_tokens",
+                "output_tokens",
+                "series"
+            ],
+            "properties": {
+                "cache_hits": {
+                    "description": "CacheHits counts answers served from the cache, which used no tokens.",
+                    "type": "integer",
+                    "example": 3
+                },
+                "cache_hits_by_host": {
+                    "description": "CacheHitsByHost maps each host to its cache hits.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "calls": {
+                    "description": "Calls counts requests sent to the AI provider, retries by the SDK not\nincluded. Repair and selector-learning calls are counted too.",
+                    "type": "integer",
+                    "example": 12
+                },
+                "failed": {
+                    "description": "Failed counts calls that ended with an AI_* failure code.",
+                    "type": "integer",
+                    "example": 1
+                },
+                "input_tokens": {
+                    "type": "integer",
+                    "example": 96000
+                },
+                "output_tokens": {
+                    "type": "integer",
+                    "example": 4800
+                },
+                "series": {
+                    "description": "Series has one entry per model, purpose, host and outcome.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/MetricsAICallCount"
+                    }
+                }
+            }
+        },
         "MetricsBucket": {
             "type": "object",
             "required": [
@@ -671,6 +844,7 @@
         "MetricsReport": {
             "type": "object",
             "required": [
+                "ai",
                 "durations",
                 "generated_at",
                 "instance",
@@ -680,6 +854,14 @@
                 "started_at"
             ],
             "properties": {
+                "ai": {
+                    "description": "AI is the AI crawler's calls and tokens; all zero when it is off.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/MetricsAIReport"
+                        }
+                    ]
+                },
                 "durations": {
                     "type": "object",
                     "additionalProperties": {
@@ -823,6 +1005,17 @@
                     "x-nullable": true,
                     "example": "First paragraph.\nSecond paragraph."
                 },
+                "features": {
+                    "description": "Short feature or highlight bullet points, in page order. Set by the AI crawler, or by a site config that defines pages.product.features.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Solid oak",
+                        "Hand finished"
+                    ]
+                },
                 "image_url": {
                     "type": "string",
                     "format": "uri",
@@ -926,17 +1119,20 @@
             "required": [
                 "currency",
                 "domains",
+                "origin",
                 "site_id",
                 "template",
                 "version"
             ],
             "properties": {
                 "currency": {
+                    "description": "auto: the AI crawler reads the currency from each page.",
                     "type": "string",
                     "enum": [
                         "IRT",
                         "USD",
-                        "EUR"
+                        "EUR",
+                        "auto"
                     ],
                     "example": "IRT"
                 },
@@ -949,6 +1145,26 @@
                         "hmland.ir",
                         "www.hmland.ir"
                     ]
+                },
+                "engine": {
+                    "description": "Fetch engine. Set for the default rule and for sites that use the AI crawler.",
+                    "type": "string",
+                    "example": "ai-crawler-avalai"
+                },
+                "model": {
+                    "description": "LLM model the AI crawler uses. Set for the default rule and for sites that use the AI crawler.",
+                    "type": "string",
+                    "example": "deepseek-v4.1-flash"
+                },
+                "origin": {
+                    "description": "config: a file in configs/sites/. learned: selectors the AI crawler learned and proved on several pages. default: the built-in AI rule, which accepts any domain (domains is [\"*\"]).",
+                    "type": "string",
+                    "enum": [
+                        "config",
+                        "learned",
+                        "default"
+                    ],
+                    "example": "config"
                 },
                 "site_id": {
                     "type": "string",
@@ -967,11 +1183,17 @@
         "SiteList": {
             "type": "object",
             "required": [
+                "accepts_any_domain",
                 "count",
                 "loaded_at",
                 "sites"
             ],
             "properties": {
+                "accepts_any_domain": {
+                    "description": "True when the AI crawler's default rule is on: a URL on any domain is accepted, not only the listed ones.",
+                    "type": "boolean",
+                    "example": false
+                },
                 "count": {
                     "type": "integer",
                     "example": 1
@@ -1009,9 +1231,29 @@
                         "brave",
                         "mojeek",
                         "yahoo",
-                        "yandex"
+                        "yandex",
+                        "ai-crawler-avalai"
                     ],
                     "example": "duckduckgo"
+                },
+                "fetched_with": {
+                    "description": "The engine that fetched the HTML for the LLM: http, or browser for a page rendered in Chrome. ai-crawler-avalai only.",
+                    "type": "string",
+                    "enum": [
+                        "http",
+                        "browser"
+                    ],
+                    "example": "http"
+                },
+                "model": {
+                    "description": "The LLM model that read the page. ai-crawler-avalai only.",
+                    "type": "string",
+                    "example": "deepseek-v4.1-flash"
+                },
+                "prompt_version": {
+                    "description": "Version of the extraction prompt. ai-crawler-avalai only.",
+                    "type": "string",
+                    "example": "1"
                 },
                 "query": {
                     "description": "The search query whose results held the product. Search engines only.",
@@ -1027,6 +1269,14 @@
                     "description": "False for the search engines, which never contact the product's site.",
                     "type": "boolean",
                     "example": false
+                },
+                "tokens": {
+                    "description": "Tokens the LLM call used. ai-crawler-avalai only; the counts of the original call when cached.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Tokens"
+                        }
+                    ]
                 }
             }
         },
@@ -1049,6 +1299,23 @@
                 "value": {
                     "type": "string",
                     "example": "Honed"
+                }
+            }
+        },
+        "Tokens": {
+            "type": "object",
+            "required": [
+                "input",
+                "output"
+            ],
+            "properties": {
+                "input": {
+                    "type": "integer",
+                    "example": 8421
+                },
+                "output": {
+                    "type": "integer",
+                    "example": 512
                 }
             }
         },
@@ -1081,7 +1348,8 @@
                     "enum": [
                         "NOT_ON_PAGE",
                         "NOT_IN_SEARCH_RESULTS",
-                        "NOT_CONFIGURED"
+                        "NOT_CONFIGURED",
+                        "AI_NOT_GROUNDED"
                     ],
                     "example": "NOT_IN_SEARCH_RESULTS"
                 }

@@ -16,6 +16,8 @@ type Report struct {
 	Requests    []RequestCount       `json:"requests" binding:"required"`
 	Rejected    map[string]uint64    `json:"rejected" binding:"required"`
 	Durations   map[string]Histogram `json:"durations" binding:"required"`
+	// AI is the AI crawler's calls and tokens; all zero when it is off.
+	AI AIReport `json:"ai" binding:"required"`
 } //@name MetricsReport
 
 // Load is the live state of this instance.
@@ -102,5 +104,6 @@ func (m *Metrics) Snapshot() Report {
 		}
 		r.Durations[o] = out
 	}
+	r.AI = m.aiSnapshot()
 	return r
 }

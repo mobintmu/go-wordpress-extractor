@@ -157,6 +157,29 @@ func LowestPrice(text, unit string) (*int64, error) {
 	return lowest, nil
 }
 
+// Amounts returns every positive amount in text in the output unit for
+// unit, as LowestPrice reads them: toman for "toman" and "rial", cents for
+// "usd" and "eur". It is used to check that a price taken from somewhere
+// else (an LLM answer) really appears in a page's text.
+func Amounts(text, unit string) []int64 {
+	var nums []int64
+	if unit == "usd" || unit == "eur" {
+		nums, _ = cents(text)
+	} else {
+		nums, _ = Prices(text)
+	}
+	out := nums[:0]
+	for _, n := range nums {
+		if unit == "rial" {
+			n /= 10
+		}
+		if n > 0 {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
 // ContainsAny reports whether text contains any of words, ignoring case
 // and extra whitespace.
 func ContainsAny(text string, words []string) bool {

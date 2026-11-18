@@ -29,7 +29,27 @@ type Evidence struct {
 	FieldSamples map[string]string `json:"field_samples,omitempty"`
 	// What a search engine searched for. Set only for the search engines (duckduckgo, brave, mojeek, yahoo, yandex).
 	Search *SearchEvidence `json:"search,omitempty"`
+	// What the AI crawler sent to and got back from the LLM. Set only for the ai-crawler-avalai engine. Never holds the API key or the prompt.
+	AI *AIEvidence `json:"ai,omitempty"`
 } //@name Evidence
+
+// AIEvidence describes one call to the LLM by the ai-crawler-avalai engine.
+type AIEvidence struct {
+	Model string `json:"model" binding:"required" example:"deepseek-v4.1-flash"`
+	// The provider's request id (avalai-request-id or x-request-id header), for support tickets.
+	ProviderRequestID string `json:"provider_request_id,omitempty" example:"req_0123456789"`
+	// HTTP status of the provider's last answer; 0 when no answer came.
+	HTTPStatus int `json:"http_status,omitempty" example:"429"`
+	// The provider's error.code, such as rate_limit_exceeded or invalid_api_key.
+	ProviderCode string `json:"provider_code,omitempty" example:"rate_limit_exceeded"`
+	FinishReason string `json:"finish_reason,omitempty" example:"length"`
+	InputTokens  int64  `json:"input_tokens,omitempty" example:"8421"`
+	OutputTokens int64  `json:"output_tokens,omitempty" example:"512"`
+	// Characters of cleaned page sent to the model.
+	InputChars int `json:"input_chars,omitempty" example:"24000"`
+	// Start of the model's answer, at most 500 characters. Untrusted text.
+	Output string `json:"output,omitempty" example:"{is_product: true, name: Oak Chair ..."`
+} //@name AIEvidence
 
 // SearchEvidence describes the queries a search engine sent and what came back.
 type SearchEvidence struct {

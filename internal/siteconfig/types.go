@@ -38,6 +38,9 @@ const (
 	UnitRial  = "rial"
 	UnitUSD   = "usd"
 	UnitEUR   = "eur"
+	// UnitAuto lets the ai-crawler-avalai engine read the currency from
+	// each page. Only allowed with that engine.
+	UnitAuto = "auto"
 )
 
 // Output currencies, as returned in price.currency.
@@ -45,6 +48,9 @@ const (
 	CurrencyIRT = "IRT" // toman; used for toman and rial sites
 	CurrencyUSD = "USD" // amounts are in cents
 	CurrencyEUR = "EUR" // amounts are in cents
+	// CurrencyAuto is listed for a site whose currency is read from each
+	// page (price_unit "auto"); a product's price.currency is never "auto".
+	CurrencyAuto = "auto"
 )
 
 // Site is one site's merged and validated configuration.
@@ -59,8 +65,15 @@ type Site struct {
 	Locale        Locale     `json:"locale"`
 	Pages         Pages      `json:"pages"`
 	Validation    Validation `json:"validation"`
+	// Learned is set only on configs written by the AI crawler's selector
+	// learning (configs/learned/). Hand-written configs never have it.
+	Learned *Learned `json:"learned"`
 
 	compiledMatch []*regexp.Regexp
+	// limitKey replaces SiteID as the key for throttling, cookies and the
+	// per-site limiter. The default AI rule sets it per host, so unknown
+	// shops never share a slot.
+	limitKey string
 }
 
 // Fetch engines a site config can select with fetch.engine.
@@ -81,6 +94,11 @@ const (
 	EngineMojeek = "mojeek"
 	EngineYahoo  = "yahoo"
 	EngineYandex = "yandex"
+	// EngineAICrawler fetches the page with the http engine (or the browser
+	// engine) and extracts the product with an LLM over an
+	// OpenAI-compatible API (AvalAI by default). It is also the default rule
+	// for hosts that have no site config.
+	EngineAICrawler = "ai-crawler-avalai"
 )
 
 // SearchEngines lists every engine that reads search results instead of
@@ -137,6 +155,11 @@ type Fetch struct {
 	TimeoutSeconds   int      `json:"timeout_seconds"`
 	Retries          *int     `json:"retries"`
 	RespectRobotsTxt *bool    `json:"respect_robots_txt"`
+	// AIFetch is how the ai-crawler-avalai engine fetches the page: "http"
+	// (default, with a retry in Chrome for JavaScript-only pages when the
+	// browser engine is enabled) or "browser" (always Chrome). Only allowed
+	// with that engine.
+	AIFetch string `json:"ai_fetch"`
 }
 
 // Search configures how a search engine looks a product URL up.
@@ -167,6 +190,8 @@ func (l Locale) Currency() string {
 		return CurrencyUSD
 	case UnitEUR:
 		return CurrencyEUR
+	case UnitAuto:
+		return CurrencyAuto
 	}
 	return CurrencyIRT
 }
@@ -184,6 +209,13 @@ type ProductPage struct {
 	Fields       map[string]Field `json:"fields"`
 	Availability Availability     `json:"availability"`
 	Specs        *Specs           `json:"specs"`
+	// Features reads short feature bullet points, one per matched element.
+	Features *Features `json:"features"`
+}
+
+// Features reads a list of short texts, such as highlight bullet points.
+type Features struct {
+	Selector string `json:"selector"`
 }
 
 // Specs layouts.
@@ -261,6 +293,18 @@ func (a *AttrList) UnmarshalJSON(b []byte) error {
 	}
 	*a = many
 	return nil
+}
+
+// IsAI reports whether the site uses the ai-crawler-avalai engine.
+func (s *Site) IsAI() bool { return s.Fetch.Engine == EngineAICrawler }
+
+// LimitKey is the key for throttling, cookies and the per-site limiter:
+// the site_id, or for the default AI rule "ai:<host>".
+func (s *Site) LimitKey() string {
+	if s.limitKey != "" {
+		return s.limitKey
+	}
+	return s.SiteID
 }
 
 // IsEnabled reports whether the site accepts requests.

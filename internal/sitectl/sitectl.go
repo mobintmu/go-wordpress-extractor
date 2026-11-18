@@ -41,6 +41,8 @@ Commands:
   --html reads the page from a saved file instead of fetching --url.
   test                     Run all fixtures offline
   coverage                 List sites with status, version, template, fixtures
+  learned  list|show|activate|reject|adopt [<domain>]
+                           Review configs the AI crawler learned (configs/learned/)
 
 Common flags: --dir configs  --fixtures testdata/sites  --json
 `
@@ -87,6 +89,8 @@ func (c CLI) Run(args []string) int {
 		err = c.test(args[1:])
 	case "coverage":
 		err = c.coverage(args[1:])
+	case "learned":
+		err = c.learned(args[1:])
 	case "-h", "--help", "help":
 		fmt.Fprint(c.Stdout, usage)
 		return 0

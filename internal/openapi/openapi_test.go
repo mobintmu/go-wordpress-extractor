@@ -58,8 +58,14 @@ func TestExtractExamples(t *testing.T) {
 	if err != nil || len(sites) == 0 {
 		t.Fatalf("no site configs: %v", err)
 	}
-	if len(ExtractExamples) != len(sites) {
-		t.Errorf("%d examples for %d site configs; add one example per site", len(ExtractExamples), len(sites))
+	perSite := 0
+	for _, ex := range ExtractExamples {
+		if !ex.AIRule {
+			perSite++
+		}
+	}
+	if perSite != len(sites) {
+		t.Errorf("%d examples for %d site configs; add one example per site", perSite, len(sites))
 	}
 
 	seen := map[string]bool{}
@@ -85,6 +91,13 @@ func TestExtractExamples(t *testing.T) {
 			continue
 		}
 		domain := strings.TrimPrefix(u.Hostname(), "www.")
+		if ex.AIRule {
+			// Served by the AI crawler's default rule, so it must have no config.
+			if _, err := os.Stat(filepath.Join("..", "..", "configs", "sites", domain+".json")); err == nil {
+				t.Errorf("%s is marked AIRule but configs/sites/%s.json exists", ex.Key, domain)
+			}
+			continue
+		}
 		if _, err := os.Stat(filepath.Join("..", "..", "configs", "sites", domain+".json")); err != nil {
 			t.Errorf("%s: no site config for %s", ex.Key, domain)
 		}

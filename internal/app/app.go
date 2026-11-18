@@ -3,6 +3,7 @@ package app
 import (
 	"time"
 
+	"go-wordpress/internal/aicrawler"
 	"go-wordpress/internal/apikey"
 	"go-wordpress/internal/config"
 	"go-wordpress/internal/extract"
@@ -35,6 +36,9 @@ func AppOptions() fx.Option {
 			fetchOptions,
 			fetch.New,
 			newBrowserFetcher,
+			newAIClient,
+			newAIEngine,
+			newLearner,
 			newFetchRouter,
 			extract.NewService,
 			extract.NewHandler,
@@ -97,10 +101,62 @@ func newBrowserFetcher(lc fx.Lifecycle, cfg *config.Config, opts fetch.Options, 
 // fetch.alternate_engines entry). The search engines ("duckduckgo",
 // "brave", "mojeek", "yahoo", "yandex") are registered only when their
 // APP_<ENGINE>_ENABLED switch is on.
-func newFetchRouter(cfg *config.Config, opts fetch.Options, httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher, log *zap.Logger) extract.Fetcher {
-	engines := []fetch.Engine{httpEngine, browser}
+func newFetchRouter(cfg *config.Config, opts fetch.Options, httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher, ai *fetch.AIEngine, log *zap.Logger) extract.Fetcher {
+	engines := []fetch.Engine{httpEngine, browser, ai}
 	engines = append(engines, fetch.NewSearchEngines(opts, fetch.SearchSettings(cfg.SearchSettings()), log)...)
 	r := fetch.NewRouter(engines...)
 	log.Info("fetch engines registered", zap.Strings("engines", r.Engines()))
 	return r
+}
+
+// newAIClient builds the OpenAI-compatible client for the
+// "ai-crawler-avalai" engine when APP_AI_CRAWLER_ENABLED is on, and returns
+// nil otherwise.
+func newAIClient(cfg *config.Config, m *metrics.Metrics) *aicrawler.Client {
+	if !cfg.AICrawlerEnabled {
+		return nil
+	}
+	return aicrawler.New(aicrawler.Settings{
+		BaseURL:         cfg.AICrawlerBaseURL,
+		Model:           cfg.AICrawlerModel,
+		APIKey:          cfg.AICrawlerAPIKey,
+		Timeout:         cfg.AICrawlerTimeout,
+		MaxOutputTokens: cfg.AICrawlerMaxOutputTokens,
+		Temperature:     cfg.AICrawlerTemperature,
+		Retries:         cfg.AICrawlerRetries,
+		MinInterval:     time.Duration(cfg.AICrawlerMinIntervalMS) * time.Millisecond,
+		ResponseFormat:  cfg.AICrawlerResponseFormat,
+		Observe: func(c aicrawler.Call) {
+			if c.Cached {
+				m.ObserveAICacheHit(c.Model, c.Host)
+				return
+			}
+			m.ObserveAICall(c.Model, c.Purpose, c.Host, c.Outcome, c.InputTokens, c.OutputTokens, c.Duration)
+		},
+	})
+}
+
+// newAIEngine builds the "ai-crawler-avalai" engine, or nil when the AI
+// crawler is off. It fetches with the http engine and, for JavaScript
+// pages, with the browser engine when that is enabled.
+func newAIEngine(cfg *config.Config, httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher, client *aicrawler.Client, log *zap.Logger) *fetch.AIEngine {
+	return fetch.NewAIEngine(httpEngine, browser, client, aicrawler.NewCache(cfg.AICrawlerCacheTTL), cfg.AICrawlerMaxInputChars, log)
+}
+
+// newLearner builds the selector learner when the AI crawler and
+// APP_AI_CRAWLER_LEARN_SELECTORS are on, and returns nil otherwise. Running
+// learning jobs are cancelled and awaited on stop.
+func newLearner(lc fx.Lifecycle, cfg *config.Config, client *aicrawler.Client, log *zap.Logger) *extract.Learner {
+	if client == nil || !cfg.AICrawlerLearnSelectors {
+		return nil
+	}
+	l := extract.NewLearner(client, extract.LearnSettings{
+		Dir:               cfg.LearnedDir(),
+		PromoteAfter:      cfg.AICrawlerLearnPromoteAfter,
+		DemoteAfter:       cfg.AICrawlerLearnDemoteAfter,
+		MaxAttemptsPerDay: cfg.AICrawlerLearnMaxAttemptsPerDay,
+		DelayMS:           cfg.AICrawlerDefaultDelayMS,
+	}, log)
+	lc.Append(fx.Hook{OnStop: l.Stop})
+	return l
 }

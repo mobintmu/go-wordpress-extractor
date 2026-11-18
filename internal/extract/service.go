@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"go-wordpress/internal/aicrawler"
 	"go-wordpress/internal/diagnose"
 	"go-wordpress/internal/fetch"
 	"go-wordpress/internal/limiter"
@@ -41,11 +42,14 @@ type Service struct {
 	limiter *limiter.Limiter
 	log     *zap.Logger
 	now     func() time.Time
+	// learner learns selectors from AI results. Nil when the AI crawler or
+	// selector learning is off.
+	learner *Learner
 }
 
-// NewService builds the pipeline.
-func NewService(reg *siteconfig.Registry, f Fetcher, lim *limiter.Limiter, log *zap.Logger) *Service {
-	return &Service{sites: reg, fetcher: f, limiter: lim, log: log, now: time.Now}
+// NewService builds the pipeline. learner may be nil.
+func NewService(reg *siteconfig.Registry, f Fetcher, lim *limiter.Limiter, log *zap.Logger, learner *Learner) *Service {
+	return &Service{sites: reg, fetcher: f, limiter: lim, log: log, now: time.Now, learner: learner}
 }
 
 // NewServiceWith builds a pipeline from interfaces, for tests and tools.
@@ -78,14 +82,19 @@ func (s *Service) Run(ctx context.Context, requestID string, target *url.URL) (r
 		resp.DurationMS = resp.FinishedAt.Sub(start).Milliseconds()
 	}()
 
-	// config
-	entry := s.sites.Snapshot().Lookup(target.Hostname())
+	// config: a site config, then an active learned config, then the
+	// built-in AI rule for any other host (when it is on).
+	snap := s.sites.Snapshot()
+	entry := snap.Lookup(target.Hostname())
+	if entry == nil {
+		entry = snap.Default
+	}
 	if entry == nil {
 		s.fail(resp, diagnose.New(diagnose.SiteNotConfigured, diagnose.ConfidenceHigh,
 			"No file in configs/sites/ lists the host %s in its domains.", target.Hostname()), nil)
 		return resp, nil
 	}
-	resp.SiteID, resp.ConfigVersion = entry.SiteID, entry.Version
+	resp.SiteID, resp.ConfigVersion, resp.ConfigOrigin = entry.SiteID, entry.Version, entry.Origin
 	file := filepath.Base(entry.File)
 	if entry.Err != nil {
 		s.fail(resp, diagnose.New(diagnose.ConfigInvalid, diagnose.ConfidenceHigh,
@@ -94,6 +103,9 @@ func (s *Service) Run(ctx context.Context, requestID string, target *url.URL) (r
 		return resp, nil
 	}
 	site := entry.Site
+	if entry.Origin == siteconfig.OriginDefault {
+		site = site.ForHost(target.Hostname())
+	}
 	if !site.IsEnabled() {
 		s.fail(resp, diagnose.New(diagnose.SiteDisabled, diagnose.ConfidenceHigh,
 			"The site config %s has enabled set to false.", file), nil)
@@ -105,7 +117,7 @@ func (s *Service) Run(ctx context.Context, requestID string, target *url.URL) (r
 	}
 
 	// Wait for this site's turn.
-	release, aerr := s.limiter.AcquireSite(ctx, site.SiteID)
+	release, aerr := s.limiter.AcquireSite(ctx, site.LimitKey())
 	if errors.Is(aerr, limiter.ErrSiteBusy) {
 		return nil, ErrSiteBusy
 	}
@@ -126,6 +138,9 @@ func (s *Service) Run(ctx context.Context, requestID string, target *url.URL) (r
 	}
 	if page.Search != nil {
 		return s.finishSearch(resp, site, file, page), nil
+	}
+	if page.AI != nil {
+		return s.finishAI(resp, entry, site, file, page, target), nil
 	}
 	final := page.FinalURL
 	if final == nil {
@@ -149,6 +164,12 @@ func (s *Service) Run(ctx context.Context, requestID string, target *url.URL) (r
 			"The request's time limit was reached while parsing the page.").At(diagnose.StageExtract), evidenceFrom(page))
 		return resp, nil
 	}
+	if out.failure != nil && entry.Origin == siteconfig.OriginLearned && selectorFailure(out.failure.Code) {
+		// The learned selectors failed: count it, and let the AI crawler
+		// answer this request so the client still gets a product.
+		s.learner.Result(entry, false)
+		return s.learnedFallback(ctx, resp, entry, site, file, target), nil
+	}
 	if out.failure != nil {
 		ev := evidenceFrom(page)
 		ev.SelectorTrace = out.trace
@@ -166,7 +187,81 @@ func (s *Service) Run(ctx context.Context, requestID string, target *url.URL) (r
 		return resp, nil
 	}
 	s.succeed(resp, site, out, false)
+	if entry.Origin == siteconfig.OriginLearned {
+		resp.Warnings = append(resp.Warnings, Warning{Code: WarnLearnedConfig,
+			Message: "Selectors were learned by the AI crawler and not reviewed by a person."})
+		s.learner.Result(entry, true)
+	}
 	return resp, nil
+}
+
+// selectorFailure reports whether code means the selectors did not fit
+// the page, as opposed to the site or the network failing.
+func selectorFailure(code string) bool {
+	switch code {
+	case diagnose.SelectorNotFound, diagnose.RequiredFieldMissing, diagnose.PriceParseFailed:
+		return true
+	}
+	return false
+}
+
+// learnedFallback answers a request whose learned selectors failed with the
+// AI crawler instead.
+func (s *Service) learnedFallback(ctx context.Context, resp *Response, entry *siteconfig.Entry, site *siteconfig.Site, file string, target *url.URL) *Response {
+	aiSite := site.WithEngine(siteconfig.EngineAICrawler)
+	page, fail := s.fetcher.Fetch(ctx, aiSite, target)
+	resp.Source = sourceOf(page)
+	if fail != nil {
+		s.fail(resp, fail, evidenceFrom(page))
+		return resp
+	}
+	if page.AI == nil {
+		s.fail(resp, diagnose.New(diagnose.InternalError, diagnose.ConfidenceHigh, "The AI crawler fallback returned no AI result.").At(diagnose.StageExtract), evidenceFrom(page))
+		return resp
+	}
+	s.finishAI(resp, entry, aiSite, file, page, target)
+	if resp.Status == StatusSuccess {
+		resp.Warnings = append([]Warning{{Code: WarnLearnedConfigFailed,
+			Message: "The learned selectors failed on this page; the AI crawler extracted it instead."}}, resp.Warnings...)
+	}
+	return resp
+}
+
+// finishAI builds the result from the AI crawler's answer, after checking
+// every value against the page. A success on a host without a site config
+// teaches the learner.
+func (s *Service) finishAI(resp *Response, entry *siteconfig.Entry, site *siteconfig.Site, file string, page *fetch.Page, target *url.URL) *Response {
+	out := fromAI(site, file, page, target)
+	if out.failure != nil {
+		ev := evidenceFrom(page)
+		ev.FieldSamples = out.fields
+		s.fail(resp, out.failure, ev)
+		if out.product != nil {
+			resp.Partial.Product = out.product
+			resp.UnavailableFields = aiUnavailable(out.product, out.dropped)
+		}
+		return resp
+	}
+	resp.Status = StatusSuccess
+	resp.Product = out.product
+	resp.Warnings = out.warnings
+	resp.UnavailableFields = aiUnavailable(out.product, out.dropped)
+	resp.Completeness = completeness(resp.UnavailableFields)
+
+	if s.learner != nil && entry.Origin == siteconfig.OriginDefault {
+		p := page.AI.Product
+		final := page.FinalURL
+		if final == nil {
+			final = target
+		}
+		unit := ""
+		if out.product.Price.Current != nil {
+			unit = aiUnit(site.Locale.PriceUnit, aicrawler.Str(p.Price.Currency), aicrawler.Str(p.Price.CurrentText)+" "+aicrawler.Str(p.Price.RegularText))
+		}
+		s.learner.Observe(observation{host: target.Hostname(), finalURL: final, body: page.Body,
+			product: out.product, unit: unit, fetchedWith: page.AI.FetchedWith})
+	}
+	return resp
 }
 
 // succeed fills a success result: whatever was found, and every field that
@@ -201,6 +296,12 @@ func sourceOf(p *fetch.Page) *Source {
 		return nil
 	}
 	src := &Source{Engine: p.Engine, SiteContacted: !siteconfig.IsSearchEngine(p.Engine)}
+	if a := p.AI; a != nil {
+		src.Model, src.PromptVersion, src.FetchedWith, src.Cached = a.Model, a.PromptVersion, a.FetchedWith, a.Cached
+		if a.Evidence.InputTokens > 0 || a.Evidence.OutputTokens > 0 {
+			src.Tokens = &Tokens{Input: a.Evidence.InputTokens, Output: a.Evidence.OutputTokens}
+		}
+	}
 	if sp := p.Search; sp != nil {
 		src.Cached = sp.Cached
 		if sp.Result != nil {
@@ -266,6 +367,10 @@ func evidenceFrom(p *fetch.Page) *diagnose.Evidence {
 		}
 	}
 	ev.ResponseHeaders = diagnose.FilterHeaders(p.Headers)
+	if p.AI != nil {
+		ai := p.AI.Evidence
+		ev.AI = &ai
+	}
 	return ev
 }
 

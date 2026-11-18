@@ -28,9 +28,17 @@ func (e *Env) listSites(t *testing.T, key string) (*Result, map[string]map[strin
 	}
 	byID := map[string]map[string]any{}
 	prev := ""
-	for _, s := range list {
+	for i, s := range list {
 		site := s.(map[string]any)
 		id := site["site_id"].(string)
+		if site["origin"] == "default" {
+			// The AI crawler's default rule is always the last entry.
+			if i != len(list)-1 {
+				t.Errorf("the default rule %q is not the last site", id)
+			}
+			byID[id] = site
+			continue
+		}
 		if id <= prev {
 			t.Errorf("sites are not sorted by site_id: %q after %q", id, prev)
 		}

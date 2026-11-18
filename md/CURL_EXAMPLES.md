@@ -171,7 +171,27 @@ Short summary:
 ... | jq '{status, completeness, title: .product.title, source, unavailable: [.unavailable_fields[].field]}'
 ```
 
-## Run all 13 at once
+## A site without a config: the AI crawler (`ai-crawler-avalai`)
+
+No file in `configs/sites/` claims the host, so the built-in default rule serves it: the service fetches the page, cleans it and sends it to the LLM set in `APP_AI_CRAWLER_MODEL` (`deepseek-v4.1-flash` on AvalAI, `APP_AI_CRAWLER_BASE_URL=https://api.avalai.ir/v1`). Name, price, image, description, specs and features come back, each checked against the page; a value that is not on the page is listed in `unavailable_fields` with reason `AI_NOT_GROUNDED`. Expect `site_id: ai-crawler-default`, `config_origin: default`, `source.engine: ai-crawler-avalai` and the warning `AI_EXTRACTED`. Needs `APP_AI_CRAWLER_ENABLED=true` and an API key, otherwise `SITE_NOT_CONFIGURED`. Provider problems fail with `AI_*` codes (`AI_RATE_LIMITED`, `AI_AUTH_FAILED`, ...) and `evidence.ai`.
+
+### 14. wayfair.com
+
+Wayfair runs bot protection, so from a data-center IP the fetch may fail with `BOT_PROTECTION` before the model is called. After three product pages of the same host match in shadow, the learned selectors serve it without LLM calls (`config_origin: learned`, warning `LEARNED_CONFIG`).
+
+```bash
+curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
+  -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
+  -d '{"url": "https://www.wayfair.com/furniture/pdp/mercer41-55-w-8-drawer-dresser-w118377980.html?piid=2115584224", "request_id": "wayfair-ai-1"}'
+```
+
+Short summary:
+
+```bash
+... | jq '{status, site_id, config_origin, completeness, source, title: .product.title, price: .product.price, features: .product.features, unavailable: .unavailable_fields, error: .error.code}'
+```
+
+## Run all 14 at once
 
 ```bash
 #!/usr/bin/env bash
@@ -191,6 +211,8 @@ urls=(
   "https://www.sherwin-williams.com/homeowners/products/emerald-interior-acrylic-latex-paint?colorPartNumber=SW6617&colorType=PALETTE"
   "https://shop.interface.com/US/en-US/resilient/lvt/cut-and-form-4.5-mm/A043R.html"
   "https://www.tilebar.com/product/avanti-checkerboard-verde-green-and-crema-marfil-beige-12x12-tumbled-marble-tile.html"
+  # No site config: served by the AI crawler's default rule (needs APP_AI_CRAWLER_ENABLED=true).
+  "https://www.wayfair.com/furniture/pdp/mercer41-55-w-8-drawer-dresser-w118377980.html?piid=2115584224"
 )
 for u in "${urls[@]}"; do
   curl --max-time 190 -sS -X POST "$API/api/v1/extract" \

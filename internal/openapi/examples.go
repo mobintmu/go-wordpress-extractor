@@ -11,6 +11,9 @@ type Example struct {
 	Description string
 	URL         string
 	RequestID   string
+	// AIRule marks a URL on a host without a site config: it is served by
+	// the AI crawler's default rule (engine ai-crawler-avalai).
+	AIRule bool
 }
 
 // ExtractExamples holds one sample product per supported site. Keep it in
@@ -84,5 +87,16 @@ var ExtractExamples = []Example{
 		Key: "fergusonhome", Summary: "fergusonhome.com (search engine)",
 		Description: "Served from DuckDuckGo (alternate Brave); the site is not contacted. Only title, URL and description are returned and completeness is partial. Needs APP_DUCKDUCKGO_ENABLED or APP_BRAVE_ENABLED.",
 		URL:         "https://www.fergusonhome.com/duravit-030549-0hole/s1666394?uid=3938155", RequestID: "ferguson-1",
+	},
+
+	// AI crawler default rule: no site config
+	{
+		Key: "wayfair-ai", Summary: "wayfair.com (AI crawler, no site config)",
+		Description: "No file in configs/sites/ claims wayfair.com, so the default rule ai-crawler-avalai serves it: the page is fetched and an LLM (APP_AI_CRAWLER_MODEL, deepseek-v4.1-flash on AvalAI) " +
+			"reads name, price, image, description, specs and features, each checked against the page. Expect site_id ai-crawler-default, config_origin default, source.engine ai-crawler-avalai and an AI_EXTRACTED warning. " +
+			"Needs APP_AI_CRAWLER_ENABLED=true with an API key; otherwise SITE_NOT_CONFIGURED. Wayfair uses bot protection, so the call may fail with BOT_PROTECTION from the server's IP. " +
+			"After 3 product pages match in shadow, the host is served by learned selectors (config_origin learned).",
+		URL:       "https://www.wayfair.com/furniture/pdp/mercer41-55-w-8-drawer-dresser-w118377980.html?piid=2115584224",
+		RequestID: "wayfair-ai-1", AIRule: true,
 	},
 }

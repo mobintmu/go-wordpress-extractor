@@ -41,7 +41,17 @@ type Entry struct {
 	Domains  []string
 	Site     *Site
 	Err      error
+	// Origin is OriginConfig (configs/sites/), OriginLearned
+	// (configs/learned/) or OriginDefault (the built-in AI rule).
+	Origin string
 }
+
+// Entry origins.
+const (
+	OriginConfig  = "config"
+	OriginLearned = "learned"
+	OriginDefault = "default"
+)
 
 // Status returns enabled, disabled, or invalid.
 func (e *Entry) Status() string {
@@ -116,7 +126,7 @@ func readObject(path string) (map[string]any, error) {
 }
 
 func loadSite(path string, templates map[string]rawTemplate) *Entry {
-	e := &Entry{File: path}
+	e := &Entry{File: path, Origin: OriginConfig}
 	// Fallback identity from the file name, so a broken file still claims its domain.
 	base := strings.TrimSuffix(filepath.Base(path), ".json")
 	e.Domains = []string{NormalizeHost(base)}
@@ -356,11 +366,20 @@ func Validate(s *Site) error {
 	switch s.Fetch.Engine {
 	case "":
 		s.Fetch.Engine = EngineHTTP
-	case EngineHTTP, EngineBrowser:
+	case EngineHTTP, EngineBrowser, EngineAICrawler:
 	default:
 		if !IsSearchEngine(s.Fetch.Engine) {
-			add("fetch.engine %q must be %q, %q or a search engine (%s)", s.Fetch.Engine, EngineHTTP, EngineBrowser, SearchEngineList())
+			add("fetch.engine %q must be %q, %q, %q or a search engine (%s)", s.Fetch.Engine, EngineHTTP, EngineBrowser, EngineAICrawler, SearchEngineList())
 		}
+	}
+	ai := s.IsAI()
+	switch s.Fetch.AIFetch {
+	case "", EngineHTTP, EngineBrowser:
+		if s.Fetch.AIFetch != "" && !ai {
+			add("fetch.ai_fetch is only allowed when fetch.engine is %q", EngineAICrawler)
+		}
+	default:
+		add("fetch.ai_fetch must be %q or %q", EngineHTTP, EngineBrowser)
 	}
 	validateSearch(s, add)
 	for i, ua := range s.Fetch.UserAgents {
@@ -400,6 +419,10 @@ func Validate(s *Site) error {
 	}
 	switch s.Locale.PriceUnit {
 	case UnitToman, UnitRial, UnitUSD, UnitEUR:
+	case UnitAuto:
+		if !ai {
+			add("locale.price_unit %q is only allowed when fetch.engine is %q", UnitAuto, EngineAICrawler)
+		}
 	default:
 		add("locale.price_unit must be %q, %q, %q, or %q", UnitToman, UnitRial, UnitUSD, UnitEUR)
 	}
@@ -429,7 +452,8 @@ func Validate(s *Site) error {
 			add("%s: invalid selector %q: %v", name, sel, err)
 		}
 	}
-	checkSelector("pages.product.root", p.Root, true)
+	// The AI engine reads the page with an LLM, so it needs no selectors.
+	checkSelector("pages.product.root", p.Root, !ai)
 	checkSelector("pages.product.price_area", p.PriceArea, false)
 	checkSelector("pages.product.availability.out_of_stock", p.Availability.OutOfStock, false)
 	checkSelector("pages.product.availability.order_button", p.Availability.OrderButton, false)
@@ -454,7 +478,10 @@ func Validate(s *Site) error {
 			add("pages.product.specs.title needs pages.product.specs.group")
 		}
 	}
-	if len(p.Fields) == 0 {
+	if p.Features != nil {
+		checkSelector("pages.product.features.selector", p.Features.Selector, true)
+	}
+	if len(p.Fields) == 0 && !ai {
 		add("pages.product.fields must define at least title")
 	}
 	for name, f := range p.Fields {
@@ -485,9 +512,13 @@ func Validate(s *Site) error {
 	for _, rf := range s.Validation.RequiredFields {
 		if !isKnownField(rf) {
 			add("validation.required_fields: unknown field %q", rf)
-		} else if _, ok := p.Fields[rf]; !ok {
+		} else if _, ok := p.Fields[rf]; !ok && !ai {
 			add("validation.required_fields: %q has no selector in pages.product.fields", rf)
 		}
+	}
+
+	if s.Learned != nil {
+		validateLearned(s, add)
 	}
 
 	if len(errs) > 0 {

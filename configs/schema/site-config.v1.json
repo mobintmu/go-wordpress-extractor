@@ -24,7 +24,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "engine": { "enum": ["http", "browser", "duckduckgo", "brave", "mojeek", "yahoo", "yandex"], "default": "http", "description": "Fetch strategy: http fetches with Colly over Go's HTTP client; browser loads the page in real Chrome through Playwright (needs APP_BROWSER_ENABLED on the instance); the search engines duckduckgo, brave, mojeek, yahoo and yandex never contact the site and build the product from search results (each needs its APP_<ENGINE>_ENABLED switch on the instance; brave also needs a Brave API key)." },
+        "engine": { "enum": ["http", "browser", "duckduckgo", "brave", "mojeek", "yahoo", "yandex", "ai-crawler-avalai"], "default": "http", "description": "Fetch strategy: http fetches with Colly over Go's HTTP client; browser loads the page in real Chrome through Playwright (needs APP_BROWSER_ENABLED on the instance); ai-crawler-avalai fetches the page and extracts the product with an LLM over an OpenAI-compatible API, so root and fields are not required (needs APP_AI_CRAWLER_ENABLED on the instance); the search engines duckduckgo, brave, mojeek, yahoo and yandex never contact the site and build the product from search results (each needs its APP_<ENGINE>_ENABLED switch on the instance; brave also needs a Brave API key)." },
         "alternate_engines": { "type": "array", "uniqueItems": true, "maxItems": 1, "items": { "enum": ["duckduckgo", "brave", "mojeek", "yahoo", "yandex"] }, "description": "Search engines used, in order, when engine is not enabled on the instance. Chosen once per request; a failed fetch is never retried on another engine. Only allowed when engine is a search engine." },
         "search": {
           "type": "object",
@@ -42,14 +42,15 @@
         "delay_ms": { "type": "integer", "minimum": 0, "maximum": 60000, "default": 1000 },
         "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 120, "default": 30 },
         "retries": { "type": "integer", "minimum": 0, "maximum": 5, "default": 2 },
-        "respect_robots_txt": { "type": "boolean", "default": true }
+        "respect_robots_txt": { "type": "boolean", "default": true },
+        "ai_fetch": { "enum": ["http", "browser"], "default": "http", "description": "How ai-crawler-avalai fetches the page: http (a JavaScript-only page is rendered once in Chrome when APP_BROWSER_ENABLED is on) or browser (always Chrome). Only allowed when engine is ai-crawler-avalai." }
       }
     },
     "locale": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "price_unit": { "enum": ["toman", "rial", "usd", "eur"], "default": "toman", "description": "toman and rial sites return toman (currency IRT; rial is divided by 10). usd and eur sites return cents (currency USD or EUR)." },
+        "price_unit": { "enum": ["toman", "rial", "usd", "eur", "auto"], "default": "toman", "description": "toman and rial sites return toman (currency IRT; rial is divided by 10). usd and eur sites return cents (currency USD or EUR). auto reads the currency from each page and is only allowed with engine ai-crawler-avalai." },
         "currency_words": { "type": "array", "items": { "type": "string" } },
         "call_for_price_words": { "type": "array", "items": { "type": "string" } }
       }
@@ -102,9 +103,33 @@
                 "separator": { "type": "string", "minLength": 1, "description": "Read every element matching value and join their texts with it, for example \", \" for a list of li. Without it a row's value is the first match (siblings: joined with a space)" },
                 "exclude": { "type": "string", "description": "Elements inside title, name, or value whose text is left out, for example a hidden tooltip" }
               }
+            },
+            "features": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["selector"],
+              "description": "Short feature bullet points: the text of every element selector matches inside root is one feature",
+              "properties": {
+                "selector": { "type": "string", "minLength": 1 }
+              }
             }
           }
         }
+      }
+    },
+    "learned": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "description": "Only in configs written by the AI crawler's selector learning (configs/learned/), never in configs/sites/.",
+      "properties": {
+        "status": { "enum": ["candidate", "active", "demoted", "rejected"], "description": "candidate runs in shadow next to the AI crawler; active serves its host; demoted failed too often and is relearned; rejected is never relearned" },
+        "model": { "type": "string" },
+        "prompt_version": { "type": "string" },
+        "learned_from": { "type": "string" },
+        "learned_at": { "type": "string" },
+        "shadow_matches": { "type": "array", "items": { "type": "string" }, "description": "Different product URLs on which the selectors gave the same product as the AI crawler" },
+        "failures_in_a_row": { "type": "integer", "minimum": 0 }
       }
     },
     "validation": {

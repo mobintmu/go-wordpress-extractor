@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Menu for the API key pepper, operator login, client API keys, and the
-# server. Installs nothing; uses only bash and `go run`.
+# Menu for the API key pepper, operator login, client API keys, the AI
+# crawler (AvalAI), and the server. Installs nothing; uses only bash and
+# `go run`.
 #
 #   ./setup-keys.sh                    # uses .env
 #   ./setup-keys.sh .env.development   # or another env file
@@ -245,6 +246,95 @@ set_proxy() {
   fi
 }
 
+AI_KEY_FILE="secrets/avalai_api_key"
+
+ai_status() {
+  local key="not set"
+  [[ -n "$(get_var APP_AI_CRAWLER_API_KEY)" ]] && key="set in $ENV_FILE (hidden)"
+  [[ -z "$(get_var APP_AI_CRAWLER_API_KEY)" && -s "$(get_var APP_AI_CRAWLER_API_KEY_FILE)" ]] && key="from file $(get_var APP_AI_CRAWLER_API_KEY_FILE)"
+  echo "AI crawler (ai-crawler-avalai): $([[ "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]] && echo ENABLED || echo off)"
+  echo "  base URL     : $(v=$(get_var APP_AI_CRAWLER_BASE_URL); echo "${v:-https://api.avalai.ir/v1}")"
+  echo "  model        : $(v=$(get_var APP_AI_CRAWLER_MODEL); echo "${v:-deepseek-v4.1-flash}")"
+  echo "  API key      : $key"
+  echo "  default rule : $(v=$(get_var APP_AI_CRAWLER_DEFAULT_RULE); echo "${v:-true}")   learning: $(v=$(get_var APP_AI_CRAWLER_LEARN_SELECTORS); echo "${v:-true}")"
+}
+
+# Turn the AI crawler on or off. The key is typed hidden and written to
+# secrets/avalai_api_key (git-ignored), never into the env file, because
+# .env.development and .env.test are committed.
+setup_ai() {
+  ai_status
+  echo
+  if [[ "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]] && ask_yes "Turn the AI crawler off?" n; then
+    set_var APP_AI_CRAWLER_ENABLED false
+    export APP_AI_CRAWLER_ENABLED=false
+    echo "AI crawler off. Restart a running server to apply."
+    return 0
+  fi
+  echo "The AI crawler sends the content of each page it serves to the AI provider."
+  ask_yes "Set up and turn on the AI crawler?" y || return 0
+
+  local base model key
+  read -r -p "OpenAI-compatible base URL [$(v=$(get_var APP_AI_CRAWLER_BASE_URL); echo "${v:-https://api.avalai.ir/v1}")]: " base
+  base="${base:-$(v=$(get_var APP_AI_CRAWLER_BASE_URL); echo "${v:-https://api.avalai.ir/v1}")}"
+  if [[ "$base" != https://* ]]; then
+    echo "The base URL must start with https://."
+    return 1
+  fi
+  read -r -p "Model [$(v=$(get_var APP_AI_CRAWLER_MODEL); echo "${v:-deepseek-v4.1-flash}")]: " model
+  model="${model:-$(v=$(get_var APP_AI_CRAWLER_MODEL); echo "${v:-deepseek-v4.1-flash}")}"
+
+  if [[ -s "$AI_KEY_FILE" ]] && ask_yes "An API key is already in $AI_KEY_FILE. Keep it?" y; then
+    :
+  else
+    read -r -s -p "AI provider API key (input hidden): " key; echo
+    key="$(printf '%s' "$key" | tr -d '[:space:]')"
+    if [[ -z "$key" ]]; then
+      echo "No key entered; nothing changed."
+      return 1
+    fi
+    mkdir -p secrets
+    ( umask 077; printf '%s\n' "$key" >"$AI_KEY_FILE" )
+    unset key
+    echo "Key saved to $AI_KEY_FILE (git-ignored, mode 600)."
+  fi
+
+  set_var APP_AI_CRAWLER_ENABLED true
+  set_var APP_AI_CRAWLER_BASE_URL "$base"
+  set_var APP_AI_CRAWLER_MODEL "$model"
+  set_var APP_AI_CRAWLER_API_KEY_FILE "$AI_KEY_FILE"
+  if ask_yes "Serve every host without a site config with the AI crawler (default rule)?" y; then
+    set_var APP_AI_CRAWLER_DEFAULT_RULE true
+  else
+    set_var APP_AI_CRAWLER_DEFAULT_RULE false
+  fi
+  if ask_yes "Learn CSS selectors from AI results (proven hosts need no LLM calls)?" y; then
+    set_var APP_AI_CRAWLER_LEARN_SELECTORS true
+  else
+    set_var APP_AI_CRAWLER_LEARN_SELECTORS false
+  fi
+  load_env
+  echo
+  ai_status
+  echo "Restart a running server to apply."
+}
+
+# Review the configs the AI crawler learned (configs/learned/).
+learned_menu() {
+  local action domain
+  go run ./cmd/sitectl learned list || return 1
+  echo
+  read -r -p "Action: show, activate, reject, adopt, or Enter to go back: " action
+  [[ -z "$action" ]] && return 0
+  case "$action" in
+    show|activate|reject|adopt) ;;
+    *) echo "Unknown action: $action"; return 1 ;;
+  esac
+  read -r -p "Domain (example: wayfair.com): " domain
+  [[ -n "$domain" ]] || { echo "No domain given."; return 1; }
+  go run ./cmd/sitectl learned "$action" "$domain"
+}
+
 run_server() {
   need_pepper || return 1
   echo "Starting the server with $ENV_FILE (Ctrl+C to stop)..."
@@ -261,13 +351,15 @@ PEPPER_CHANGED=0
 while true; do
   cat <<EOF
 
-=== API keys ($ENV_FILE) ===
+=== API keys and AI crawler ($ENV_FILE) ===
   1) Run server
   2) Delete all keys
   3) Show keys
   4) Set up all keys (pepper, operator login, client key)
   5) Create a client key
   6) Set proxy (host and port)
+  7) AI crawler (AvalAI): status, turn on/off, key
+  8) Learned configs (list, show, activate, reject, adopt)
   0) Exit
 EOF
   read -r -p "Choose: " choice || exit 0
@@ -279,6 +371,8 @@ EOF
     4) setup_all ;;
     5) create_key ;;
     6) set_proxy ;;
+    7) setup_ai ;;
+    8) learned_menu ;;
     0|q|Q) exit 0 ;;
     *) echo "Unknown choice: $choice" ;;
   esac

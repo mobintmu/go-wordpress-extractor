@@ -1,5 +1,44 @@
 basePath: /
 definitions:
+  AIEvidence:
+    properties:
+      finish_reason:
+        example: length
+        type: string
+      http_status:
+        description: HTTP status of the provider's last answer; 0 when no answer came.
+        example: 429
+        type: integer
+      input_chars:
+        description: Characters of cleaned page sent to the model.
+        example: 24000
+        type: integer
+      input_tokens:
+        example: 8421
+        type: integer
+      model:
+        example: deepseek-v4.1-flash
+        type: string
+      output:
+        description: Start of the model's answer, at most 500 characters. Untrusted
+          text.
+        example: '{is_product: true, name: Oak Chair ...'
+        type: string
+      output_tokens:
+        example: 512
+        type: integer
+      provider_code:
+        description: The provider's error.code, such as rate_limit_exceeded or invalid_api_key.
+        example: rate_limit_exceeded
+        type: string
+      provider_request_id:
+        description: The provider's request id (avalai-request-id or x-request-id
+          header), for support tickets.
+        example: req_0123456789
+        type: string
+    required:
+    - model
+    type: object
   ActiveRequests:
     properties:
       extract_active_requests:
@@ -22,6 +61,11 @@ definitions:
     type: object
   Evidence:
     properties:
+      ai:
+        allOf:
+        - $ref: '#/definitions/AIEvidence'
+        description: What the AI crawler sent to and got back from the LLM. Set only
+          for the ai-crawler-avalai engine. Never holds the API key or the prompt.
       attempts:
         example: 1
         type: integer
@@ -86,7 +130,8 @@ definitions:
           SOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,
           UNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,
           REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,
-          SEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR.
+          SEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR,
+          AI_UNAVAILABLE, AI_RATE_LIMITED, AI_QUOTA_EXCEEDED, AI_AUTH_FAILED, AI_INPUT_TOO_LARGE, AI_BAD_OUTPUT.
         example: SELECTOR_NOT_FOUND
         type: string
       confidence:
@@ -159,6 +204,16 @@ definitions:
         - full
         - partial
         example: partial
+        type: string
+      config_origin:
+        description: 'Where the site config came from: config (configs/sites/), learned
+          (selectors learned by the AI crawler) or default (the built-in AI rule for
+          hosts without a config). Missing when no config matched.'
+        enum:
+        - config
+        - learned
+        - default
+        example: config
         type: string
       config_version:
         example: 2026-11-08.1
@@ -254,6 +309,91 @@ definitions:
     - reason
     - truncated
     type: object
+  MetricsAICallCount:
+    properties:
+      calls:
+        example: 4
+        type: integer
+      host:
+        description: Host is the shop's host, "other" once 200 hosts are tracked.
+        example: www.wayfair.com
+        type: string
+      input_tokens:
+        example: 32000
+        type: integer
+      model:
+        example: deepseek-v4.1-flash
+        type: string
+      outcome:
+        description: Outcome is "ok" or the failure code.
+        example: ok
+        type: string
+      output_tokens:
+        example: 1600
+        type: integer
+      purpose:
+        enum:
+        - extract
+        - repair
+        - learn
+        example: extract
+        type: string
+      sum_seconds:
+        example: 14.2
+        type: number
+    required:
+    - calls
+    - host
+    - input_tokens
+    - model
+    - outcome
+    - output_tokens
+    - purpose
+    - sum_seconds
+    type: object
+  MetricsAIReport:
+    properties:
+      cache_hits:
+        description: CacheHits counts answers served from the cache, which used no
+          tokens.
+        example: 3
+        type: integer
+      cache_hits_by_host:
+        additionalProperties:
+          format: int64
+          type: integer
+        description: CacheHitsByHost maps each host to its cache hits.
+        type: object
+      calls:
+        description: |-
+          Calls counts requests sent to the AI provider, retries by the SDK not
+          included. Repair and selector-learning calls are counted too.
+        example: 12
+        type: integer
+      failed:
+        description: Failed counts calls that ended with an AI_* failure code.
+        example: 1
+        type: integer
+      input_tokens:
+        example: 96000
+        type: integer
+      output_tokens:
+        example: 4800
+        type: integer
+      series:
+        description: Series has one entry per model, purpose, host and outcome.
+        items:
+          $ref: '#/definitions/MetricsAICallCount'
+        type: array
+    required:
+    - cache_hits
+    - cache_hits_by_host
+    - calls
+    - failed
+    - input_tokens
+    - output_tokens
+    - series
+    type: object
   MetricsBucket:
     properties:
       count:
@@ -334,6 +474,11 @@ definitions:
     type: object
   MetricsReport:
     properties:
+      ai:
+        allOf:
+        - $ref: '#/definitions/MetricsAIReport'
+        description: AI is the AI crawler's calls and tokens; all zero when it is
+          off.
       durations:
         additionalProperties:
           $ref: '#/definitions/MetricsHistogram'
@@ -359,6 +504,7 @@ definitions:
         example: "2026-11-11T07:00:00Z"
         type: string
     required:
+    - ai
     - durations
     - generated_at
     - instance
@@ -449,6 +595,15 @@ definitions:
           Second paragraph.
         type: string
         x-nullable: true
+      features:
+        description: Short feature or highlight bullet points, in page order. Set
+          by the AI crawler, or by a site config that defines pages.product.features.
+        example:
+        - Solid oak
+        - Hand finished
+        items:
+          type: string
+        type: array
       image_url:
         example: https://badomjip.com/wp-content/uploads/example.jpg
         format: uri
@@ -531,10 +686,12 @@ definitions:
   Site:
     properties:
       currency:
+        description: 'auto: the AI crawler reads the currency from each page.'
         enum:
         - IRT
         - USD
         - EUR
+        - auto
         example: IRT
         type: string
       domains:
@@ -544,6 +701,26 @@ definitions:
         items:
           type: string
         type: array
+      engine:
+        description: Fetch engine. Set for the default rule and for sites that use
+          the AI crawler.
+        example: ai-crawler-avalai
+        type: string
+      model:
+        description: LLM model the AI crawler uses. Set for the default rule and for
+          sites that use the AI crawler.
+        example: deepseek-v4.1-flash
+        type: string
+      origin:
+        description: 'config: a file in configs/sites/. learned: selectors the AI
+          crawler learned and proved on several pages. default: the built-in AI rule,
+          which accepts any domain (domains is ["*"]).'
+        enum:
+        - config
+        - learned
+        - default
+        example: config
+        type: string
       site_id:
         example: hmland
         type: string
@@ -556,12 +733,18 @@ definitions:
     required:
     - currency
     - domains
+    - origin
     - site_id
     - template
     - version
     type: object
   SiteList:
     properties:
+      accepts_any_domain:
+        description: 'True when the AI crawler''s default rule is on: a URL on any
+          domain is accepted, not only the listed ones.'
+        example: false
+        type: boolean
       count:
         example: 1
         type: integer
@@ -573,6 +756,7 @@ definitions:
           $ref: '#/definitions/Site'
         type: array
     required:
+    - accepts_any_domain
     - count
     - loaded_at
     - sites
@@ -592,7 +776,24 @@ definitions:
         - mojeek
         - yahoo
         - yandex
+        - ai-crawler-avalai
         example: duckduckgo
+        type: string
+      fetched_with:
+        description: 'The engine that fetched the HTML for the LLM: http, or browser
+          for a page rendered in Chrome. ai-crawler-avalai only.'
+        enum:
+        - http
+        - browser
+        example: http
+        type: string
+      model:
+        description: The LLM model that read the page. ai-crawler-avalai only.
+        example: deepseek-v4.1-flash
+        type: string
+      prompt_version:
+        description: Version of the extraction prompt. ai-crawler-avalai only.
+        example: "1"
         type: string
       query:
         description: The search query whose results held the product. Search engines
@@ -609,6 +810,11 @@ definitions:
           site.
         example: false
         type: boolean
+      tokens:
+        allOf:
+        - $ref: '#/definitions/Tokens'
+        description: Tokens the LLM call used. ai-crawler-avalai only; the counts
+          of the original call when cached.
     required:
     - engine
     - site_contacted
@@ -630,6 +836,18 @@ definitions:
     - name
     - value
     type: object
+  Tokens:
+    properties:
+      input:
+        example: 8421
+        type: integer
+      output:
+        example: 512
+        type: integer
+    required:
+    - input
+    - output
+    type: object
   UnavailableField:
     properties:
       field:
@@ -650,6 +868,7 @@ definitions:
         - NOT_ON_PAGE
         - NOT_IN_SEARCH_RESULTS
         - NOT_CONFIGURED
+        - AI_NOT_GROUNDED
         example: NOT_IN_SEARCH_RESULTS
         type: string
     required:
@@ -759,6 +978,7 @@ paths:
         Returns the sites named in configs/active_sites.json whose config is valid and enabled, sorted by site_id.
         Disabled and invalid configs, and active domains without a config, are left out. Without active_sites.json, every enabled site is returned.
         The list follows config hot reloads; loaded_at is when the current configs were loaded.
+        Active configs learned by the AI crawler are listed with origin learned. When the AI crawler's default rule is on, the list ends with the entry ai-crawler-default (origin default, domains ["*"]) and accepts_any_domain is true.
       produces:
       - application/json
       responses:
