@@ -39,6 +39,15 @@ func fromAI(site *siteconfig.Site, file string, page *fetch.Page, target *url.UR
 		final = target
 	}
 	out := parsed{fields: map[string]string{}, dropped: map[string]bool{}}
+	// web is ai_fetch "web_search": the service never saw the page, so the
+	// checks below pass and the result is marked unverified.
+	web := clean.Unchecked
+	str := func(s *string) string {
+		if web {
+			return aicrawler.StripCitations(aicrawler.Str(s))
+		}
+		return aicrawler.Str(s)
+	}
 	if !p.IsProduct {
 		out.failure = diagnose.New(diagnose.NotProductURL, diagnose.ConfidenceMedium,
 			"The AI crawler (model %s) read %s and found that it is not a single product page.", ai.Model, final.String()).
@@ -55,7 +64,7 @@ func fromAI(site *siteconfig.Site, file string, page *fetch.Page, target *url.UR
 	}
 
 	// title
-	if name := normalize.Text(aicrawler.Str(p.Name)); name != "" {
+	if name := normalize.Text(str(p.Name)); name != "" {
 		sample(siteconfig.FieldTitle, name)
 		if utf8.RuneCountInString(name) <= aiMaxTitle && clean.ContainsText(name) {
 			prod.Title = name
@@ -75,7 +84,7 @@ func fromAI(site *siteconfig.Site, file string, page *fetch.Page, target *url.UR
 	}
 
 	// description
-	if desc := strings.TrimSpace(aicrawler.Str(p.Description)); desc != "" {
+	if desc := strings.TrimSpace(str(p.Description)); desc != "" {
 		sample(siteconfig.FieldDescription, desc)
 		desc = normalizeParagraphs(desc)
 		if utf8.RuneCountInString(desc) > aiMaxDescription {
@@ -97,6 +106,9 @@ func fromAI(site *siteconfig.Site, file string, page *fetch.Page, target *url.UR
 			break
 		}
 		name, value := specName(normalize.Text(sp.Name)), normalize.Text(sp.Value)
+		if web {
+			name, value = aicrawler.StripCitations(name), aicrawler.StripCitations(value)
+		}
 		if name == "" || value == "" || len(name) > aiMaxItemChars || len(value) > aiMaxItemChars {
 			continue
 		}
@@ -120,6 +132,9 @@ func fromAI(site *siteconfig.Site, file string, page *fetch.Page, target *url.UR
 			break
 		}
 		f = normalize.Text(f)
+		if web {
+			f = aicrawler.StripCitations(f)
+		}
 		if f == "" || len(f) > aiMaxItemChars || slices.Contains(prod.Features, f) {
 			continue
 		}
@@ -144,8 +159,15 @@ func fromAI(site *siteconfig.Site, file string, page *fetch.Page, target *url.UR
 	}
 
 	// warnings
-	out.warnings = append(out.warnings, Warning{Code: WarnAIExtracted,
-		Message: fmt.Sprintf("Values were extracted by an LLM (%s) and checked against the page.", ai.Model)})
+	if web {
+		out.warnings = append(out.warnings, Warning{Code: WarnAIExtracted,
+			Message: fmt.Sprintf("Values were found by an LLM with web search (%s); the site was not contacted.", ai.Model)},
+			Warning{Code: WarnAIUnverified,
+				Message: "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."})
+	} else {
+		out.warnings = append(out.warnings, Warning{Code: WarnAIExtracted,
+			Message: fmt.Sprintf("Values were extracted by an LLM (%s) and checked against the page.", ai.Model)})
+	}
 	for _, f := range []string{siteconfig.FieldTitle, siteconfig.FieldImageURL, siteconfig.FieldDescription, FieldPrice, FieldSpecs} {
 		if out.dropped[f] {
 			out.warnings = append(out.warnings, Warning{Code: WarnAINotGrounded, Field: f,
@@ -189,7 +211,7 @@ func aiPrice(site *siteconfig.Site, p *aicrawler.Product, clean *aicrawler.Page,
 			out.dropped[FieldPrice] = true
 			return nil
 		}
-		if !slices.Contains(amounts, *v) {
+		if !clean.Unchecked && !slices.Contains(amounts, *v) {
 			out.dropped[FieldPrice] = true
 			return nil
 		}
@@ -281,13 +303,18 @@ func normalizeParagraphs(s string) string {
 // aiUnavailable lists the fields missing from an AI result. A field the
 // model returned but that is not on the page is AI_NOT_GROUNDED; a field
 // the model did not find is NOT_ON_PAGE.
-func aiUnavailable(prod *Product, dropped map[string]bool) []UnavailableField {
+// web is ai_fetch "web_search": a missing field was not in the search
+// model's answer, not "not on the page".
+func aiUnavailable(prod *Product, dropped map[string]bool, web bool) []UnavailableField {
 	out := []UnavailableField{}
 	if prod == nil {
 		return out
 	}
 	add := func(field string) {
 		reason := ReasonNotOnPage
+		if web {
+			reason = ReasonNotInSearchResults
+		}
 		if dropped[field] {
 			reason = ReasonAINotGrounded
 		}

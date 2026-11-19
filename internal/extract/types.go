@@ -43,6 +43,9 @@ const (
 	WarnAIExtracted = "AI_EXTRACTED"
 	// The AI crawler returned a value that is not on the page; it was dropped.
 	WarnAINotGrounded = "AI_NOT_GROUNDED"
+	// fetch.ai_fetch web_search: the values come from the AI provider's web
+	// search and were not checked against the page, which was not fetched.
+	WarnAIUnverified = "AI_UNVERIFIED"
 	// The data came from selectors the AI crawler learned, not reviewed by a person.
 	WarnLearnedConfig = "LEARNED_CONFIG"
 	// The learned selectors failed on this page; the AI crawler extracted it instead.
@@ -59,11 +62,11 @@ const (
 const (
 	// The page was fetched, but the field was not on it (http, browser).
 	ReasonNotOnPage = "NOT_ON_PAGE"
-	// The search engine cannot provide the field (duckduckgo, brave, mojeek, yahoo, yandex).
+	// The search engine cannot provide the field (duckduckgo, brave, mojeek, yahoo, yandex), or the AI provider's web search did not return it (ai_fetch web_search).
 	ReasonNotInSearchResults = "NOT_IN_SEARCH_RESULTS"
 	// The site config does not extract the field for this site.
 	ReasonNotConfigured = "NOT_CONFIGURED"
-	// The AI crawler returned a value that is not on the page, so it was dropped (ai-crawler-avalai).
+	// The AI crawler returned a value that is not on the page, so it was dropped (ai-crawler-avalai, ai-crawler-cloudflare).
 	ReasonAINotGrounded = "AI_NOT_GROUNDED"
 )
 
@@ -147,7 +150,7 @@ func (r Response) MarshalJSON() ([]byte, error) {
 
 // Source says which fetch engine produced the data.
 type Source struct {
-	Engine string `json:"engine" binding:"required" enums:"http,browser,duckduckgo,brave,mojeek,yahoo,yandex,ai-crawler-avalai" example:"duckduckgo"`
+	Engine string `json:"engine" binding:"required" enums:"http,browser,duckduckgo,brave,mojeek,yahoo,yandex,ai-crawler-avalai,ai-crawler-cloudflare" example:"duckduckgo"`
 	// False for the search engines, which never contact the product's site.
 	SiteContacted bool `json:"site_contacted" binding:"required" example:"false"`
 	// The search query whose results held the product. Search engines only.
@@ -156,13 +159,15 @@ type Source struct {
 	ResultRank int `json:"result_rank,omitempty" example:"1"`
 	// True when the search answer came from the instance's cache.
 	Cached bool `json:"cached,omitempty" example:"false"`
-	// The LLM model that read the page. ai-crawler-avalai only.
+	// The LLM model that read the page (for a Cloudflare dynamic route, the model that answered). AI engines only.
 	Model string `json:"model,omitempty" example:"deepseek-v4.1-flash"`
-	// Version of the extraction prompt. ai-crawler-avalai only.
+	// Version of the extraction prompt. AI engines only.
 	PromptVersion string `json:"prompt_version,omitempty" example:"1"`
-	// The engine that fetched the HTML for the LLM: http, or browser for a page rendered in Chrome. ai-crawler-avalai only.
-	FetchedWith string `json:"fetched_with,omitempty" enums:"http,browser" example:"http"`
-	// Tokens the LLM call used. ai-crawler-avalai only; the counts of the original call when cached.
+	// How the AI engine got the page: http, browser for a page rendered in Chrome, or web_search when the site was not contacted and the provider's search model looked the product up. AI engines only.
+	FetchedWith string `json:"fetched_with,omitempty" enums:"http,browser,web_search" example:"http"`
+	// The web pages the search model used (fetched_with web_search only).
+	Sources []string `json:"sources,omitempty" example:"https://www.fergusonhome.com/duravit-030549-0hole/s1666394"`
+	// Tokens the LLM call used. AI engines only; the counts of the original call when cached.
 	Tokens *Tokens `json:"tokens,omitempty"`
 } //@name Source
 

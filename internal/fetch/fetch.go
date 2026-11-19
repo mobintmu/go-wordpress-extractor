@@ -74,7 +74,7 @@ type Page struct {
 	// yandex). They never contact the site, so the page then has no Body,
 	// Status or Headers.
 	Search *SearchPage
-	// AI is set by the ai-crawler-avalai engine. The page was fetched, so
+	// AI is set by the AI engines (ai-crawler-avalai, ai-crawler-cloudflare). The page was fetched, so
 	// Body, Status and Headers are set too.
 	AI *AIPage
 }

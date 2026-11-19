@@ -205,10 +205,15 @@ func selectorFailure(code string) bool {
 	return false
 }
 
-// learnedFallback answers a request whose learned selectors failed with the
-// AI crawler instead.
+// learnedFallback answers a request whose learned selectors failed with an
+// AI engine instead: the default engine (APP_DEFAULT_ENGINE), or the engine
+// that learned the selectors when the default is none.
 func (s *Service) learnedFallback(ctx context.Context, resp *Response, entry *siteconfig.Entry, site *siteconfig.Site, file string, target *url.URL) *Response {
-	aiSite := site.WithEngine(siteconfig.EngineAICrawler)
+	engine := entry.LearnedEngine()
+	if d := s.sites.Snapshot().Default; d != nil {
+		engine = d.Site.Fetch.Engine
+	}
+	aiSite := site.WithEngine(engine)
 	page, fail := s.fetcher.Fetch(ctx, aiSite, target)
 	resp.Source = sourceOf(page)
 	if fail != nil {
@@ -238,17 +243,18 @@ func (s *Service) finishAI(resp *Response, entry *siteconfig.Entry, site *siteco
 		s.fail(resp, out.failure, ev)
 		if out.product != nil {
 			resp.Partial.Product = out.product
-			resp.UnavailableFields = aiUnavailable(out.product, out.dropped)
+			resp.UnavailableFields = aiUnavailable(out.product, out.dropped, page.AI.FetchedWith == siteconfig.AIFetchWebSearch)
 		}
 		return resp
 	}
 	resp.Status = StatusSuccess
 	resp.Product = out.product
 	resp.Warnings = out.warnings
-	resp.UnavailableFields = aiUnavailable(out.product, out.dropped)
+	resp.UnavailableFields = aiUnavailable(out.product, out.dropped, page.AI.FetchedWith == siteconfig.AIFetchWebSearch)
 	resp.Completeness = completeness(resp.UnavailableFields)
 
-	if s.learner != nil && entry.Origin == siteconfig.OriginDefault {
+	// Nothing to learn from without the page (ai_fetch web_search).
+	if s.learner != nil && entry.Origin == siteconfig.OriginDefault && page.AI.FetchedWith != siteconfig.AIFetchWebSearch {
 		p := page.AI.Product
 		final := page.FinalURL
 		if final == nil {
@@ -298,6 +304,9 @@ func sourceOf(p *fetch.Page) *Source {
 	src := &Source{Engine: p.Engine, SiteContacted: !siteconfig.IsSearchEngine(p.Engine)}
 	if a := p.AI; a != nil {
 		src.Model, src.PromptVersion, src.FetchedWith, src.Cached = a.Model, a.PromptVersion, a.FetchedWith, a.Cached
+		if a.FetchedWith == siteconfig.AIFetchWebSearch {
+			src.SiteContacted, src.Sources = false, a.Sources
+		}
 		if a.Evidence.InputTokens > 0 || a.Evidence.OutputTokens > 0 {
 			src.Tokens = &Tokens{Input: a.Evidence.InputTokens, Output: a.Evidence.OutputTokens}
 		}

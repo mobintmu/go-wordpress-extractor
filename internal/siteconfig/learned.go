@@ -29,7 +29,11 @@ const (
 // Learned is the provenance and state of a config written by the AI
 // crawler's selector learning.
 type Learned struct {
-	Status        string `json:"status"`
+	Status string `json:"status"`
+	// Engine is the AI engine that learned the selectors. Optional: files
+	// learned before ai-crawler-cloudflare existed have none, which means
+	// ai-crawler-avalai.
+	Engine        string `json:"engine,omitempty"`
 	Model         string `json:"model"`
 	PromptVersion string `json:"prompt_version"`
 	LearnedFrom   string `json:"learned_from"`
@@ -44,14 +48,38 @@ type Learned struct {
 // DefaultAISiteID is the site_id of the built-in default rule.
 const DefaultAISiteID = "ai-crawler-default"
 
-// DefaultAIVersion is the config_version of the built-in default rule.
+// DefaultAIVersion is the config_version of the built-in default rule
+// with the ai-crawler-avalai engine. With another engine the engine's
+// provider is appended ("builtin-1+cloudflare"), so config_version changes
+// when APP_DEFAULT_ENGINE does.
 const DefaultAIVersion = "builtin-1"
+
+// DefaultAIVersionFor is the config_version of the default rule served by
+// engine.
+func DefaultAIVersionFor(engine string) string {
+	if engine == EngineAICrawler {
+		return DefaultAIVersion
+	}
+	return DefaultAIVersion + "+" + strings.TrimPrefix(engine, "ai-crawler-")
+}
+
+// LearnedEngine is the AI engine that learned e, ai-crawler-avalai for
+// files that do not say.
+func (e *Entry) LearnedEngine() string {
+	if e.Site != nil && e.Site.Learned != nil && e.Site.Learned.Engine != "" {
+		return e.Site.Learned.Engine
+	}
+	return EngineAICrawler
+}
 
 func validateLearned(s *Site, add func(string, ...any)) {
 	switch s.Learned.Status {
 	case LearnedCandidate, LearnedActive, LearnedDemoted, LearnedRejected:
 	default:
 		add("learned.status must be %q, %q, %q or %q", LearnedCandidate, LearnedActive, LearnedDemoted, LearnedRejected)
+	}
+	if e := s.Learned.Engine; e != "" && !IsAIEngine(e) {
+		add("learned.engine %q must be %q or %q", e, EngineAICrawler, EngineAICloudflare)
 	}
 	if s.Fetch.Engine != EngineHTTP && s.Fetch.Engine != EngineBrowser {
 		add("a learned config may only use fetch.engine %q or %q", EngineHTTP, EngineBrowser)
@@ -187,17 +215,18 @@ func ReadLearnedRaw(path string) (map[string]any, error) {
 }
 
 // DefaultAIEntry builds the built-in default rule: any host without a site
-// config is served by the ai-crawler-avalai engine. delayMS is the gap
-// between two fetches of the same host.
-func DefaultAIEntry(delayMS int) *Entry {
+// config or an active learned config is served by engine (from
+// APP_DEFAULT_ENGINE). delayMS is the gap between two fetches of the same
+// host.
+func DefaultAIEntry(engine string, delayMS int) *Entry {
 	t := true
 	retries := 1
 	s := &Site{
 		SchemaVersion: 1,
 		SiteID:        DefaultAISiteID,
-		Version:       DefaultAIVersion,
+		Version:       DefaultAIVersionFor(engine),
 		Fetch: Fetch{
-			Engine:           EngineAICrawler,
+			Engine:           engine,
 			UserAgent:        defaultUserAgent,
 			DelayMS:          &delayMS,
 			TimeoutSeconds:   20,
@@ -214,7 +243,7 @@ func DefaultAIEntry(delayMS int) *Entry {
 	return &Entry{
 		File:    "(built-in default rule)",
 		SiteID:  DefaultAISiteID,
-		Version: DefaultAIVersion,
+		Version: s.Version,
 		Site:    s,
 		Origin:  OriginDefault,
 	}
@@ -238,7 +267,7 @@ func (s *Site) ForHost(host string) *Site {
 func (s *Site) WithEngine(engine string) *Site {
 	c := *s
 	c.Fetch.Engine = engine
-	if engine == EngineAICrawler && c.Locale.PriceUnit == "" {
+	if IsAIEngine(engine) && c.Locale.PriceUnit == "" {
 		c.Locale.PriceUnit = UnitAuto
 	}
 	return &c

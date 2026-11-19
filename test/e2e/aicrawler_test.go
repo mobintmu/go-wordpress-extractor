@@ -39,6 +39,10 @@ type llmCall struct {
 	Messages       int
 	Learn          bool
 	PageURL        string
+	// Header holds the request headers; ReasoningEffort the body's
+	// reasoning_effort.
+	Header          http.Header
+	ReasoningEffort string
 }
 
 // fakeLLM answers POST /v1/chat/completions like AvalAI. By default it
@@ -47,6 +51,10 @@ type llmCall struct {
 type fakeLLM struct {
 	t   *testing.T
 	srv *httptest.Server
+	// path is the chat completions path it answers; respHeaders are set on
+	// every answer (cf-aig-log-id for the fake Cloudflare gateway).
+	path        string
+	respHeaders map[string]string
 
 	mu        sync.Mutex
 	calls     []llmCall
@@ -58,7 +66,7 @@ type fakeLLM struct {
 }
 
 func newFakeLLM(t *testing.T) *fakeLLM {
-	f := &fakeLLM{t: t, products: map[string]string{}}
+	f := &fakeLLM{t: t, products: map[string]string{}, path: "/v1/chat/completions"}
 	f.srv = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.srv.Close)
 	return f
@@ -67,7 +75,7 @@ func newFakeLLM(t *testing.T) *fakeLLM {
 func (f *fakeLLM) baseURL() string { return f.srv.URL + "/v1" }
 
 func (f *fakeLLM) serve(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost || r.URL.Path != "/v1/chat/completions" {
+	if r.Method != http.MethodPost || r.URL.Path != f.path {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
@@ -80,13 +88,15 @@ func (f *fakeLLM) serve(w http.ResponseWriter, r *http.Request) {
 		ResponseFormat struct {
 			Type string `json:"type"`
 		} `json:"response_format"`
+		ReasoningEffort string `json:"reasoning_effort"`
 	}
 	body, _ := io.ReadAll(r.Body)
 	if err := json.Unmarshal(body, &req); err != nil {
 		http.Error(w, "bad json", http.StatusBadRequest)
 		return
 	}
-	c := llmCall{Auth: r.Header.Get("Authorization"), Model: req.Model, ResponseFormat: req.ResponseFormat.Type, Messages: len(req.Messages)}
+	c := llmCall{Auth: r.Header.Get("Authorization"), Model: req.Model, ResponseFormat: req.ResponseFormat.Type, Messages: len(req.Messages),
+		Header: r.Header.Clone(), ReasoningEffort: req.ReasoningEffort}
 	for _, m := range req.Messages {
 		switch m.Role {
 		case "system":
@@ -111,6 +121,9 @@ func (f *fakeLLM) serve(w http.ResponseWriter, r *http.Request) {
 	f.calls = append(f.calls, c)
 	respond := f.respond
 	f.mu.Unlock()
+	for k, v := range f.respHeaders {
+		w.Header().Set(k, v)
+	}
 
 	if respond != nil {
 		respond(w, c, n)
@@ -282,22 +295,23 @@ const selectorsAnswer = `{
 // unless a test turns it on.
 func aiEnv(llm *fakeLLM, extra map[string]string) map[string]string {
 	env := map[string]string{
-		"APP_AI_CRAWLER_ENABLED":             "true",
-		"APP_AI_CRAWLER_BASE_URL":            llm.baseURL(),
-		"APP_AI_CRAWLER_API_KEY":             aiTestKey,
-		"APP_AI_CRAWLER_API_KEY_FILE":        "",
-		"APP_AI_CRAWLER_MODEL":               aiTestModel,
-		"APP_AI_CRAWLER_RETRIES":             "0",
-		"APP_AI_CRAWLER_MIN_INTERVAL_MS":     "0",
-		"APP_AI_CRAWLER_DEFAULT_DELAY_MS":    "0",
-		"APP_AI_CRAWLER_CACHE_TTL":           "0",
-		"APP_AI_CRAWLER_TIMEOUT":             "5s",
-		"APP_AI_CRAWLER_LEARN_SELECTORS":     "false",
-		"APP_AI_CRAWLER_DEFAULT_RULE":        "true",
-		"APP_AI_CRAWLER_RESPONSE_FORMAT":     "json_object",
-		"APP_AI_CRAWLER_LEARN_DIR":           "",
-		"APP_AI_CRAWLER_LEARN_PROMOTE_AFTER": "3",
-		"APP_AI_CRAWLER_LEARN_DEMOTE_AFTER":  "3",
+		"APP_AI_CRAWLER_ENABLED":               "true",
+		"APP_AI_CRAWLER_BASE_URL":              llm.baseURL(),
+		"APP_AI_CRAWLER_API_KEY":               aiTestKey,
+		"APP_AI_CRAWLER_API_KEY_FILE":          "",
+		"APP_AI_CRAWLER_MODEL":                 aiTestModel,
+		"APP_AI_CRAWLER_RETRIES":               "0",
+		"APP_AI_CRAWLER_MIN_INTERVAL_MS":       "0",
+		"APP_AI_CRAWLER_DEFAULT_DELAY_MS":      "0",
+		"APP_AI_CRAWLER_CACHE_TTL":             "0",
+		"APP_AI_CRAWLER_TIMEOUT":               "5s",
+		"APP_AI_CRAWLER_LEARN_SELECTORS":       "false",
+		"APP_DEFAULT_ENGINE":                   "ai-crawler-avalai",
+		"APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID": "",
+		"APP_AI_CRAWLER_RESPONSE_FORMAT":       "json_object",
+		"APP_AI_CRAWLER_LEARN_DIR":             "",
+		"APP_AI_CRAWLER_LEARN_PROMOTE_AFTER":   "3",
+		"APP_AI_CRAWLER_LEARN_DEMOTE_AFTER":    "3",
 	}
 	for k, v := range extra {
 		env[k] = v
@@ -439,12 +453,12 @@ func TestAICrawlerOffKeepsSiteNotConfigured(t *testing.T) {
 	}
 }
 
-// APP_AI_CRAWLER_DEFAULT_RULE=false: the engine serves only sites that
-// select it, and unknown hosts get SITE_NOT_CONFIGURED.
-func TestAICrawlerDefaultRuleOff(t *testing.T) {
+// APP_DEFAULT_ENGINE=none: the AI engine serves only sites that select it,
+// and unknown hosts get SITE_NOT_CONFIGURED.
+func TestAICrawlerDefaultEngineNone(t *testing.T) {
 	llm := newFakeLLM(t)
 	e := Start(t, Options{
-		Env:        aiEnv(llm, map[string]string{"APP_AI_CRAWLER_DEFAULT_RULE": "false"}),
+		Env:        aiEnv(llm, map[string]string{"APP_DEFAULT_ENGINE": "none"}),
 		ExtraSites: map[string]map[string]any{hostAISite: aiSiteConfig()},
 	})
 	r := e.Extract(serveAI(e, llm, hostAI, oakChair))
@@ -797,7 +811,7 @@ func TestAICrawlerMetricsCountTokens(t *testing.T) {
 	series := map[string]int64{}
 	for i := 0; r.At(fmt.Sprintf("ai.series.%d", i)) != nil; i++ {
 		p := fmt.Sprintf("ai.series.%d.", i)
-		if r.Str(p+"host") != hostAI || r.Str(p+"model") != aiTestModel {
+		if r.Str(p+"host") != hostAI || r.Str(p+"model") != aiTestModel || r.Str(p+"engine") != "ai-crawler-avalai" {
 			t.Errorf("series %d = %v", i, r.At(fmt.Sprintf("ai.series.%d", i)))
 		}
 		series[r.Str(p+"purpose")+"/"+r.Str(p+"outcome")] = r.Int(p + "calls")
@@ -807,14 +821,14 @@ func TestAICrawlerMetricsCountTokens(t *testing.T) {
 	}
 
 	p := e.Get("/metrics?format=prometheus", key)
-	labels := fmt.Sprintf(`model=%q,purpose="extract",host=%q,outcome="ok"`, aiTestModel, hostAI)
+	labels := fmt.Sprintf(`engine="ai-crawler-avalai",model=%q,purpose="extract",host=%q,outcome="ok"`, aiTestModel, hostAI)
 	for _, want := range []string{
 		"extract_ai_calls_total{" + labels + "} 2",
 		"extract_ai_tokens_total{" + labels + `,kind="input"} 2000`,
 		"extract_ai_tokens_total{" + labels + `,kind="output"} 400`,
-		fmt.Sprintf(`extract_ai_calls_total{model=%q,purpose="extract",host=%q,outcome="AI_RATE_LIMITED"} 1`, aiTestModel, hostAI),
-		fmt.Sprintf(`extract_ai_calls_total{model=%q,purpose="repair",host=%q,outcome="ok"} 1`, aiTestModel, hostAI),
-		fmt.Sprintf(`extract_ai_cache_hits_total{model=%q,host=%q} 1`, aiTestModel, hostAI),
+		fmt.Sprintf(`extract_ai_calls_total{engine="ai-crawler-avalai",model=%q,purpose="extract",host=%q,outcome="AI_RATE_LIMITED"} 1`, aiTestModel, hostAI),
+		fmt.Sprintf(`extract_ai_calls_total{engine="ai-crawler-avalai",model=%q,purpose="repair",host=%q,outcome="ok"} 1`, aiTestModel, hostAI),
+		fmt.Sprintf(`extract_ai_cache_hits_total{engine="ai-crawler-avalai",model=%q,host=%q} 1`, aiTestModel, hostAI),
 		"# TYPE extract_ai_call_seconds_total counter",
 	} {
 		if !strings.Contains(string(p.Raw), want) {

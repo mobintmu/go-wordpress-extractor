@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Menu for the API key pepper, operator login, client API keys, the AI
-# crawler (AvalAI), and the server. Installs nothing; uses only bash and
+# crawler (AvalAI, Cloudflare AI Gateway), and the server. Installs nothing; uses only bash and
 # `go run`.
 #
 #   ./setup-keys.sh                    # uses .env
@@ -247,32 +247,69 @@ set_proxy() {
 }
 
 AI_KEY_FILE="secrets/avalai_api_key"
+CF_TOKEN_FILE="secrets/cloudflare_api_token"
+CF_DEFAULT_MODEL="@cf/deepseek-ai/deepseek-v4.1-flash-1017"
 
-ai_status() {
-  local key="not set"
-  [[ -n "$(get_var APP_AI_CRAWLER_API_KEY)" ]] && key="set in $ENV_FILE (hidden)"
-  [[ -z "$(get_var APP_AI_CRAWLER_API_KEY)" && -s "$(get_var APP_AI_CRAWLER_API_KEY_FILE)" ]] && key="from file $(get_var APP_AI_CRAWLER_API_KEY_FILE)"
-  echo "AI crawler (ai-crawler-avalai): $([[ "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]] && echo ENABLED || echo off)"
-  echo "  base URL     : $(v=$(get_var APP_AI_CRAWLER_BASE_URL); echo "${v:-https://api.avalai.ir/v1}")"
-  echo "  model        : $(v=$(get_var APP_AI_CRAWLER_MODEL); echo "${v:-deepseek-v4.1-flash}")"
-  echo "  API key      : $key"
-  echo "  default rule : $(v=$(get_var APP_AI_CRAWLER_DEFAULT_RULE); echo "${v:-true}")   learning: $(v=$(get_var APP_AI_CRAWLER_LEARN_SELECTORS); echo "${v:-true}")"
+# secret_source VAR FILE_VAR -> where a secret comes from, never the secret.
+secret_source() {
+  if [[ -n "$(get_var "$1")" ]]; then echo "set in $ENV_FILE (hidden)"
+  elif [[ -s "$(get_var "$2")" ]]; then echo "from file $(get_var "$2")"
+  else echo "not set"; fi
 }
 
-# Turn the AI crawler on or off. The key is typed hidden and written to
+# default_engine -> APP_DEFAULT_ENGINE as the server resolves it.
+default_engine() {
+  local v; v="$(get_var APP_DEFAULT_ENGINE)"
+  if [[ -n "$v" ]]; then echo "$v"
+  elif [[ "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]]; then echo ai-crawler-avalai
+  else echo none; fi
+}
+
+# APP_AI_CRAWLER_DEFAULT_RULE was replaced by APP_DEFAULT_ENGINE; the server
+# refuses to start while it is set, so it is rewritten here.
+migrate_default_rule() {
+  grep -qE '^APP_AI_CRAWLER_DEFAULT_RULE=' "$ENV_FILE" || return 0
+  local old engine tmp
+  old="$(get_var APP_AI_CRAWLER_DEFAULT_RULE)"
+  engine=none
+  [[ "$old" != false && "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]] && engine="$(v=$(get_var APP_DEFAULT_ENGINE); echo "${v:-ai-crawler-avalai}")"
+  tmp=$(mktemp)
+  grep -vE '^APP_AI_CRAWLER_DEFAULT_RULE=' "$ENV_FILE" >"$tmp"; cat "$tmp" >"$ENV_FILE"; rm -f "$tmp"
+  unset APP_AI_CRAWLER_DEFAULT_RULE
+  set_var APP_DEFAULT_ENGINE "$engine"
+  echo "Replaced APP_AI_CRAWLER_DEFAULT_RULE=$old with APP_DEFAULT_ENGINE=$engine in $ENV_FILE."
+}
+
+ai_status() {
+  echo "AI crawler: $([[ "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]] && echo ENABLED || echo off)   learning: $(v=$(get_var APP_AI_CRAWLER_LEARN_SELECTORS); echo "${v:-true}")"
+  echo "  ai-crawler-avalai"
+  echo "    base URL         : $(v=$(get_var APP_AI_CRAWLER_BASE_URL); echo "${v:-https://api.avalai.ir/v1}")"
+  echo "    model            : $(v=$(get_var APP_AI_CRAWLER_MODEL); echo "${v:-deepseek-v4.1-flash}")"
+  echo "    API key          : $(secret_source APP_AI_CRAWLER_API_KEY APP_AI_CRAWLER_API_KEY_FILE)"
+  echo "  ai-crawler-cloudflare"
+  echo "    account / gateway: $(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID); echo "${v:-not set}") / $(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_GATEWAY_ID); echo "${v:-default}")"
+  echo "    endpoint         : $(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_ENDPOINT); echo "${v:-rest}")"
+  echo "    model            : $(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_MODEL); echo "${v:-$CF_DEFAULT_MODEL}")"
+  echo "    API token        : $(secret_source APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE)"
+  echo "  default engine     : $(default_engine)  (APP_DEFAULT_ENGINE: hosts without a rule)"
+}
+
+# ai_turn_on turns the AI crawler on and asks whether to learn selectors.
+ai_turn_on() {
+  set_var APP_AI_CRAWLER_ENABLED true
+  if ask_yes "Learn CSS selectors from AI results (proven hosts need no LLM calls)?" y; then
+    set_var APP_AI_CRAWLER_LEARN_SELECTORS true
+  else
+    set_var APP_AI_CRAWLER_LEARN_SELECTORS false
+  fi
+}
+
+# Set up AvalAI. The key is typed hidden and written to
 # secrets/avalai_api_key (git-ignored), never into the env file, because
 # .env.development and .env.test are committed.
-setup_ai() {
-  ai_status
-  echo
-  if [[ "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]] && ask_yes "Turn the AI crawler off?" n; then
-    set_var APP_AI_CRAWLER_ENABLED false
-    export APP_AI_CRAWLER_ENABLED=false
-    echo "AI crawler off. Restart a running server to apply."
-    return 0
-  fi
-  echo "The AI crawler sends the content of each page it serves to the AI provider."
-  ask_yes "Set up and turn on the AI crawler?" y || return 0
+setup_avalai() {
+  echo "ai-crawler-avalai sends the content of each page it serves to AvalAI."
+  ask_yes "Set up and turn on ai-crawler-avalai?" y || return 0
 
   local base model key
   read -r -p "OpenAI-compatible base URL [$(v=$(get_var APP_AI_CRAWLER_BASE_URL); echo "${v:-https://api.avalai.ir/v1}")]: " base
@@ -287,7 +324,7 @@ setup_ai() {
   if [[ -s "$AI_KEY_FILE" ]] && ask_yes "An API key is already in $AI_KEY_FILE. Keep it?" y; then
     :
   else
-    read -r -s -p "AI provider API key (input hidden): " key; echo
+    read -r -s -p "AvalAI API key (input hidden): " key; echo
     key="$(printf '%s' "$key" | tr -d '[:space:]')"
     if [[ -z "$key" ]]; then
       echo "No key entered; nothing changed."
@@ -299,24 +336,223 @@ setup_ai() {
     echo "Key saved to $AI_KEY_FILE (git-ignored, mode 600)."
   fi
 
-  set_var APP_AI_CRAWLER_ENABLED true
   set_var APP_AI_CRAWLER_BASE_URL "$base"
   set_var APP_AI_CRAWLER_MODEL "$model"
   set_var APP_AI_CRAWLER_API_KEY_FILE "$AI_KEY_FILE"
-  if ask_yes "Serve every host without a site config with the AI crawler (default rule)?" y; then
-    set_var APP_AI_CRAWLER_DEFAULT_RULE true
-  else
-    set_var APP_AI_CRAWLER_DEFAULT_RULE false
+  ai_turn_on
+  if ask_yes "Serve every host without a rule with ai-crawler-avalai (APP_DEFAULT_ENGINE)?" y; then
+    set_var APP_DEFAULT_ENGINE ai-crawler-avalai
   fi
-  if ask_yes "Learn CSS selectors from AI results (proven hosts need no LLM calls)?" y; then
-    set_var APP_AI_CRAWLER_LEARN_SELECTORS true
-  else
-    set_var APP_AI_CRAWLER_LEARN_SELECTORS false
+  [[ -n "$(get_var APP_DEFAULT_ENGINE)" ]] || set_var APP_DEFAULT_ENGINE none
+}
+
+# Set up Cloudflare AI Gateway. The token goes alone into
+# secrets/cloudflare_api_token (git-ignored).
+setup_cloudflare() {
+  echo "ai-crawler-cloudflare sends the content of each page it serves to Cloudflare AI Gateway and"
+  echo "the model behind it. The default model, DeepSeek V4.1 Flash, runs on Cloudflare (Workers AI)"
+  echo "and is billed to the Cloudflare account. The token needs \"Workers AI Read\" and \"AI Gateway Run\"."
+  ask_yes "Set up and turn on ai-crawler-cloudflare?" y || return 0
+
+  local account gateway endpoint model model_def token
+  read -r -p "Account id (32 hex characters) [$(get_var APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID)]: " account
+  account="${account:-$(get_var APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID)}"
+  account="$(printf '%s' "$account" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+  if [[ ! "$account" =~ ^[0-9a-f]{32}$ ]]; then
+    echo "The account id must be 32 hex characters."
+    return 1
   fi
+  read -r -p "Gateway id [$(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_GATEWAY_ID); echo "${v:-default}")]: " gateway
+  gateway="${gateway:-$(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_GATEWAY_ID); echo "${v:-default}")}"
+  read -r -p "Endpoint, rest or compat [$(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_ENDPOINT); echo "${v:-rest}")]: " endpoint
+  endpoint="${endpoint:-$(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_ENDPOINT); echo "${v:-rest}")}"
+  if [[ "$endpoint" != rest && "$endpoint" != compat ]]; then
+    echo "The endpoint must be rest or compat."
+    return 1
+  fi
+  model_def="$(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_MODEL); echo "${v:-$CF_DEFAULT_MODEL}")"
+  [[ "$endpoint" == compat && "$model_def" == "$CF_DEFAULT_MODEL" ]] && model_def="workers-ai/$CF_DEFAULT_MODEL"
+  read -r -p "Model [$model_def]: " model
+  model="${model:-$model_def}"
+
+  if [[ -s "$CF_TOKEN_FILE" ]] && ask_yes "A token is already in $CF_TOKEN_FILE. Keep it?" y; then
+    :
+  else
+    read -r -s -p "Cloudflare API token (input hidden): " token; echo
+    token="$(printf '%s' "$token" | tr -d '[:space:]')"
+    if [[ -z "$token" ]]; then
+      echo "No token entered; nothing changed."
+      return 1
+    fi
+    mkdir -p secrets
+    ( umask 077; printf '%s\n' "$token" >"$CF_TOKEN_FILE" )
+    unset token
+    echo "Token saved to $CF_TOKEN_FILE (git-ignored, mode 600)."
+  fi
+
+  set_var APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID "$account"
+  set_var APP_AI_CRAWLER_CLOUDFLARE_GATEWAY_ID "$gateway"
+  set_var APP_AI_CRAWLER_CLOUDFLARE_ENDPOINT "$endpoint"
+  set_var APP_AI_CRAWLER_CLOUDFLARE_MODEL "$model"
+  set_var APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE "$CF_TOKEN_FILE"
+  ai_turn_on
+  if ask_yes "Serve every host without a rule with ai-crawler-cloudflare (APP_DEFAULT_ENGINE)?" n; then
+    set_var APP_DEFAULT_ENGINE ai-crawler-cloudflare
+  fi
+  [[ -n "$(get_var APP_DEFAULT_ENGINE)" ]] || set_var APP_DEFAULT_ENGINE none
+}
+
+# avalai_ok / cloudflare_ok: the engine's own settings are complete (the
+# server's rule; APP_AI_CRAWLER_ENABLED must also be true for it to run).
+avalai_ok() {
+  [[ -n "$(get_var APP_AI_CRAWLER_API_KEY)" || -s "$(get_var APP_AI_CRAWLER_API_KEY_FILE)" ]]
+}
+cloudflare_ok() {
+  [[ -n "$(get_var APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID)" ]] &&
+    [[ -n "$(get_var APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN)" || -s "$(get_var APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE)" ]]
+}
+
+# recommended_engine: the configured AvalAI engine first (the existing
+# default; Cloudflare's live check, proposal step 1, is still open), then
+# Cloudflare, then none.
+recommended_engine() {
+  if avalai_ok; then echo ai-crawler-avalai
+  elif cloudflare_ok; then echo ai-crawler-cloudflare
+  else echo none; fi
+}
+
+# Set up the default engine: the engine for websites with no site config
+# and no active learned config (APP_DEFAULT_ENGINE). Lists the engines that
+# can serve such websites, marks the recommended and the current one, and
+# offers to set up an engine that is not configured yet.
+setup_default_engine() {
+  migrate_default_rule
+  local cur rec av cf choice engine
+  cur="$(default_engine)"
+  rec="$(recommended_engine)"
+  av="not configured"; avalai_ok && av="configured"
+  cf="not configured"; cloudflare_ok && cf="configured"
+  mark() { # mark engine -> " (recommended, current)" ...
+    local m=()
+    [[ "$1" == "$rec" ]] && m+=("recommended")
+    [[ "$1" == "$cur" ]] && m+=("current")
+    (( ${#m[@]} )) && printf ' (%s)' "$(IFS=,; echo "${m[*]}" | sed 's/,/, /g')"
+  }
+  cat <<MENU
+Default engine: serves every website that has no file in configs/sites/ and
+no active learned config. Engines, in recommended order:
+
+  1) ai-crawler-avalai$(mark ai-crawler-avalai)
+       [$av] LLM through AvalAI ($(v=$(get_var APP_AI_CRAWLER_MODEL); echo "${v:-deepseek-v4.1-flash}")).
+       The existing default. Needs an AvalAI API key.
+  2) ai-crawler-cloudflare$(mark ai-crawler-cloudflare)
+       [$cf] LLM through Cloudflare AI Gateway ($(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_MODEL); echo "${v:-$CF_DEFAULT_MODEL}")).
+       Default model runs on Cloudflare (Workers AI): about \$3.60 per 1,000 pages,
+       billed to the Cloudflare account. Needs an account id and an API token.
+  3) none$(mark none)
+       Unknown websites fail with SITE_NOT_CONFIGURED. No page is sent to an
+       LLM and nothing is learned. Configured sites still work.
+
+  Not offered: http, browser and the search engines need a site config's
+  selectors, so they cannot serve a website without one.
+
+MENU
+  read -r -p "Choose 1-3 [Enter keeps $cur]: " choice
+  case "$choice" in
+    1|ai-crawler-avalai) engine=ai-crawler-avalai ;;
+    2|ai-crawler-cloudflare) engine=ai-crawler-cloudflare ;;
+    3|none) engine=none ;;
+    "") echo "Kept APP_DEFAULT_ENGINE=$cur."; return 0 ;;
+    *) echo "Unknown choice: $choice"; return 1 ;;
+  esac
+
+  if [[ "$engine" == ai-crawler-avalai ]] && ! avalai_ok; then
+    ask_yes "ai-crawler-avalai is not configured. Set it up now?" y && setup_avalai
+    avalai_ok || { echo "ai-crawler-avalai is still not configured; APP_DEFAULT_ENGINE stays $cur."; return 1; }
+  fi
+  if [[ "$engine" == ai-crawler-cloudflare ]] && ! cloudflare_ok; then
+    ask_yes "ai-crawler-cloudflare is not configured. Set it up now?" y && setup_cloudflare
+    cloudflare_ok || { echo "ai-crawler-cloudflare is still not configured; APP_DEFAULT_ENGINE stays $cur."; return 1; }
+  fi
+  if [[ "$engine" != none && "$(get_var APP_AI_CRAWLER_ENABLED)" != true ]]; then
+    if ask_yes "The AI crawler is off (APP_AI_CRAWLER_ENABLED). Turn it on?" y; then
+      set_var APP_AI_CRAWLER_ENABLED true
+    else
+      echo "The server does not start with an AI default engine while the AI crawler is off; APP_DEFAULT_ENGINE stays $cur."
+      return 1
+    fi
+  fi
+  set_var APP_DEFAULT_ENGINE "$engine"
   load_env
-  echo
-  ai_status
-  echo "Restart a running server to apply."
+  echo "APP_DEFAULT_ENGINE=$engine. Restart a running server to apply."
+}
+
+# ai_off_engine avalai|cloudflare clears one engine's credentials; the
+# default engine moves to the other one, or to none.
+ai_off_engine() {
+  local engine="$1"
+  if [[ "$engine" == ai-crawler-avalai ]]; then
+    set_var APP_AI_CRAWLER_API_KEY ""
+    set_var APP_AI_CRAWLER_API_KEY_FILE ""
+  else
+    set_var APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID ""
+    set_var APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN ""
+  fi
+  if [[ "$(default_engine)" == "$engine" ]]; then
+    set_var APP_DEFAULT_ENGINE "$(recommended_engine)"
+    echo "APP_DEFAULT_ENGINE was $engine; it is now $(get_var APP_DEFAULT_ENGINE)."
+  fi
+  if ! avalai_ok && ! cloudflare_ok; then
+    set_var APP_AI_CRAWLER_ENABLED false
+    set_var APP_DEFAULT_ENGINE none
+    echo "No AI engine is left; the AI crawler is off."
+  fi
+  echo "$engine off. Secret files in secrets/ are kept."
+}
+
+# preflight_default_engine reports what would stop the server at startup.
+preflight_default_engine() {
+  local d; d="$(default_engine)"
+  case "$d" in
+    none) return 0 ;;
+    ai-crawler-avalai) avalai_ok || { echo "APP_DEFAULT_ENGINE is ai-crawler-avalai, but no AvalAI key is set (menu 9)."; return 1; } ;;
+    ai-crawler-cloudflare) cloudflare_ok || { echo "APP_DEFAULT_ENGINE is ai-crawler-cloudflare, but the account id or token is missing (menu 9)."; return 1; } ;;
+    *) echo "APP_DEFAULT_ENGINE \"$d\" is not valid (menu 9)."; return 1 ;;
+  esac
+  [[ "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]] || { echo "APP_DEFAULT_ENGINE is $d, but APP_AI_CRAWLER_ENABLED is not true (menu 9)."; return 1; }
+}
+
+# AI crawler submenu: AvalAI, Cloudflare, default engine, off.
+setup_ai() {
+  migrate_default_rule
+  local c
+  while true; do
+    echo
+    ai_status
+    echo
+    echo "  a) AvalAI (ai-crawler-avalai): set up and turn on"
+    echo "  c) Cloudflare AI Gateway (ai-crawler-cloudflare): set up and turn on"
+    echo "  d) Set up the default engine (APP_DEFAULT_ENGINE), with the recommended list"
+    echo "  x) Turn AvalAI off (clears its key setting)"
+    echo "  y) Turn Cloudflare off (clears its account id)"
+    echo "  o) Turn the whole AI crawler off"
+    echo "  Enter) Back"
+    read -r -p "Choose: " c || return 0
+    case "$c" in
+      a|A) setup_avalai ;;
+      c|C) setup_cloudflare ;;
+      d|D) setup_default_engine ;;
+      x|X) ai_off_engine ai-crawler-avalai ;;
+      y|Y) ai_off_engine ai-crawler-cloudflare ;;
+      o|O)
+        set_var APP_AI_CRAWLER_ENABLED false
+        set_var APP_DEFAULT_ENGINE none
+        echo "AI crawler off; unknown hosts get SITE_NOT_CONFIGURED." ;;
+      "") load_env; echo "Restart a running server to apply."; return 0 ;;
+      *) echo "Unknown choice: $c" ;;
+    esac
+    load_env
+  done
 }
 
 # Review the configs the AI crawler learned (configs/learned/).
@@ -337,6 +573,9 @@ learned_menu() {
 
 run_server() {
   need_pepper || return 1
+  migrate_default_rule
+  preflight_default_engine || return 1
+  load_env
   echo "Starting the server with $ENV_FILE (Ctrl+C to stop)..."
   exec go run ./cmd/server
 }
@@ -358,8 +597,9 @@ while true; do
   4) Set up all keys (pepper, operator login, client key)
   5) Create a client key
   6) Set proxy (host and port)
-  7) AI crawler (AvalAI): status, turn on/off, key
+  7) AI crawler: AvalAI, Cloudflare, default engine
   8) Learned configs (list, show, activate, reject, adopt)
+  9) Default engine for websites without a rule (recommended list)
   0) Exit
 EOF
   read -r -p "Choose: " choice || exit 0
@@ -373,6 +613,7 @@ EOF
     6) set_proxy ;;
     7) setup_ai ;;
     8) learned_menu ;;
+    9) setup_default_engine ;;
     0|q|Q) exit 0 ;;
     *) echo "Unknown choice: $choice" ;;
   esac

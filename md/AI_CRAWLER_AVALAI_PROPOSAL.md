@@ -6,6 +6,8 @@ Status: implemented on 2026-11-17 (see "Implementation status" below) · all ope
 
 Built on 2026-11-17. Where the code differs from the sections below, the code and this list are what holds:
 
+> **Changed on 2026-11-19** by [AI_CRAWLER_CLOUDFLARE_PROPOSAL.md](AI_CRAWLER_CLOUDFLARE_PROPOSAL.md): `APP_AI_CRAWLER_DEFAULT_RULE` was replaced by `APP_DEFAULT_ENGINE` (`true` → `ai-crawler-avalai`, `false` → `none`); the server refuses to start while the old variable is set. The provider-specific parts of the client moved into a provider profile (`internal/aicrawler/provider.go`), a second engine `ai-crawler-cloudflare` was added, a provider's `model_not_found` now maps to the new code `AI_MODEL_UNAVAILABLE` (it was `AI_UNAVAILABLE`), and every `/metrics` AI series got an `engine` label. The sections below still describe the original design.
+
 | Topic | As built |
 |---|---|
 | Code | `internal/aicrawler/` (client on `github.com/openai/openai-go/v3` v3.100.0, cleaner, prompts, outline, cache), `internal/fetch/aiengine.go` (`AIEngine`), `internal/extract/fromai.go` (grounding), `internal/extract/learn.go` (`Learner`), `internal/siteconfig/learned.go` (learned configs, default rule), `internal/sitectl/learned.go`, `internal/sites/handler.go`, `internal/config` (`APP_AI_CRAWLER_*`), `internal/diagnose` (`AI_*` codes, `evidence.ai`), `deploy.sh ai` / `deploy.sh learned`, `menu.sh` items 7 and 8 |

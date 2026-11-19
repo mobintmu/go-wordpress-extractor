@@ -366,20 +366,20 @@ func Validate(s *Site) error {
 	switch s.Fetch.Engine {
 	case "":
 		s.Fetch.Engine = EngineHTTP
-	case EngineHTTP, EngineBrowser, EngineAICrawler:
+	case EngineHTTP, EngineBrowser, EngineAICrawler, EngineAICloudflare:
 	default:
 		if !IsSearchEngine(s.Fetch.Engine) {
-			add("fetch.engine %q must be %q, %q, %q or a search engine (%s)", s.Fetch.Engine, EngineHTTP, EngineBrowser, EngineAICrawler, SearchEngineList())
+			add("fetch.engine %q must be %q, %q, %q, %q or a search engine (%s)", s.Fetch.Engine, EngineHTTP, EngineBrowser, EngineAICrawler, EngineAICloudflare, SearchEngineList())
 		}
 	}
 	ai := s.IsAI()
 	switch s.Fetch.AIFetch {
-	case "", EngineHTTP, EngineBrowser:
+	case "", EngineHTTP, EngineBrowser, AIFetchWebSearch:
 		if s.Fetch.AIFetch != "" && !ai {
-			add("fetch.ai_fetch is only allowed when fetch.engine is %q", EngineAICrawler)
+			add("fetch.ai_fetch is only allowed when fetch.engine is %q or %q", EngineAICrawler, EngineAICloudflare)
 		}
 	default:
-		add("fetch.ai_fetch must be %q or %q", EngineHTTP, EngineBrowser)
+		add("fetch.ai_fetch must be %q, %q or %q", EngineHTTP, EngineBrowser, AIFetchWebSearch)
 	}
 	validateSearch(s, add)
 	for i, ua := range s.Fetch.UserAgents {
@@ -421,7 +421,7 @@ func Validate(s *Site) error {
 	case UnitToman, UnitRial, UnitUSD, UnitEUR:
 	case UnitAuto:
 		if !ai {
-			add("locale.price_unit %q is only allowed when fetch.engine is %q", UnitAuto, EngineAICrawler)
+			add("locale.price_unit %q is only allowed when fetch.engine is %q or %q", UnitAuto, EngineAICrawler, EngineAICloudflare)
 		}
 	default:
 		add("locale.price_unit must be %q, %q, %q, or %q", UnitToman, UnitRial, UnitUSD, UnitEUR)

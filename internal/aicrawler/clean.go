@@ -32,6 +32,24 @@ type Page struct {
 	// urls holds every absolute URL found in img src/srcset/data-src,
 	// og:image, link hrefs and JSON-LD.
 	urls map[string]bool
+
+	// Unchecked marks a page the service never saw (ai_fetch "web_search"):
+	// the values come from the provider's web search, so every check
+	// passes and the result is reported as not verified.
+	Unchecked bool
+}
+
+// UncheckedPage is the stand-in page for ai_fetch "web_search". raw is the
+// model's own price text, used only to read currency words.
+func UncheckedPage(raw string) *Page {
+	return &Page{Unchecked: true, raw: raw}
+}
+
+var citationMarker = regexp.MustCompile(`\s*\[\d{1,3}\]`)
+
+// StripCitations removes the [1]-style markers search models add to text.
+func StripCitations(s string) string {
+	return strings.TrimSpace(citationMarker.ReplaceAllString(s, ""))
 }
 
 // removed lists elements whose content is never product data.
@@ -319,6 +337,9 @@ func words(s string) []string { return wordRe.FindAllString(strings.ToLower(s), 
 // page. Empty text never matches.
 func (p *Page) ContainsText(s string) bool {
 	n := strings.ToLower(normalize.Digits(normalize.Text(s)))
+	if p.Unchecked {
+		return n != ""
+	}
 	return n != "" && strings.Contains(p.corpus, n)
 }
 
@@ -327,6 +348,9 @@ func (p *Page) WordOverlap(s string) float64 {
 	ws := words(normalize.Digits(s))
 	if len(ws) == 0 {
 		return 0
+	}
+	if p.Unchecked {
+		return 1
 	}
 	n := 0
 	for _, w := range ws {
@@ -338,7 +362,13 @@ func (p *Page) WordOverlap(s string) float64 {
 }
 
 // HasURL reports whether u is one of the page's image or link URLs.
-func (p *Page) HasURL(u string) bool { return p.urls[u] }
+// On an unchecked page any absolute http(s) URL passes.
+func (p *Page) HasURL(u string) bool {
+	if p.Unchecked {
+		return strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://")
+	}
+	return p.urls[u]
+}
 
 // Amounts returns every amount on the page in unit's output unit.
 func (p *Page) Amounts(unit string) []int64 { return normalize.Amounts(p.raw, unit) }

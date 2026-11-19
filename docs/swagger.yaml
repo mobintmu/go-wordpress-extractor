@@ -5,6 +5,11 @@ definitions:
       finish_reason:
         example: length
         type: string
+      gateway_cache:
+        description: 'Cloudflare only: cf-aig-cache-status (HIT or MISS). The gateway
+          cache is skipped, so it should be MISS.'
+        example: MISS
+        type: string
       http_status:
         description: HTTP status of the provider's last answer; 0 when no answer came.
         example: 429
@@ -27,13 +32,21 @@ definitions:
       output_tokens:
         example: 512
         type: integer
+      provider:
+        description: 'Who answered: avalai or cloudflare.'
+        enum:
+        - avalai
+        - cloudflare
+        example: avalai
+        type: string
       provider_code:
-        description: The provider's error.code, such as rate_limit_exceeded or invalid_api_key.
+        description: The provider's error code, such as rate_limit_exceeded or invalid_api_key,
+          or Cloudflare's numeric code (2009).
         example: rate_limit_exceeded
         type: string
       provider_request_id:
-        description: The provider's request id (avalai-request-id or x-request-id
-          header), for support tickets.
+        description: 'The provider''s request id, for support tickets: avalai-request-id
+          (AvalAI), or cf-aig-log-id, the id to search for in the Cloudflare dashboard.'
         example: req_0123456789
         type: string
     required:
@@ -65,7 +78,8 @@ definitions:
         allOf:
         - $ref: '#/definitions/AIEvidence'
         description: What the AI crawler sent to and got back from the LLM. Set only
-          for the ai-crawler-avalai engine. Never holds the API key or the prompt.
+          for the AI engines (ai-crawler-avalai, ai-crawler-cloudflare). Never holds
+          the API key, the token or the prompt.
       attempts:
         example: 1
         type: integer
@@ -131,7 +145,7 @@ definitions:
           UNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,
           REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,
           SEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR,
-          AI_UNAVAILABLE, AI_RATE_LIMITED, AI_QUOTA_EXCEEDED, AI_AUTH_FAILED, AI_INPUT_TOO_LARGE, AI_BAD_OUTPUT.
+          AI_UNAVAILABLE, AI_RATE_LIMITED, AI_QUOTA_EXCEEDED, AI_AUTH_FAILED, AI_INPUT_TOO_LARGE, AI_BAD_OUTPUT, AI_MODEL_UNAVAILABLE.
         example: SELECTOR_NOT_FOUND
         type: string
       confidence:
@@ -314,6 +328,13 @@ definitions:
       calls:
         example: 4
         type: integer
+      engine:
+        description: Engine is the AI engine that made the call.
+        enum:
+        - ai-crawler-avalai
+        - ai-crawler-cloudflare
+        example: ai-crawler-avalai
+        type: string
       host:
         description: Host is the shop's host, "other" once 200 hosts are tracked.
         example: www.wayfair.com
@@ -343,6 +364,7 @@ definitions:
         type: number
     required:
     - calls
+    - engine
     - host
     - input_tokens
     - model
@@ -381,7 +403,7 @@ definitions:
         example: 4800
         type: integer
       series:
-        description: Series has one entry per model, purpose, host and outcome.
+        description: Series has one entry per engine, model, purpose, host and outcome.
         items:
           $ref: '#/definitions/MetricsAICallCount'
         type: array
@@ -703,12 +725,16 @@ definitions:
         type: array
       engine:
         description: Fetch engine. Set for the default rule and for sites that use
-          the AI crawler.
+          an AI engine.
+        enum:
+        - ai-crawler-avalai
+        - ai-crawler-cloudflare
         example: ai-crawler-avalai
         type: string
       model:
-        description: LLM model the AI crawler uses. Set for the default rule and for
-          sites that use the AI crawler.
+        description: LLM model the AI engine uses. Set for the default rule and for
+          sites that use an AI engine; empty when that engine is not configured on
+          this instance.
         example: deepseek-v4.1-flash
         type: string
       origin:
@@ -741,13 +767,21 @@ definitions:
   SiteList:
     properties:
       accepts_any_domain:
-        description: 'True when the AI crawler''s default rule is on: a URL on any
+        description: 'True when APP_DEFAULT_ENGINE names an AI engine: a URL on any
           domain is accepted, not only the listed ones.'
         example: false
         type: boolean
       count:
         example: 1
         type: integer
+      default_ai_engine:
+        description: The engine serving websites without a rule (APP_DEFAULT_ENGINE).
+          Absent when it is none.
+        enum:
+        - ai-crawler-avalai
+        - ai-crawler-cloudflare
+        example: ai-crawler-avalai
+        type: string
       loaded_at:
         example: "2026-11-11T08:00:00Z"
         type: string
@@ -777,22 +811,26 @@ definitions:
         - yahoo
         - yandex
         - ai-crawler-avalai
+        - ai-crawler-cloudflare
         example: duckduckgo
         type: string
       fetched_with:
-        description: 'The engine that fetched the HTML for the LLM: http, or browser
-          for a page rendered in Chrome. ai-crawler-avalai only.'
+        description: 'How the AI engine got the page: http, browser for a page rendered
+          in Chrome, or web_search when the site was not contacted and the provider''s
+          search model looked the product up. AI engines only.'
         enum:
         - http
         - browser
+        - web_search
         example: http
         type: string
       model:
-        description: The LLM model that read the page. ai-crawler-avalai only.
+        description: The LLM model that read the page (for a Cloudflare dynamic route,
+          the model that answered). AI engines only.
         example: deepseek-v4.1-flash
         type: string
       prompt_version:
-        description: Version of the extraction prompt. ai-crawler-avalai only.
+        description: Version of the extraction prompt. AI engines only.
         example: "1"
         type: string
       query:
@@ -810,11 +848,19 @@ definitions:
           site.
         example: false
         type: boolean
+      sources:
+        description: The web pages the search model used (fetched_with web_search
+          only).
+        example:
+        - https://www.fergusonhome.com/duravit-030549-0hole/s1666394
+        items:
+          type: string
+        type: array
       tokens:
         allOf:
         - $ref: '#/definitions/Tokens'
-        description: Tokens the LLM call used. ai-crawler-avalai only; the counts
-          of the original call when cached.
+        description: Tokens the LLM call used. AI engines only; the counts of the
+          original call when cached.
     required:
     - engine
     - site_contacted
@@ -978,7 +1024,7 @@ paths:
         Returns the sites named in configs/active_sites.json whose config is valid and enabled, sorted by site_id.
         Disabled and invalid configs, and active domains without a config, are left out. Without active_sites.json, every enabled site is returned.
         The list follows config hot reloads; loaded_at is when the current configs were loaded.
-        Active configs learned by the AI crawler are listed with origin learned. When the AI crawler's default rule is on, the list ends with the entry ai-crawler-default (origin default, domains ["*"]) and accepts_any_domain is true.
+        Active configs learned by the AI crawler are listed with origin learned. When APP_DEFAULT_ENGINE names an AI engine, the list ends with the entry ai-crawler-default (origin default, domains ["*"]) showing that engine and its model, accepts_any_domain is true, and default_ai_engine names the engine.
       produces:
       - application/json
       responses:

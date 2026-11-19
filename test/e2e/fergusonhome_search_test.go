@@ -9,10 +9,11 @@ import (
 	"testing"
 )
 
-// The live fergusonhome.com config uses a search engine: Ferguson answers
-// automated requests with HTTP 403, so the site is never fetched. These
-// tests send the client's sample request through every search engine with
-// the real config, and the fake shop replays what each engine really
+// Ferguson answers plain automated requests with HTTP 403. From 2026-11-13
+// to 2026-11-19 the live config used a search engine, which never fetches
+// the site; it now uses ai-crawler-avalai in Chrome. These tests keep the
+// search route working: they send the client's sample request through every
+// search engine with the real config and its former search settings, and the fake shop replays what each engine really
 // answered for it (testdata/search/, saved 2026-11-13 for DuckDuckGo and
 // 2026-11-15 for the others):
 //
@@ -46,8 +47,21 @@ func searchFixture(t *testing.T, engine, name string) string {
 	return string(b)
 }
 
+// fergusonSearchSettings is the fetch.search block fergusonhome.com used
+// while it was served by duckduckgo (2026-11-13 to 2026-11-19). The live
+// config now uses ai-crawler-avalai; these settings are kept here, and in
+// the config's $comment, so the site can be switched back.
+func fergusonSearchSettings() map[string]any {
+	return map[string]any{
+		"region":        "us-en",
+		"title_strip":   []string{" | Ferguson Home"},
+		"ignore_params": []string{"uid"},
+		"queries":       []string{"site_slug", "url"},
+	}
+}
+
 // fergusonSearchSite is the real fergusonhome.com config with engine as its
-// only engine.
+// only engine and the search settings above.
 func fergusonSearchSite(t *testing.T, engine string) map[string]any {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(repoRoot, "configs", "sites", "fergusonhome.com.json"))
@@ -55,11 +69,13 @@ func fergusonSearchSite(t *testing.T, engine string) map[string]any {
 	var cfg map[string]any
 	must(t, json.Unmarshal(raw, &cfg))
 	fetch, _ := cfg["fetch"].(map[string]any)
-	if fetch == nil || fetch["search"] == nil {
-		t.Fatal("fergusonhome.com.json has no fetch.search block")
+	if fetch == nil {
+		t.Fatal("fergusonhome.com.json has no fetch block")
 	}
 	fetch["engine"] = engine
+	fetch["search"] = fergusonSearchSettings()
 	delete(fetch, "alternate_engines")
+	delete(fetch, "ai_fetch")
 	return cfg
 }
 

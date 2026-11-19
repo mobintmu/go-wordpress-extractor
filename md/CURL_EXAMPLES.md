@@ -155,9 +155,15 @@ Short summary:
 
 The site itself is not contacted (`source.site_contacted` is `false`). Only title, URL and description come from the search result. Image, price and specs are listed in `unavailable_fields` with reason `NOT_IN_SEARCH_RESULTS`, and `completeness` is `partial`. At least one of the site's engines (`fetch.engine`, then `fetch.alternate_engines`) must be enabled on the instance (`APP_DUCKDUCKGO_ENABLED`, `APP_BRAVE_ENABLED`, `APP_MOJEEK_ENABLED`, `APP_YAHOO_ENABLED` or `APP_YANDEX_ENABLED`), otherwise the call fails with `ENGINE_UNAVAILABLE`. The response looks the same for every search engine; `source.engine` names the one that answered.
 
+fergusonhome.com was served this way until 2026-11-19; it now uses `ai-crawler-avalai` (example 4 below). `configs/sites/lumens.com.json` sets `duckduckgo` (alternate `brave`) too.
+
+## A site using an AI engine in its config (`ai-crawler-avalai`)
+
+The site config picks the engine, so the request is the same as for any site. With `ai_fetch` `http` or `browser` the page is fetched, cleaned and read by the LLM, and every value is checked against the page. With `ai_fetch: web_search` the site is never contacted: only the URL goes to the search model (`APP_AI_CRAWLER_SEARCH_MODEL`, `sonar`), and the values come back unverified. `source` adds `model`, `prompt_version`, `fetched_with`, `tokens` and, for web search, `sources`. Needs `APP_AI_CRAWLER_ENABLED=true` with an AvalAI key; otherwise `ENGINE_UNAVAILABLE`.
+
 ### 4. fergusonhome.com
 
-On 2026-11-13 DuckDuckGo had this product at rank 1. A second identical call within 6 hours is served from the cache (`source.cached: true`).
+Ferguson is behind Akamai and answers 403 to plain HTTP and to Chrome, so the config uses `ai_fetch: web_search` and the site is never contacted. Expect `site_id: fergusonhome`, `source.engine: ai-crawler-avalai`, `source.fetched_with: web_search`, `source.site_contacted: false`, `source.sources` (a fergusonhome.com page) and the warnings `AI_EXTRACTED` and `AI_UNVERIFIED`. On 2026-11-19 it returned the title, price 15666 (USD cents, `$156.66`), the description and the specs; the image was not in the answer (`NOT_IN_SEARCH_RESULTS`). The values are not checked against the page, so price and stock may be out of date. With no source on fergusonhome.com it fails with `SEARCH_NO_RESULT`.
 
 ```bash
 curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
@@ -168,12 +174,12 @@ curl --max-time 190 -sS -X POST "$API/api/v1/extract" \
 Short summary:
 
 ```bash
-... | jq '{status, completeness, title: .product.title, source, unavailable: [.unavailable_fields[].field]}'
+... | jq '{status, site_id, completeness, source, title: .product.title, price: .product.price, specs: (.product.specs | length), warnings: [.warnings[].code], unavailable: .unavailable_fields, error: .error.code}'
 ```
 
-## A site without a config: the AI crawler (`ai-crawler-avalai`)
+## A site without a config: the AI crawler (`ai-crawler-avalai`, `ai-crawler-cloudflare`)
 
-No file in `configs/sites/` claims the host, so the built-in default rule serves it: the service fetches the page, cleans it and sends it to the LLM set in `APP_AI_CRAWLER_MODEL` (`deepseek-v4.1-flash` on AvalAI, `APP_AI_CRAWLER_BASE_URL=https://api.avalai.ir/v1`). Name, price, image, description, specs and features come back, each checked against the page; a value that is not on the page is listed in `unavailable_fields` with reason `AI_NOT_GROUNDED`. Expect `site_id: ai-crawler-default`, `config_origin: default`, `source.engine: ai-crawler-avalai` and the warning `AI_EXTRACTED`. Needs `APP_AI_CRAWLER_ENABLED=true` and an API key, otherwise `SITE_NOT_CONFIGURED`. Provider problems fail with `AI_*` codes (`AI_RATE_LIMITED`, `AI_AUTH_FAILED`, ...) and `evidence.ai`.
+No file in `configs/sites/` claims the host, so the built-in default rule serves it with `APP_DEFAULT_ENGINE`: the service fetches the page, cleans it and sends it to the LLM, `APP_AI_CRAWLER_MODEL` (`deepseek-v4.1-flash` on AvalAI) for `ai-crawler-avalai`, or `APP_AI_CRAWLER_CLOUDFLARE_MODEL` (`@cf/deepseek-ai/deepseek-v4.1-flash-1017` through Cloudflare AI Gateway) for `ai-crawler-cloudflare`. Name, price, image, description, specs and features come back, each checked against the page; a value that is not on the page is listed in `unavailable_fields` with reason `AI_NOT_GROUNDED`. Expect `site_id: ai-crawler-default`, `config_origin: default`, `source.engine` set to the default engine and the warning `AI_EXTRACTED`. Needs `APP_AI_CRAWLER_ENABLED=true` with that engine configured; with `APP_DEFAULT_ENGINE=none`, `SITE_NOT_CONFIGURED`. Provider problems fail with `AI_*` codes (`AI_RATE_LIMITED`, `AI_AUTH_FAILED`, ...) and `evidence.ai`.
 
 ### 14. wayfair.com
 
@@ -189,6 +195,28 @@ Short summary:
 
 ```bash
 ... | jq '{status, site_id, config_origin, completeness, source, title: .product.title, price: .product.price, features: .product.features, unavailable: .unavailable_fields, error: .error.code}'
+```
+
+With `APP_DEFAULT_ENGINE=ai-crawler-cloudflare`, the same request is answered through Cloudflare AI Gateway. The `source` block then reads (illustrative values):
+
+```json
+{
+  "config_version": "builtin-1+cloudflare",
+  "source": {
+    "engine": "ai-crawler-cloudflare",
+    "site_contacted": true,
+    "model": "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {"input": 9800, "output": 480}
+  }
+}
+```
+
+A failure through the gateway carries `evidence.ai.provider: "cloudflare"` and `evidence.ai.provider_request_id` set to `cf-aig-log-id`, the id to search for in the Cloudflare dashboard:
+
+```bash
+... | jq '{code: .error.code, action: .error.suggested_action, ai: .evidence.ai}'
 ```
 
 ## Run all 14 at once

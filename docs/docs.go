@@ -122,7 +122,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns the sites named in configs/active_sites.json whose config is valid and enabled, sorted by site_id.\nDisabled and invalid configs, and active domains without a config, are left out. Without active_sites.json, every enabled site is returned.\nThe list follows config hot reloads; loaded_at is when the current configs were loaded.\nActive configs learned by the AI crawler are listed with origin learned. When the AI crawler's default rule is on, the list ends with the entry ai-crawler-default (origin default, domains [\"*\"]) and accepts_any_domain is true.",
+                "description": "Returns the sites named in configs/active_sites.json whose config is valid and enabled, sorted by site_id.\nDisabled and invalid configs, and active domains without a config, are left out. Without active_sites.json, every enabled site is returned.\nThe list follows config hot reloads; loaded_at is when the current configs were loaded.\nActive configs learned by the AI crawler are listed with origin learned. When APP_DEFAULT_ENGINE names an AI engine, the list ends with the entry ai-crawler-default (origin default, domains [\"*\"]) showing that engine and its model, accepts_any_domain is true, and default_ai_engine names the engine.",
                 "produces": [
                     "application/json"
                 ],
@@ -246,6 +246,11 @@ const docTemplate = `{
                     "type": "string",
                     "example": "length"
                 },
+                "gateway_cache": {
+                    "description": "Cloudflare only: cf-aig-cache-status (HIT or MISS). The gateway cache is skipped, so it should be MISS.",
+                    "type": "string",
+                    "example": "MISS"
+                },
                 "http_status": {
                     "description": "HTTP status of the provider's last answer; 0 when no answer came.",
                     "type": "integer",
@@ -273,13 +278,22 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 512
                 },
+                "provider": {
+                    "description": "Who answered: avalai or cloudflare.",
+                    "type": "string",
+                    "enum": [
+                        "avalai",
+                        "cloudflare"
+                    ],
+                    "example": "avalai"
+                },
                 "provider_code": {
-                    "description": "The provider's error.code, such as rate_limit_exceeded or invalid_api_key.",
+                    "description": "The provider's error code, such as rate_limit_exceeded or invalid_api_key, or Cloudflare's numeric code (2009).",
                     "type": "string",
                     "example": "rate_limit_exceeded"
                 },
                 "provider_request_id": {
-                    "description": "The provider's request id (avalai-request-id or x-request-id header), for support tickets.",
+                    "description": "The provider's request id, for support tickets: avalai-request-id (AvalAI), or cf-aig-log-id, the id to search for in the Cloudflare dashboard.",
                     "type": "string",
                     "example": "req_0123456789"
                 }
@@ -318,7 +332,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "ai": {
-                    "description": "What the AI crawler sent to and got back from the LLM. Set only for the ai-crawler-avalai engine. Never holds the API key or the prompt.",
+                    "description": "What the AI crawler sent to and got back from the LLM. Set only for the AI engines (ai-crawler-avalai, ai-crawler-cloudflare). Never holds the API key, the token or the prompt.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/AIEvidence"
@@ -412,7 +426,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "code": {
-                    "description": "Failure code. New codes can be added over time, so treat unknown codes like INTERNAL_ERROR.\nKnown codes: SITE_NOT_CONFIGURED, SITE_DISABLED, CONFIG_INVALID, NOT_PRODUCT_URL, URL_NOT_ALLOWED,\nDNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,\nSOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,\nUNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,\nREQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,\nSEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR,\nAI_UNAVAILABLE, AI_RATE_LIMITED, AI_QUOTA_EXCEEDED, AI_AUTH_FAILED, AI_INPUT_TOO_LARGE, AI_BAD_OUTPUT.",
+                    "description": "Failure code. New codes can be added over time, so treat unknown codes like INTERNAL_ERROR.\nKnown codes: SITE_NOT_CONFIGURED, SITE_DISABLED, CONFIG_INVALID, NOT_PRODUCT_URL, URL_NOT_ALLOWED,\nDNS_FAILED, CONNECTION_FAILED, TLS_FAILED, FETCH_TIMEOUT, HTTP_NOT_FOUND, ACCESS_DENIED, RATE_LIMITED,\nSOURCE_SERVER_ERROR, HTTP_ERROR, ROBOTS_DISALLOWED, REDIRECT_NOT_ALLOWED, TOO_MANY_REDIRECTS,\nUNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,\nREQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,\nSEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR,\nAI_UNAVAILABLE, AI_RATE_LIMITED, AI_QUOTA_EXCEEDED, AI_AUTH_FAILED, AI_INPUT_TOO_LARGE, AI_BAD_OUTPUT, AI_MODEL_UNAVAILABLE.",
                     "type": "string",
                     "example": "SELECTOR_NOT_FOUND"
                 },
@@ -649,6 +663,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "calls",
+                "engine",
                 "host",
                 "input_tokens",
                 "model",
@@ -661,6 +676,15 @@ const docTemplate = `{
                 "calls": {
                     "type": "integer",
                     "example": 4
+                },
+                "engine": {
+                    "description": "Engine is the AI engine that made the call.",
+                    "type": "string",
+                    "enum": [
+                        "ai-crawler-avalai",
+                        "ai-crawler-cloudflare"
+                    ],
+                    "example": "ai-crawler-avalai"
                 },
                 "host": {
                     "description": "Host is the shop's host, \"other\" once 200 hosts are tracked.",
@@ -743,7 +767,7 @@ const docTemplate = `{
                     "example": 4800
                 },
                 "series": {
-                    "description": "Series has one entry per model, purpose, host and outcome.",
+                    "description": "Series has one entry per engine, model, purpose, host and outcome.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/MetricsAICallCount"
@@ -1154,12 +1178,16 @@ const docTemplate = `{
                     ]
                 },
                 "engine": {
-                    "description": "Fetch engine. Set for the default rule and for sites that use the AI crawler.",
+                    "description": "Fetch engine. Set for the default rule and for sites that use an AI engine.",
                     "type": "string",
+                    "enum": [
+                        "ai-crawler-avalai",
+                        "ai-crawler-cloudflare"
+                    ],
                     "example": "ai-crawler-avalai"
                 },
                 "model": {
-                    "description": "LLM model the AI crawler uses. Set for the default rule and for sites that use the AI crawler.",
+                    "description": "LLM model the AI engine uses. Set for the default rule and for sites that use an AI engine; empty when that engine is not configured on this instance.",
                     "type": "string",
                     "example": "deepseek-v4.1-flash"
                 },
@@ -1197,13 +1225,22 @@ const docTemplate = `{
             ],
             "properties": {
                 "accepts_any_domain": {
-                    "description": "True when the AI crawler's default rule is on: a URL on any domain is accepted, not only the listed ones.",
+                    "description": "True when APP_DEFAULT_ENGINE names an AI engine: a URL on any domain is accepted, not only the listed ones.",
                     "type": "boolean",
                     "example": false
                 },
                 "count": {
                     "type": "integer",
                     "example": 1
+                },
+                "default_ai_engine": {
+                    "description": "The engine serving websites without a rule (APP_DEFAULT_ENGINE). Absent when it is none.",
+                    "type": "string",
+                    "enum": [
+                        "ai-crawler-avalai",
+                        "ai-crawler-cloudflare"
+                    ],
+                    "example": "ai-crawler-avalai"
                 },
                 "loaded_at": {
                     "type": "string",
@@ -1239,26 +1276,28 @@ const docTemplate = `{
                         "mojeek",
                         "yahoo",
                         "yandex",
-                        "ai-crawler-avalai"
+                        "ai-crawler-avalai",
+                        "ai-crawler-cloudflare"
                     ],
                     "example": "duckduckgo"
                 },
                 "fetched_with": {
-                    "description": "The engine that fetched the HTML for the LLM: http, or browser for a page rendered in Chrome. ai-crawler-avalai only.",
+                    "description": "How the AI engine got the page: http, browser for a page rendered in Chrome, or web_search when the site was not contacted and the provider's search model looked the product up. AI engines only.",
                     "type": "string",
                     "enum": [
                         "http",
-                        "browser"
+                        "browser",
+                        "web_search"
                     ],
                     "example": "http"
                 },
                 "model": {
-                    "description": "The LLM model that read the page. ai-crawler-avalai only.",
+                    "description": "The LLM model that read the page (for a Cloudflare dynamic route, the model that answered). AI engines only.",
                     "type": "string",
                     "example": "deepseek-v4.1-flash"
                 },
                 "prompt_version": {
-                    "description": "Version of the extraction prompt. ai-crawler-avalai only.",
+                    "description": "Version of the extraction prompt. AI engines only.",
                     "type": "string",
                     "example": "1"
                 },
@@ -1277,8 +1316,18 @@ const docTemplate = `{
                     "type": "boolean",
                     "example": false
                 },
+                "sources": {
+                    "description": "The web pages the search model used (fetched_with web_search only).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://www.fergusonhome.com/duravit-030549-0hole/s1666394"
+                    ]
+                },
                 "tokens": {
-                    "description": "Tokens the LLM call used. ai-crawler-avalai only; the counts of the original call when cached.",
+                    "description": "Tokens the LLM call used. AI engines only; the counts of the original call when cached.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/Tokens"

@@ -9,7 +9,7 @@ Each site has a config in [`configs/sites/`](../configs/sites/). All are enabled
 | 1 | 3-form.com | 3form's own CMS | USD | `http` |
 | 2 | badomjip.com | WooCommerce, WoodMart | toman | `http` |
 | 3 | emtek.com | Next.js storefront | USD | `http` |
-| 4 | fergusonhome.com | Own React storefront, behind Akamai | USD | `duckduckgo`, alternate `brave`. The site is not contacted, so there is no price, image or specs |
+| 4 | fergusonhome.com | Own React storefront, behind Akamai | USD | `ai-crawler-avalai` with `ai_fetch: web_search` since 2026-11-19 (config 2026-11-19.2): Akamai blocks plain HTTP and Chrome, so the site is never contacted; AvalAI's search model (`sonar`) returns title, price, description and specs, unverified (`AI_UNVERIFIED`). Needs AvalAI on the instance. Until then `duckduckgo`, alternate `brave` (no price, image or specs); those search settings are kept in the config's `$comment` |
 | 5 | flooranddecor.com | Salesforce Commerce Cloud | USD | `browser` (config 2026-11-13.1) |
 | 6 | hafele.com.de | Intershop, behind Cloudflare | EUR | `browser` (config 2026-11-13.2). On 2026-11-13 it briefly used `duckduckgo`, alternate `brave`, but DuckDuckGo had not indexed the sample product (`SEARCH_NO_RESULT`); the config's `$comment` names the search settings to use if the browser engine stops passing the challenge |
 | 7 | hmland.ir | WooCommerce, WoodMart | rial | `http` |

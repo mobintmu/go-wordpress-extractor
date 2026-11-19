@@ -37,8 +37,8 @@ type Snapshot struct {
 	// hosts no site config claims.
 	Learned       []*Entry
 	learnedByHost map[string]*Entry
-	// Default is the built-in AI rule for hosts without a config, or nil
-	// when APP_AI_CRAWLER_ENABLED or APP_AI_CRAWLER_DEFAULT_RULE is off.
+	// Default is the built-in AI rule for hosts without a config, served by
+	// APP_DEFAULT_ENGINE, or nil when APP_DEFAULT_ENGINE is none.
 	Default *Entry
 }
 
@@ -106,22 +106,23 @@ func NewSnapshot(entries []*Entry) *Snapshot {
 
 // Registry serves the current snapshot and reloads it when files change.
 type Registry struct {
-	dir         string
-	learnedDir  string
-	aiDefault   bool
-	aiDelayMS   int
-	log         *zap.Logger
-	current     atomic.Pointer[Snapshot]
-	fingerprint string
+	dir        string
+	learnedDir string
+	// defaultEngine serves hosts without a rule; "" for none.
+	defaultEngine string
+	aiDelayMS     int
+	log           *zap.Logger
+	current       atomic.Pointer[Snapshot]
+	fingerprint   string
 }
 
 // NewRegistry loads every site config. Invalid sites are logged and marked
 // unavailable; only an unreadable directory stops startup.
 func NewRegistry(cfg *config.Config, log *zap.Logger) (*Registry, error) {
 	r := &Registry{dir: cfg.SiteConfigDir, log: log,
-		learnedDir: cfg.LearnedDir(),
-		aiDefault:  cfg.AICrawlerEnabled && cfg.AICrawlerDefaultRule,
-		aiDelayMS:  cfg.AICrawlerDefaultDelayMS,
+		learnedDir:    cfg.LearnedDir(),
+		defaultEngine: cfg.DefaultAIEngine(),
+		aiDelayMS:     cfg.AICrawlerDefaultDelayMS,
 	}
 	if err := r.Reload(); err != nil {
 		return nil, fmt.Errorf("load site configs: %w", err)
@@ -152,8 +153,8 @@ func (r *Registry) Reload() error {
 		return err
 	}
 	snap := NewSnapshot(entries).WithLearned(learned)
-	if r.aiDefault {
-		snap.Default = DefaultAIEntry(r.aiDelayMS)
+	if r.defaultEngine != "" {
+		snap.Default = DefaultAIEntry(r.defaultEngine, r.aiDelayMS)
 	}
 	for _, e := range learned {
 		if e.Err != nil {

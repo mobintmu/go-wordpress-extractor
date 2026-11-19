@@ -29,19 +29,24 @@ type Evidence struct {
 	FieldSamples map[string]string `json:"field_samples,omitempty"`
 	// What a search engine searched for. Set only for the search engines (duckduckgo, brave, mojeek, yahoo, yandex).
 	Search *SearchEvidence `json:"search,omitempty"`
-	// What the AI crawler sent to and got back from the LLM. Set only for the ai-crawler-avalai engine. Never holds the API key or the prompt.
+	// What the AI crawler sent to and got back from the LLM. Set only for the AI engines (ai-crawler-avalai, ai-crawler-cloudflare). Never holds the API key, the token or the prompt.
 	AI *AIEvidence `json:"ai,omitempty"`
 } //@name Evidence
 
-// AIEvidence describes one call to the LLM by the ai-crawler-avalai engine.
+// AIEvidence describes one call to the LLM by an AI engine
+// (ai-crawler-avalai or ai-crawler-cloudflare).
 type AIEvidence struct {
 	Model string `json:"model" binding:"required" example:"deepseek-v4.1-flash"`
-	// The provider's request id (avalai-request-id or x-request-id header), for support tickets.
+	// Who answered: avalai or cloudflare.
+	Provider string `json:"provider,omitempty" enums:"avalai,cloudflare" example:"avalai"`
+	// The provider's request id, for support tickets: avalai-request-id (AvalAI), or cf-aig-log-id, the id to search for in the Cloudflare dashboard.
 	ProviderRequestID string `json:"provider_request_id,omitempty" example:"req_0123456789"`
 	// HTTP status of the provider's last answer; 0 when no answer came.
 	HTTPStatus int `json:"http_status,omitempty" example:"429"`
-	// The provider's error.code, such as rate_limit_exceeded or invalid_api_key.
+	// The provider's error code, such as rate_limit_exceeded or invalid_api_key, or Cloudflare's numeric code (2009).
 	ProviderCode string `json:"provider_code,omitempty" example:"rate_limit_exceeded"`
+	// Cloudflare only: cf-aig-cache-status (HIT or MISS). The gateway cache is skipped, so it should be MISS.
+	GatewayCache string `json:"gateway_cache,omitempty" example:"MISS"`
 	FinishReason string `json:"finish_reason,omitempty" example:"length"`
 	InputTokens  int64  `json:"input_tokens,omitempty" example:"8421"`
 	OutputTokens int64  `json:"output_tokens,omitempty" example:"512"`

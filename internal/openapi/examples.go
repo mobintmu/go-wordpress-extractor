@@ -12,7 +12,8 @@ type Example struct {
 	URL         string
 	RequestID   string
 	// AIRule marks a URL on a host without a site config: it is served by
-	// the AI crawler's default rule (engine ai-crawler-avalai).
+	// the default rule (engine APP_DEFAULT_ENGINE: ai-crawler-avalai or
+	// ai-crawler-cloudflare).
 	AIRule bool
 }
 
@@ -82,19 +83,23 @@ var ExtractExamples = []Example{
 		URL:         "https://www.lumens.com/n701-round-corner-sofa-by-ethnicraft-ETH2111288.html", RequestID: "lumens-1",
 	},
 
-	// search engine
+	// AI engine selected by a site config
 	{
-		Key: "fergusonhome", Summary: "fergusonhome.com (search engine)",
-		Description: "Served from DuckDuckGo (alternate Brave); the site is not contacted. Only title, URL and description are returned and completeness is partial. Needs APP_DUCKDUCKGO_ENABLED or APP_BRAVE_ENABLED.",
-		URL:         "https://www.fergusonhome.com/duravit-030549-0hole/s1666394?uid=3938155", RequestID: "ferguson-1",
+		Key: "fergusonhome", Summary: "fergusonhome.com (ai-crawler-avalai, web search)",
+		Description: "Ferguson is behind Akamai and answers 403 to plain HTTP and to Chrome, so the site config sets fetch.engine ai-crawler-avalai with ai_fetch web_search: the site is never contacted. " +
+			"Only the URL goes to AvalAI's search model (APP_AI_CRAWLER_SEARCH_MODEL, sonar), which looks the product up on the web and returns title, price (USD), description and specs with its sources. " +
+			"Expect site_id fergusonhome, source.engine ai-crawler-avalai, source.fetched_with web_search, source.site_contacted false, source.sources, and the warnings AI_EXTRACTED and AI_UNVERIFIED: the values were not checked against the page, so price and stock may be out of date. " +
+			"Needs APP_AI_CRAWLER_ENABLED=true with an AvalAI key. Fails with SEARCH_NO_RESULT when no source is on fergusonhome.com.",
+		URL: "https://www.fergusonhome.com/duravit-030549-0hole/s1666394?uid=3938155", RequestID: "ferguson-1",
 	},
 
 	// AI crawler default rule: no site config
 	{
 		Key: "wayfair-ai", Summary: "wayfair.com (AI crawler, no site config)",
-		Description: "No file in configs/sites/ claims wayfair.com, so the default rule ai-crawler-avalai serves it: the page is fetched and an LLM (APP_AI_CRAWLER_MODEL, deepseek-v4.1-flash on AvalAI) " +
-			"reads name, price, image, description, specs and features, each checked against the page. Expect site_id ai-crawler-default, config_origin default, source.engine ai-crawler-avalai and an AI_EXTRACTED warning. " +
-			"Needs APP_AI_CRAWLER_ENABLED=true with an API key; otherwise SITE_NOT_CONFIGURED. Wayfair uses bot protection, so the call may fail with BOT_PROTECTION from the server's IP. " +
+		Description: "No file in configs/sites/ claims wayfair.com, so the default rule serves it with APP_DEFAULT_ENGINE: the page is fetched and an LLM " +
+			"(ai-crawler-avalai: APP_AI_CRAWLER_MODEL, deepseek-v4.1-flash on AvalAI; ai-crawler-cloudflare: APP_AI_CRAWLER_CLOUDFLARE_MODEL, @cf/deepseek-ai/deepseek-v4.1-flash-1017 through Cloudflare AI Gateway) " +
+			"reads name, price, image, description, specs and features, each checked against the page. Expect site_id ai-crawler-default, config_origin default, source.engine set to the default engine and an AI_EXTRACTED warning. " +
+			"Needs APP_AI_CRAWLER_ENABLED=true with that engine configured; with APP_DEFAULT_ENGINE=none, SITE_NOT_CONFIGURED. Wayfair uses bot protection, so the call may fail with BOT_PROTECTION from the server's IP. " +
 			"After 3 product pages match in shadow, the host is served by learned selectors (config_origin learned).",
 		URL:       "https://www.wayfair.com/furniture/pdp/mercer41-55-w-8-drawer-dresser-w118377980.html?piid=2115584224",
 		RequestID: "wayfair-ai-1", AIRule: true,

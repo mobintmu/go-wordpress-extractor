@@ -129,6 +129,11 @@ type Cached struct {
 	InputTokens  int64
 	OutputTokens int64
 	RequestID    string
+	// Model is the model that answered when it differs from the configured
+	// one (a Cloudflare dynamic route); "" otherwise.
+	Model string
+	// Sources are the web pages a search model used (ai_fetch web_search).
+	Sources []string
 }
 
 // Cache keeps extractions by key for a time. It holds at most maxEntries;

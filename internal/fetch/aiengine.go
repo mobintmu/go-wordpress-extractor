@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/url"
+	"strings"
 	"unicode/utf8"
 
 	"go-wordpress/internal/aicrawler"
@@ -16,8 +17,11 @@ import (
 	"go.uber.org/zap"
 )
 
-// EngineAICrawler is the AI crawler's engine name.
-const EngineAICrawler = siteconfig.EngineAICrawler
+// The AI engines' names.
+const (
+	EngineAICrawler    = siteconfig.EngineAICrawler
+	EngineAICloudflare = siteconfig.EngineAICloudflare
+)
 
 // AIPage is what the AI crawler produced for a page: the model's answer and
 // the cleaned page it must be checked against.
@@ -26,17 +30,22 @@ type AIPage struct {
 	Clean         *aicrawler.Page
 	Model         string
 	PromptVersion string
-	// FetchedWith is the engine that fetched the HTML: "http" or "browser".
+	// FetchedWith is how the page was got: "http" or "browser" (the HTML
+	// was fetched), or "web_search" (the site was not contacted; the
+	// provider's search model looked the product up).
 	FetchedWith string
-	Cached      bool
+	// Sources are the web pages the search model used (web_search only).
+	Sources []string
+	Cached  bool
 	// Evidence describes the LLM call, for failures and logs.
 	Evidence diagnose.AIEvidence
 }
 
-// AIEngine is the "ai-crawler-avalai" strategy. It fetches the page with
-// the http engine (or the browser engine), cleans it and asks an LLM for the
-// product. The page body stays in the Page, so it serves as evidence and
-// for selector learning.
+// AIEngine is an AI strategy: "ai-crawler-avalai" or
+// "ai-crawler-cloudflare", whichever provider its client calls. It fetches
+// the page with the http engine (or the browser engine), cleans it and asks
+// an LLM for the product. The page body stays in the Page, so it serves as
+// evidence and for selector learning.
 type AIEngine struct {
 	http     *Fetcher
 	browser  *BrowserFetcher
@@ -47,8 +56,9 @@ type AIEngine struct {
 	log      *zap.Logger
 }
 
-// NewAIEngine builds the engine; it returns nil when client is nil (the AI
-// crawler is off), so the router skips it. browser may be nil.
+// NewAIEngine builds the engine for client's provider; it returns nil when
+// client is nil (the engine is not configured), so the router skips it.
+// browser may be nil.
 func NewAIEngine(httpEngine *Fetcher, browser *BrowserFetcher, client *aicrawler.Client, cache *aicrawler.Cache, maxChars int, log *zap.Logger) *AIEngine {
 	if client == nil {
 		return nil
@@ -56,14 +66,17 @@ func NewAIEngine(httpEngine *Fetcher, browser *BrowserFetcher, client *aicrawler
 	return &AIEngine{http: httpEngine, browser: browser, client: client, cache: cache, maxChars: maxChars, schema: aicrawler.ProductSchema(), log: log}
 }
 
-// Name makes the AI crawler the "ai-crawler-avalai" strategy.
-func (e *AIEngine) Name() string { return EngineAICrawler }
+// Name is the provider's engine: "ai-crawler-avalai" or "ai-crawler-cloudflare".
+func (e *AIEngine) Name() string { return e.client.Engine() }
 
 // Client returns the LLM client, for selector learning.
 func (e *AIEngine) Client() *aicrawler.Client { return e.client }
 
 // Fetch fetches target, then extracts the product with the LLM.
 func (e *AIEngine) Fetch(ctx context.Context, site *siteconfig.Site, target *url.URL) (*Page, *diagnose.Failure) {
+	if site.Fetch.AIFetch == siteconfig.AIFetchWebSearch {
+		return e.webSearch(ctx, site, target)
+	}
 	browserFirst := site.Fetch.AIFetch == EngineBrowser
 	if browserFirst && e.browser == nil {
 		return &Page{RequestedURL: target.String()}, diagnose.New(diagnose.EngineUnavailable, diagnose.ConfidenceHigh,
@@ -109,14 +122,17 @@ func (e *AIEngine) Fetch(ctx context.Context, site *siteconfig.Site, target *url
 		return page, diagnose.New(diagnose.InternalError, diagnose.ConfidenceHigh, "The HTML could not be parsed: %v.", err).At(diagnose.StagePageCheck)
 	}
 	ai := &AIPage{Clean: clean, Model: e.client.Model(), PromptVersion: aicrawler.PromptVersion, FetchedWith: fetchedWith}
-	ai.Evidence = diagnose.AIEvidence{Model: ai.Model, InputChars: utf8.RuneCountInString(clean.Text)}
+	ai.Evidence = diagnose.AIEvidence{Model: ai.Model, Provider: e.client.Provider(), InputChars: utf8.RuneCountInString(clean.Text)}
 	page.AI = ai
 
 	ctx = aicrawler.WithCall(ctx, aicrawler.PurposeExtract, target.Hostname())
-	key := cacheKey(ai.Model, final.String(), clean.Text)
+	key := cacheKey(e.Name(), ai.Model, final.String(), clean.Text)
 	if c, ok := e.cache.Get(key); ok {
 		e.client.CacheHit(ctx)
 		ai.Product, ai.Cached = c.Product, true
+		if c.Model != "" {
+			ai.Model, ai.Evidence.Model = c.Model, c.Model
+		}
 		ai.Evidence.InputTokens, ai.Evidence.OutputTokens, ai.Evidence.ProviderRequestID = c.InputTokens, c.OutputTokens, c.RequestID
 		return page, nil
 	}
@@ -130,15 +146,27 @@ func (e *AIEngine) Fetch(ctx context.Context, site *siteconfig.Site, target *url
 		return page, fail
 	}
 	ai.Product = prod
-	e.cache.Put(key, aicrawler.Cached{Product: prod, InputTokens: ai.Evidence.InputTokens, OutputTokens: ai.Evidence.OutputTokens, RequestID: ai.Evidence.ProviderRequestID})
+	cached := aicrawler.Cached{Product: prod, InputTokens: ai.Evidence.InputTokens, OutputTokens: ai.Evidence.OutputTokens, RequestID: ai.Evidence.ProviderRequestID}
+	if ai.Model != e.client.Model() {
+		cached.Model = ai.Model
+	}
+	e.cache.Put(key, cached)
 	return page, nil
 }
 
 // ask calls the model and parses its answer. An answer that is not valid
 // JSON is asked for once more.
 func (e *AIEngine) ask(ctx context.Context, msgs []aicrawler.Message, ai *AIPage) (*aicrawler.Product, *diagnose.Failure) {
+	return e.askWith(ctx, msgs, ai, func(ctx context.Context, msgs []aicrawler.Message) (*aicrawler.Completion, *aicrawler.CallError) {
+		return e.client.Complete(ctx, msgs, "product", e.schema)
+	})
+}
+
+// askWith is ask with the call made by complete.
+func (e *AIEngine) askWith(ctx context.Context, msgs []aicrawler.Message, ai *AIPage,
+	complete func(context.Context, []aicrawler.Message) (*aicrawler.Completion, *aicrawler.CallError)) (*aicrawler.Product, *diagnose.Failure) {
 	for attempt := 0; ; attempt++ {
-		comp, cerr := e.client.Complete(ctx, msgs, "product", e.schema)
+		comp, cerr := complete(ctx, msgs)
 		if comp != nil {
 			ai.Evidence.ProviderRequestID = comp.RequestID
 			ai.Evidence.HTTPStatus = comp.Status
@@ -146,6 +174,18 @@ func (e *AIEngine) ask(ctx context.Context, msgs []aicrawler.Message, ai *AIPage
 			ai.Evidence.InputTokens += comp.InputTokens
 			ai.Evidence.OutputTokens += comp.OutputTokens
 			ai.Evidence.Output = truncate(comp.Content, 500)
+			ai.Evidence.GatewayCache = comp.GatewayCache
+			if len(comp.Sources) > 0 {
+				ai.Sources = comp.Sources
+			}
+			if comp.GatewayCache == "HIT" {
+				e.log.Warn("ai crawler: the AI gateway answered from its cache although cf-aig-skip-cache is sent",
+					zap.String("engine", e.Name()), zap.String("request_id", comp.RequestID))
+			}
+			if comp.Model != "" {
+				// A Cloudflare dynamic route: the model that answered.
+				ai.Model, ai.Evidence.Model = comp.Model, comp.Model
+			}
 		}
 		if cerr != nil {
 			ai.Evidence.HTTPStatus, ai.Evidence.ProviderCode = cerr.Status, cerr.ProviderCode
@@ -178,6 +218,89 @@ func (e *AIEngine) ask(ctx context.Context, msgs []aicrawler.Message, ai *AIPage
 	}
 }
 
+// webSearch serves fetch.ai_fetch "web_search": the site is never
+// contacted. Only the URL goes to the provider's search model, which looks
+// the product up on the web and answers with the product JSON and its
+// sources. At least one source must be on the site's own domains, so an
+// answer built only from other shops is refused. The values cannot be
+// checked against a page the service never saw; extract marks them
+// unverified.
+func (e *AIEngine) webSearch(ctx context.Context, site *siteconfig.Site, target *url.URL) (*Page, *diagnose.Failure) {
+	page := &Page{RequestedURL: target.String(), FinalURL: target}
+	model := e.client.SearchModel()
+	if model == "" {
+		return page, diagnose.New(diagnose.EngineUnavailable, diagnose.ConfidenceHigh,
+			"The site config sets fetch.ai_fetch to \"web_search\", but engine %s has no search model on this instance.", e.Name()).
+			WithAction("Set APP_AI_CRAWLER_SEARCH_MODEL (for example sonar) and use engine ai-crawler-avalai, or change fetch.ai_fetch.")
+	}
+	ai := &AIPage{Model: model, PromptVersion: aicrawler.WebPromptVersion, FetchedWith: siteconfig.AIFetchWebSearch}
+	ai.Evidence = diagnose.AIEvidence{Model: model, Provider: e.client.Provider()}
+	page.AI = ai
+
+	ctx = aicrawler.WithCall(ctx, aicrawler.PurposeWeb, target.Hostname())
+	key := cacheKey(e.Name()+"/web", model, target.String(), "")
+	if c, ok := e.cache.Get(key); ok {
+		e.client.CacheHit(ctx)
+		ai.Product, ai.Cached, ai.Sources = c.Product, true, c.Sources
+		ai.Clean = aicrawler.UncheckedPage(priceText(c.Product))
+		ai.Evidence.InputTokens, ai.Evidence.OutputTokens, ai.Evidence.ProviderRequestID = c.InputTokens, c.OutputTokens, c.RequestID
+		return page, nil
+	}
+
+	msgs := []aicrawler.Message{
+		{Role: "system", Content: aicrawler.WebSystemPrompt},
+		{Role: "user", Content: aicrawler.WebUserPrompt(target.String())},
+	}
+	prod, fail := e.askWith(ctx, msgs, ai, e.client.CompleteWeb)
+	if fail != nil {
+		return page, fail
+	}
+	if !onSite(ai.Sources, site) {
+		f := diagnose.New(diagnose.SearchNoResult, diagnose.ConfidenceMedium,
+			"The search model %s cited no page on %v for this product (sources: %v), so its answer was not used.", model, site.Domains, truncateList(ai.Sources, 5)).
+			WithAction("Retry later, or use a search engine (duckduckgo, brave) or another fetch.ai_fetch for this site.")
+		return page, f
+	}
+	ai.Product = prod
+	ai.Clean = aicrawler.UncheckedPage(priceText(prod))
+	e.cache.Put(key, aicrawler.Cached{Product: prod, InputTokens: ai.Evidence.InputTokens, OutputTokens: ai.Evidence.OutputTokens,
+		RequestID: ai.Evidence.ProviderRequestID, Sources: ai.Sources})
+	return page, nil
+}
+
+// onSite reports whether one of sources is on the site's domains (or a
+// subdomain of one).
+func onSite(sources []string, site *siteconfig.Site) bool {
+	for _, s := range sources {
+		u, err := url.Parse(s)
+		if err != nil {
+			continue
+		}
+		h := siteconfig.NormalizeHost(u.Hostname())
+		for _, d := range site.Domains {
+			if h == d || strings.HasSuffix(h, "."+d) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// priceText is the model's price texts, so currency words can be read.
+func priceText(p *aicrawler.Product) string {
+	if p == nil {
+		return ""
+	}
+	return aicrawler.Str(p.Price.CurrentText) + " " + aicrawler.Str(p.Price.RegularText)
+}
+
+func truncateList(s []string, n int) []string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
+}
+
 // checkPage runs the page checks the selector pipeline runs: a challenge
 // page, an empty page or a JavaScript shell is not sent to the model.
 func checkPage(p *Page) *diagnose.Failure {
@@ -198,9 +321,11 @@ func checkPage(p *Page) *diagnose.Failure {
 	return nil
 }
 
-func cacheKey(model, pageURL, text string) string {
+// cacheKey includes the engine: the same model name on two providers is
+// not the same model.
+func cacheKey(engine, model, pageURL, text string) string {
 	h := sha256.New()
-	for _, s := range []string{model, aicrawler.PromptVersion, pageURL, text} {
+	for _, s := range []string{engine, model, aicrawler.PromptVersion, pageURL, text} {
 		h.Write([]byte(s))
 		h.Write([]byte{0})
 	}

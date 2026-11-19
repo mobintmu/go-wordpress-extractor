@@ -2,9 +2,9 @@
 
 A stateless HTTP service that extracts one product from one product page. A client application sends a product URL with an API key. The service finds that site's parsing rules in a JSON file, fetches the page, and returns either the product or a structured root cause with evidence, in the same response.
 
-For sites behind bot protection that the service does not get past (fergusonhome.com, lumens.com), a search engine (`duckduckgo`, `brave`, `mojeek`, `yahoo` or `yandex`) builds the product from the search result instead, without contacting the site. Whatever is found is returned, and every field that could not be found is listed in `unavailable_fields`. See [Search engines](#search-engines-duckduckgo-brave-mojeek-yahoo-yandex), [md/ENGINES.md](md/ENGINES.md) and [Responsible use](#responsible-use).
+For sites behind bot protection that the service does not get past (lumens.com), a search engine (`duckduckgo`, `brave`, `mojeek`, `yahoo` or `yandex`) builds the product from the search result instead, without contacting the site. Whatever is found is returned, and every field that could not be found is listed in `unavailable_fields`. See [Search engines](#search-engines-duckduckgo-brave-mojeek-yahoo-yandex), [md/ENGINES.md](md/ENGINES.md) and [Responsible use](#responsible-use).
 
-For a shop that has no config at all, the AI crawler (`ai-crawler-avalai`, off by default) is the default rule: it fetches the page and has an LLM on an OpenAI-compatible API (AvalAI, `deepseek-v4.1-flash`) read name, price, image, description, specs and features, each checked against the page. After a few products it learns CSS selectors for the shop, so later requests need no LLM call. See [AI crawler](#ai-crawler-ai-crawler-avalai) and [md/AI_CRAWLER_AVALAI_PROPOSAL.md](md/AI_CRAWLER_AVALAI_PROPOSAL.md).
+For a shop that has no config at all, the AI crawler (off by default) is the default rule: it fetches the page and has an LLM read name, price, image, description, specs and features, each checked against the page. Two AI engines exist: `ai-crawler-avalai` (AvalAI, `deepseek-v4.1-flash`) and `ai-crawler-cloudflare` (Cloudflare AI Gateway, `@cf/deepseek-ai/deepseek-v4.1-flash-1017`); `APP_DEFAULT_ENGINE` picks the one for shops without a config. After a few products it learns CSS selectors for the shop, so later requests need no LLM call. See [AI crawler](#ai-crawler-ai-crawler-avalai-ai-crawler-cloudflare), [md/AI_CRAWLER_AVALAI_PROPOSAL.md](md/AI_CRAWLER_AVALAI_PROPOSAL.md) and [md/AI_CRAWLER_CLOUDFLARE_PROPOSAL.md](md/AI_CRAWLER_CLOUDFLARE_PROPOSAL.md).
 
 There is no database and no Redis. Site configs and API keys are files that are re-read every 30 seconds. The design is in [md/SYNC_EXTRACTION_PROPOSAL.md](md/SYNC_EXTRACTION_PROPOSAL.md).
 
@@ -30,15 +30,17 @@ configs/                schema/, templates/ (woocommerce, woodmart, prestashop),
 internal/apikey         Key format, HMAC hashing, .env and JSON key files, reload, middleware
 internal/siteconfig     Loader, template merge, validation, registry with hot reload
 internal/extract        Pipeline (config, fetch, page_check, extract, normalize, validate) and handler
-internal/fetch          Fetch engines (http/Colly, browser, search) and router; SSRF-safe dialer, retries, redirects, size limit
+internal/fetch          Fetch engines (http/Colly, browser, search, AI) and router; SSRF-safe dialer, retries, redirects, size limit
 internal/fetch/search   DuckDuckGo, Brave, Mojeek, Yahoo and Yandex providers, URL matching, query building
+internal/aicrawler      LLM client (openai-go) with provider profiles (AvalAI, Cloudflare AI Gateway), page cleaner, prompts, cache
+internal/sites          GET /api/v1/sites (site list, default rule, default AI engine)
 internal/normalize      Digits, prices (ranges, rial to toman), text, URLs
 internal/diagnose       Failure codes, page checks, selector trace, HTML samples
 internal/limiter        Per-instance and per-site concurrency, per-site request spacing
 internal/metrics        Prometheus text metrics
 testdata/sites/         Saved HTML and expected output per site
 testdata/search/        Saved DuckDuckGo result pages (real); synthetic Brave, Mojeek, Yahoo and Yandex responses
-test/e2e/               End-to-end tests against the real server and a fake shop
+test/e2e/               End-to-end tests against the real server, a fake shop, a fake LLM and a fake Cloudflare AI Gateway
 ```
 
 ## Run locally
@@ -141,7 +143,7 @@ This service downloads product pages from shop websites. When a search engine is
 - **DuckDuckGo's [Terms of Service](https://duckduckgo.com/terms) and [Acceptable Use Policy](https://duckduckgo.com/acceptable-use)**, for the `duckduckgo` engine. DuckDuckGo offers no API for web results and has not approved this project. The engine is off by default.
 - **Brave's terms for your [Brave Search API](https://brave.com/search/api) plan**, for the `brave` engine, including whether you may store results. Use your own API key. The engine is off by default.
 - **[Mojeek's](https://www.mojeek.com/about/terms/), [Yahoo's](https://legal.yahoo.com/) and [Yandex's](https://yandex.com/legal/) terms**, for the `mojeek`, `yahoo` and `yandex` engines. These engines read the provider's public results page with the honest `APP_SEARCH_USER_AGENT`; none of the three providers has approved this project, and none is contacted through an API. Each engine is off by default, and each has its own switch.
-- **Your AI provider's terms**, for the `ai-crawler-avalai` engine (AvalAI and the model provider behind it). The engine sends the content of every page it serves, and its URL, to the provider. It is off by default.
+- **Your AI provider's terms**, for the `ai-crawler-avalai` engine (AvalAI and the model provider behind it) and the `ai-crawler-cloudflare` engine (Cloudflare and the model provider behind its gateway). Each engine sends the content of every page it serves, and its URL, to the provider. By default the Cloudflare gateway logs prompts and answers; this service sends `cf-aig-collect-log: false` unless `APP_AI_CRAWLER_CLOUDFLARE_COLLECT_LOG=true`. A token with the AI Gateway Run permission works on every gateway of the account, so use a dedicated token and keep it in `secrets/`. Both engines are off by default.
 - **The laws that apply to you**, for example on copyright, databases and personal data.
 
 **What each engine does:**
@@ -150,7 +152,7 @@ This service downloads product pages from shop websites. When a search engine is
 |---|---|---|
 | `http` | Yes, with plain HTTP requests | Follows the site's `robots.txt` unless the site config sets `respect_robots_txt` to `false` |
 | `browser` | Yes, in a real Chrome browser | Runs the page's JavaScript like a normal visitor's browser. This can get past some anti-bot checks, for example Cloudflare's "Just a moment..." page. Some websites' terms forbid this, so check before you use it for a site |
-| `ai-crawler-avalai` | Yes, with plain HTTP requests (Chrome for JavaScript pages when the browser engine is on) | Always follows `robots.txt` for hosts without a config. Sends the cleaned page to the AI provider. Serves any host without a site config while the default rule is on |
+| `ai-crawler-avalai`, `ai-crawler-cloudflare` | Yes, with plain HTTP requests (Chrome for JavaScript pages when the browser engine is on) | Always follows `robots.txt` for hosts without a config. Sends the cleaned page to the AI provider (AvalAI, or Cloudflare AI Gateway). The one named by `APP_DEFAULT_ENGINE` serves any host without a rule |
 | `duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex` | No | Sends search queries to the provider only, and builds the product from the search result. The queries carry the honest `APP_SEARCH_USER_AGENT`; the service never pretends to be a browser and never retries a block |
 
 **No affiliation.** DuckDuckGo, Brave, Mojeek, Yahoo, Yandex, and the shop names used in `configs/sites/` are trademarks of their owners. This project is not affiliated with or endorsed by any of them.
@@ -392,18 +394,19 @@ func pick(nodes []Node, site string) *Node {
 | `APP_YAHOO_MIN_INTERVAL_MS` | `3000` | Minimum time between two Yahoo queries |
 | `APP_YANDEX_ENABLED` | `false` | Turn on the `yandex` engine (Yandex's results page). No key. Its own switch, so an operator who does not want Yandex traffic leaves it off |
 | `APP_YANDEX_MIN_INTERVAL_MS` | `3000` | Minimum time between two Yandex queries |
-| `APP_AI_CRAWLER_ENABLED` | `false` | Turn on the `ai-crawler-avalai` engine. Needs a key; the app does not start without one |
-| `APP_AI_CRAWLER_DEFAULT_RULE` | `true` | Serve every host without a site config with the AI crawler. `false`: such hosts keep failing with `SITE_NOT_CONFIGURED` |
-| `APP_AI_CRAWLER_BASE_URL` | `https://api.avalai.ir/v1` | OpenAI-compatible API base. Must be `https` (plain `http` only for localhost) |
-| `APP_AI_CRAWLER_MODEL` | `deepseek-v4.1-flash` | The only model used; there is no fallback model |
-| `APP_AI_CRAWLER_API_KEY` | none | **Secret.** The provider's API key, sent as `Authorization: Bearer`. Never logged or returned. Only in a git-ignored file (`.env`, `.env.production`) or the shell |
+| `APP_DEFAULT_ENGINE` | `ai-crawler-avalai` with the AI crawler on, `none` with it off | Engine for any host with no site config and no active learned config: `ai-crawler-avalai`, `ai-crawler-cloudflare` or `none` (`SITE_NOT_CONFIGURED`). The app does not start if it names an engine that is not configured, or an engine that needs selectors (`http`, `browser`, search). It replaced `APP_AI_CRAWLER_DEFAULT_RULE` (`true` → `ai-crawler-avalai`, `false` → `none`); the app does not start while that is still set |
+| `APP_AI_CRAWLER_ENABLED` | `false` | Turn the AI engines on. Each engine is on when its own settings are complete: AvalAI needs a key, Cloudflare an account id and a token. With it on and no engine configured, the app does not start |
+| `APP_AI_CRAWLER_BASE_URL` | `https://api.avalai.ir/v1` | AvalAI: OpenAI-compatible API base. Must be `https` (plain `http` only for localhost) |
+| `APP_AI_CRAWLER_MODEL` | `deepseek-v4.1-flash` | AvalAI: the only model used; there is no fallback model |
+| `APP_AI_CRAWLER_SEARCH_MODEL` | `sonar` | AvalAI: the model that searches the web itself, for sites with `fetch.ai_fetch: "web_search"` (the site is never contacted; values come back with the warning `AI_UNVERIFIED`). `none` turns that mode off |
+| `APP_AI_CRAWLER_API_KEY` | none | **Secret.** AvalAI's API key, sent as `Authorization: Bearer`. Never logged or returned. Only in a git-ignored file (`.env`, `.env.production`) or the shell |
 | `APP_AI_CRAWLER_API_KEY_FILE` | none | A file holding only the key, for example `secrets/avalai_api_key`. Used when `APP_AI_CRAWLER_API_KEY` is empty |
 | `APP_AI_CRAWLER_TIMEOUT` | `45s` | One LLM call (each retry gets its own) |
 | `APP_AI_CRAWLER_MAX_INPUT_CHARS` | `60000` | Cleaned page sent to the model |
 | `APP_AI_CRAWLER_MAX_OUTPUT_TOKENS` | `2000` | The model's answer |
 | `APP_AI_CRAWLER_TEMPERATURE` | `0` | Sampling temperature |
 | `APP_AI_CRAWLER_RETRIES` | `2` | Retries of 408, 409, 429 and 5xx answers, honoring `Retry-After` (done by the `openai-go` SDK) |
-| `APP_AI_CRAWLER_MIN_INTERVAL_MS` | `500` | Minimum time between two LLM calls from this instance |
+| `APP_AI_CRAWLER_MIN_INTERVAL_MS` | `500` | AvalAI: minimum time between two LLM calls from this instance |
 | `APP_AI_CRAWLER_CACHE_TTL` | `6h` | The same page and model reuse the answer; `0` turns the cache off |
 | `APP_AI_CRAWLER_RESPONSE_FORMAT` | `json_object` | `json_object`, or `json_schema` (strict schema; test it on the model first) |
 | `APP_AI_CRAWLER_DEFAULT_DELAY_MS` | `2000` | Gap between two fetches of the same host under the default rule |
@@ -412,6 +415,20 @@ func pick(nodes []Node, site string) *Node {
 | `APP_AI_CRAWLER_LEARN_PROMOTE_AFTER` | `3` | Different product pages that must match in shadow before a learned config serves its host |
 | `APP_AI_CRAWLER_LEARN_DEMOTE_AFTER` | `3` | Failures in a row that demote an active learned config |
 | `APP_AI_CRAWLER_LEARN_MAX_ATTEMPTS_PER_DAY` | `3` | Learning calls per host per day |
+| `APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID` | none | Cloudflare: account id (32 hex characters). The `ai-crawler-cloudflare` engine is configured only when it is set |
+| `APP_AI_CRAWLER_CLOUDFLARE_GATEWAY_ID` | `default` | Cloudflare: gateway id (at most 64 characters); `default` is created on first use |
+| `APP_AI_CRAWLER_CLOUDFLARE_ENDPOINT` | `rest` | `rest` (`https://api.cloudflare.com/client/v4/accounts/<id>/ai/v1`, gateway in `cf-aig-gateway-id`) or `compat` (`https://gateway.ai.cloudflare.com/v1/<id>/<gateway>/compat`, deprecated by Cloudflare for single-model calls) |
+| `APP_AI_CRAWLER_CLOUDFLARE_BASE_URL` | none | Full override of the base URL (tests, a future endpoint). `https` only, except localhost |
+| `APP_AI_CRAWLER_CLOUDFLARE_MODEL` | `@cf/deepseek-ai/deepseek-v4.1-flash-1017` | Model id from the Cloudflare catalog; `{provider}/{model}` for other providers, `dynamic/<route>` for a dynamic route. On `compat`, Workers AI models are written `workers-ai/@cf/...` |
+| `APP_AI_CRAWLER_CLOUDFLARE_REASONING_EFFORT` | `none` | Sent as `reasoning_effort`: `none`, `low`, `high` or `max` |
+| `APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN` | none | **Secret.** Cloudflare API token with "Workers AI Read" and "AI Gateway Run" (`rest`), or the gateway token (`compat`) |
+| `APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE` | none | A file holding only the token, for example `secrets/cloudflare_api_token` |
+| `APP_AI_CRAWLER_CLOUDFLARE_PROVIDER_API_KEY` (`_FILE`) | none | **Secret**, `compat` only: the provider's own key. On `rest` the app does not start with it set; store the key in the gateway (BYOK) instead |
+| `APP_AI_CRAWLER_CLOUDFLARE_NO_UNIFIED_BILLING` | `true` | Sends `cf-aig-no-wholesale: true`: a call with no usable key fails (`AI_AUTH_FAILED`) instead of spending Unified Billing credits. Workers AI models are billed to the account either way |
+| `APP_AI_CRAWLER_CLOUDFLARE_COLLECT_LOG` | `false` | `false` sends `cf-aig-collect-log: false`, so the gateway keeps no copy of the page text and the answer |
+| `APP_AI_CRAWLER_CLOUDFLARE_MIN_INTERVAL_MS` | `500` | Cloudflare: minimum time between two LLM calls from this instance |
+
+The shared AI settings (`TIMEOUT`, `MAX_INPUT_CHARS`, `MAX_OUTPUT_TOKENS`, `TEMPERATURE`, `RETRIES`, `CACHE_TTL`, `RESPONSE_FORMAT`, `DEFAULT_DELAY_MS`, `LEARN_*`) apply to both engines.
 
 ### Fetch engines
 
@@ -423,7 +440,8 @@ Each site picks how its pages are fetched with `fetch.engine` in its config (Str
 | `browser` | `fetch.BrowserFetcher`: Playwright drives Chrome | Pages rendered by JavaScript (`JS_RENDERED_PAGE`). 3-10 s per page |
 | `duckduckgo` | `fetch.SearchFetcher` with DuckDuckGo's HTML results page | Sites behind bot protection that should not be fetched at all. Never contacts the site. About 1-3 s |
 | `brave` | `fetch.SearchFetcher` with the Brave Search API | The same, through a paid, licensed API with your own key |
-| `ai-crawler-avalai` | `fetch.AIEngine`: fetches with `http` (or `browser`), then an LLM reads the page | Hosts without a site config (default rule), or sites whose layout changes often. 3-15 s, costs tokens |
+| `ai-crawler-avalai` | `fetch.AIEngine`: fetches with `http` (or `browser`), then an LLM on AvalAI reads the page | Hosts without a site config (default rule), or sites whose layout changes often. 3-15 s, costs tokens |
+| `ai-crawler-cloudflare` | The same `fetch.AIEngine`, with the LLM call through Cloudflare AI Gateway | The same, on Cloudflare (Workers AI or any provider behind the gateway) |
 | `mojeek`, `yahoo`, `yandex` | `fetch.SearchFetcher` with that engine's HTML results page, parsed by [`github.com/jcalvert/metawebsearch`](https://github.com/jcalvert/metawebsearch) | The same, through other indexes (Mojeek's own, Bing's through Yahoo, Yandex's own). No key. Each engine has its own switch |
 
 Every engine is described in [md/ENGINES.md](md/ENGINES.md). A site can also list `alternate_engines` (search engines only). The router uses the first engine from `[engine, ...alternate_engines]` that is enabled on the instance. That choice is made once per request: a failed fetch is never retried on another engine, and a request never switches from `http` or `browser` to search.
@@ -432,7 +450,7 @@ All of Chrome's traffic goes through an in-process egress proxy that dials with 
 
 ### Search engines (duckduckgo, brave, mojeek, yahoo, yandex)
 
-For a site behind bot protection (Cloudflare, Akamai, ...) that the service should not get past, set a search engine. The service then never contacts the site: it looks the product URL up in the search engine and builds the product from the matching result. Used today by `fergusonhome.com` and `lumens.com`. The design and the tests behind it are in [md/SEARCH_ENGINE_PROPOSAL.md](md/SEARCH_ENGINE_PROPOSAL.md) (DuckDuckGo, Brave) and [md/METAWEBSEARCH_ENGINE_PROPOSAL.md](md/METAWEBSEARCH_ENGINE_PROPOSAL.md) (Mojeek, Yahoo, Yandex).
+For a site behind bot protection (Cloudflare, Akamai, ...) that the service should not get past, set a search engine. The service then never contacts the site: it looks the product URL up in the search engine and builds the product from the matching result. Used today by `lumens.com`; `fergusonhome.com` used it until 2026-11-19 and now uses `ai-crawler-avalai` with `ai_fetch: web_search`. The design and the tests behind it are in [md/SEARCH_ENGINE_PROPOSAL.md](md/SEARCH_ENGINE_PROPOSAL.md) (DuckDuckGo, Brave) and [md/METAWEBSEARCH_ENGINE_PROPOSAL.md](md/METAWEBSEARCH_ENGINE_PROPOSAL.md) (Mojeek, Yahoo, Yandex).
 
 | Engine | Source | Index | Key | Region |
 |---|---|---|---|---|
@@ -507,7 +525,7 @@ SEARCH_LIVE_TEST=1 APP_BRAVE_API_KEY=... go test ./internal/fetch/search/ -run L
 SEARCH_LIVE_TEST=1 SEARCH_LIVE_SAVE=/tmp/pages go test ./internal/fetch/search/ -run Live -v  # also save every raw answer
 ```
 
-The live test sends the Ferguson sample request with the settings of `configs/sites/fergusonhome.com.json` through every engine, uses `APP_PROXY_HOST`/`APP_PROXY_PORT` when set (as the server does), and ends with a summary that ranks the engines. A `SEARCH_PROVIDER_BLOCKED` answer from Mojeek, Yahoo or Yandex is a finding about that engine and the honest client, not a test bug. Result on 2026-11-15:
+The live test sends the Ferguson sample request with the search settings `configs/sites/fergusonhome.com.json` used until 2026-11-19 (see its `$comment`) through every engine, uses `APP_PROXY_HOST`/`APP_PROXY_PORT` when set (as the server does), and ends with a summary that ranks the engines. A `SEARCH_PROVIDER_BLOCKED` answer from Mojeek, Yahoo or Yandex is a finding about that engine and the honest client, not a test bug. Result on 2026-11-15:
 
 | Engine | Ferguson sample product |
 |---|---|
@@ -518,20 +536,23 @@ The live test sends the Ferguson sample request with the settings of `configs/si
 | `brave` | Not tried (no API key) |
 | `http` | HTTP 403 from the site, which is why it uses a search engine |
 
-The saved answers are the fixtures in `testdata/search/` and are replayed through the real Ferguson config by `test/e2e/fergusonhome_search_test.go`.
+The saved answers are the fixtures in `testdata/search/` and are replayed through the real Ferguson config, with those former search settings, by `test/e2e/fergusonhome_search_test.go`.
 
-### AI crawler (ai-crawler-avalai)
+### AI crawler (ai-crawler-avalai, ai-crawler-cloudflare)
 
-The design, the prompts and every decision are in [md/AI_CRAWLER_AVALAI_PROPOSAL.md](md/AI_CRAWLER_AVALAI_PROPOSAL.md).
+The design, the prompts and every decision are in [md/AI_CRAWLER_AVALAI_PROPOSAL.md](md/AI_CRAWLER_AVALAI_PROPOSAL.md); the second engine is in [md/AI_CRAWLER_CLOUDFLARE_PROPOSAL.md](md/AI_CRAWLER_CLOUDFLARE_PROPOSAL.md).
 
-- **Cost on `/metrics`.** Every call to the AI provider is counted, including the one repair call after a non-JSON answer and the selector-learning calls. The JSON report has an `ai` block (`calls`, `failed`, `input_tokens`, `output_tokens`, `cache_hits`, and one `series` entry per model, purpose, host and outcome). The Prometheus text has `extract_ai_calls_total`, `extract_ai_tokens_total{kind="input|output"}`, `extract_ai_call_seconds_total` and `extract_ai_cache_hits_total`, labelled with `model`, `purpose` (`extract`, `repair`, `learn`), `host` and `outcome` (`ok` or the `AI_*` code). Counters start at 0 when the process starts; use Prometheus `increase(extract_ai_tokens_total[1d])` for tokens per day. Because the default rule accepts any domain, only the first 200 hosts get their own label and the rest are counted as `other`.
-- **Default rule.** With `APP_AI_CRAWLER_ENABLED=true` and `APP_AI_CRAWLER_DEFAULT_RULE=true`, a URL whose host has no file in `configs/sites/` is served by the built-in rule `ai-crawler-default` (`config_origin: default`) instead of failing with `SITE_NOT_CONFIGURED`. A site config always wins. `GET /api/v1/sites` lists the rule last, with `domains: ["*"]`, and sets `accepts_any_domain: true`.
-- **Per site.** A config can set `"fetch": {"engine": "ai-crawler-avalai"}`; it then needs no `root` or `fields`. `"locale": {"price_unit": "auto"}` reads the currency from each page, and `"fetch": {"ai_fetch": "browser"}` always renders in Chrome.
+- **Two engines, one pipeline.** `ai-crawler-avalai` calls AvalAI and `ai-crawler-cloudflare` calls Cloudflare AI Gateway. Cleaning, prompts, grounding, the cache, learning and metrics are shared; what differs (base URL, auth headers, extra headers, error mapping, request-id header) is a provider profile in `internal/aicrawler/provider.go`. There is no fallback from one engine to the other. The Cloudflare engine sends `cf-aig-skip-cache: true` (this service caches answers itself), `cf-aig-metadata` (host, purpose, prompt version) and, by default, `cf-aig-no-wholesale: true` and `cf-aig-collect-log: false`. It does not send the gateway's retry headers: the SDK already retries.
+
+- **Cost on `/metrics`.** Every call to the AI provider is counted, including the one repair call after a non-JSON answer and the selector-learning calls. The JSON report has an `ai` block (`calls`, `failed`, `input_tokens`, `output_tokens`, `cache_hits`, and one `series` entry per engine, model, purpose, host and outcome). The Prometheus text has `extract_ai_calls_total`, `extract_ai_tokens_total{kind="input|output"}`, `extract_ai_call_seconds_total` and `extract_ai_cache_hits_total`, labelled with `engine`, `model`, `purpose` (`extract`, `repair`, `learn`), `host` and `outcome` (`ok` or the `AI_*` code). Counters start at 0 when the process starts; use Prometheus `increase(extract_ai_tokens_total[1d])` for tokens per day. Because the default rule accepts any domain, only the first 200 hosts get their own label and the rest are counted as `other`. The `engine` label was added with `ai-crawler-cloudflare`: dashboards that sum these series must add `engine` to their `sum by (...)`, or sum over it.
+- **Default rule.** With `APP_AI_CRAWLER_ENABLED=true`, a URL whose host has no file in `configs/sites/` and no active learned config is served by the built-in rule `ai-crawler-default` (`config_origin: default`) with the engine `APP_DEFAULT_ENGINE` names, instead of failing with `SITE_NOT_CONFIGURED`. A site config always wins, then an active learned config. `config_version` is `builtin-1` with AvalAI and `builtin-1+cloudflare` with Cloudflare. `GET /api/v1/sites` lists the rule last, with `domains: ["*"]`, the engine and its model, sets `accepts_any_domain: true` and names the engine in `default_ai_engine`. `APP_DEFAULT_ENGINE=none` turns the rule off.
+- **Per site.** A config can set `"fetch": {"engine": "ai-crawler-avalai"}` or `"ai-crawler-cloudflare"`; it then needs no `root` or `fields`. `"ai_fetch": "web_search"` (AvalAI) never contacts the site: only the URL goes to `APP_AI_CRAWLER_SEARCH_MODEL`, at least one cited source must be on the site, and the values are unverified (see [md/ENGINES.md](md/ENGINES.md) section 3.7). An engine that is not configured on the instance gives `ENGINE_UNAVAILABLE`. `"locale": {"price_unit": "auto"}` reads the currency from each page, and `"fetch": {"ai_fetch": "browser"}` always renders in Chrome.
 - **Pipeline.** The page is fetched with the `http` engine. A JavaScript shell is rendered once in Chrome when `APP_BROWSER_ENABLED=true`; otherwise it fails with `JS_RENDERED_PAGE`. The HTML is cleaned (title, meta, JSON-LD and visible text; scripts, header, nav, footer and hidden elements removed) and sent to `POST {APP_AI_CRAWLER_BASE_URL}/chat/completions` with the official [`openai-go`](https://github.com/openai/openai-go) SDK. The model returns JSON: `name`, `price` (copied text), `url`, `image`, `description`, `specs`, `features`.
 - **Grounding.** Every value must appear on the page: the name and spec texts in the page text, the image among the page's image URLs, each price amount among the page's amounts (parsed by the Go price parser, never by the model), and at least 60 % of the description's words. A value that fails is dropped and listed in `unavailable_fields` with reason `AI_NOT_GROUNDED`. Every AI result carries the warning `AI_EXTRACTED`; `source` adds `model`, `prompt_version`, `fetched_with` and `tokens`.
-- **Failures.** `AI_UNAVAILABLE`, `AI_RATE_LIMITED`, `AI_QUOTA_EXCEEDED`, `AI_AUTH_FAILED`, `AI_INPUT_TOO_LARGE` and `AI_BAD_OUTPUT` (after one repair request), with `evidence.ai` (model, provider request id, HTTP status, provider code, tokens). The key is never in a response or a log.
-- **Selector learning.** After a successful AI extraction on a host without a config, the model is asked once for CSS selectors. They are kept only if the normal selector pipeline gives the same product on the same page, and are written to `configs/learned/<domain>.json` as a `candidate`. Later AI requests for the host also run the selectors in shadow; after `APP_AI_CRAWLER_LEARN_PROMOTE_AFTER` (3) different pages match, the config becomes `active` and serves the host with no LLM call (`config_origin: learned`, warning `LEARNED_CONFIG`). When learned selectors fail, that request is answered by the AI crawler (warning `LEARNED_CONFIG_FAILED`); 3 failures in a row demote the config and the host is learned again. Review learned configs with `go run ./cmd/sitectl learned list|show|activate|reject|adopt` (or `sudo ./deploy.sh learned ...`); `adopt` moves one into `configs/sites/`.
-- **Setup.** `sudo ./deploy.sh ai enable` on a server (asks for the key without echoing it and writes `secrets/avalai_api_key`), or menu item 7 in `./menu.sh` locally. Keep the key out of `.env.development` and `.env.test`: they are committed.
+- **Failures.** `AI_UNAVAILABLE`, `AI_RATE_LIMITED`, `AI_QUOTA_EXCEEDED`, `AI_AUTH_FAILED`, `AI_INPUT_TOO_LARGE`, `AI_MODEL_UNAVAILABLE` (wrong model, route or region) and `AI_BAD_OUTPUT` (after one repair request), with `evidence.ai` (model, provider, provider request id, HTTP status, provider code, tokens, and for Cloudflare `gateway_cache`). For Cloudflare the request id is `cf-aig-log-id`, the id to search for in the Cloudflare dashboard, and the provider code is Cloudflare's numeric code (`2009`, `2044`, ...). Keys and tokens are never in a response or a log.
+- **Selector learning.** After a successful AI extraction on a host without a config, the model is asked once for CSS selectors. They are kept only if the normal selector pipeline gives the same product on the same page, and are written to `configs/learned/<domain>.json` as a `candidate`. Later AI requests for the host also run the selectors in shadow; after `APP_AI_CRAWLER_LEARN_PROMOTE_AFTER` (3) different pages match, the config becomes `active` and serves the host with no LLM call (`config_origin: learned`, warning `LEARNED_CONFIG`). Learning calls use the default engine, and the learned file records it in `learned.engine`. When learned selectors fail, that request is answered by the default engine (or, with `APP_DEFAULT_ENGINE=none`, the engine that learned them; warning `LEARNED_CONFIG_FAILED`); 3 failures in a row demote the config and the host is learned again. Review learned configs with `go run ./cmd/sitectl learned list|show|activate|reject|adopt` (or `sudo ./deploy.sh learned ...`); `adopt` moves one into `configs/sites/`.
+- **Setup.** `sudo ./deploy.sh ai enable avalai` or `sudo ./deploy.sh ai enable cloudflare` on a server (asks for the key or token without echoing it and writes `secrets/avalai_api_key` or `secrets/cloudflare_api_token`), then `sudo ./deploy.sh default-engine` (lists the engines in recommended order and asks; or pass `ai-crawler-avalai`, `ai-crawler-cloudflare` or `none`). `sudo ./deploy.sh ai disable avalai|cloudflare` turns one engine off. Locally, `./menu.sh` item 7 sets up the engines and item 9 sets up the default engine from the same recommended list. `deploy.sh restart` and `menu.sh` "Run server" check `APP_DEFAULT_ENGINE` first, so a default engine that is not configured is reported before the server refuses to start. `deploy.sh` and `menu.sh` rewrite a leftover `APP_AI_CRAWLER_DEFAULT_RULE` into `APP_DEFAULT_ENGINE`. Keep secrets out of `.env.development` and `.env.test`: they are committed.
+- **Cloudflare billing.** The default model runs on Cloudflare (Workers AI, "Zero data retention"): no DeepSeek key, billed to the account (Workers Paid plan or AI Gateway credits; not on Workers Free), $0.30 per M input and $1.20 per M output tokens, about $0.0036 per product page. The token needs "Workers AI Read" as well as "AI Gateway Run".
 
 ### Response: completeness and unavailable_fields
 
@@ -542,7 +563,7 @@ For every engine, the response returns whatever product data was found and lists
 | `NOT_ON_PAGE` | The page was fetched, but the field was not on it (`http`, `browser`) |
 | `NOT_IN_SEARCH_RESULTS` | The search result does not include it (`duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`) |
 | `NOT_CONFIGURED` | The site config does not extract it for this site |
-| `AI_NOT_GROUNDED` | The AI crawler returned a value that is not on the page, so it was left out (`ai-crawler-avalai`) |
+| `AI_NOT_GROUNDED` | The AI crawler returned a value that is not on the page, so it was left out (`ai-crawler-avalai`, `ai-crawler-cloudflare`) |
 
 `completeness` is `full` when the list is empty and `partial` otherwise. The existing `FIELD_MISSING` and `PRICE_MISSING` warnings are unchanged.
 

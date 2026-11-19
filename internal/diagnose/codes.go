@@ -70,13 +70,15 @@ const (
 	SearchProviderAuthFailed = "SEARCH_PROVIDER_AUTH_FAILED"
 	SearchProviderError      = "SEARCH_PROVIDER_ERROR"
 
-	// The ai-crawler-avalai engine (an LLM over an OpenAI-compatible API).
-	AIUnavailable   = "AI_UNAVAILABLE"
-	AIRateLimited   = "AI_RATE_LIMITED"
-	AIQuotaExceeded = "AI_QUOTA_EXCEEDED"
-	AIAuthFailed    = "AI_AUTH_FAILED"
-	AIInputTooLarge = "AI_INPUT_TOO_LARGE"
-	AIBadOutput     = "AI_BAD_OUTPUT"
+	// The AI engines ai-crawler-avalai and ai-crawler-cloudflare (an LLM
+	// over an OpenAI-compatible API).
+	AIUnavailable      = "AI_UNAVAILABLE"
+	AIRateLimited      = "AI_RATE_LIMITED"
+	AIQuotaExceeded    = "AI_QUOTA_EXCEEDED"
+	AIAuthFailed       = "AI_AUTH_FAILED"
+	AIInputTooLarge    = "AI_INPUT_TOO_LARGE"
+	AIBadOutput        = "AI_BAD_OUTPUT"
+	AIModelUnavailable = "AI_MODEL_UNAVAILABLE"
 )
 
 type codeInfo struct {
@@ -121,11 +123,12 @@ var codes = map[string]codeInfo{
 	SearchQuotaExceeded:      {StageFetch, OwnerService, true, "The search provider's rate limit or quota is used up.", "Retry later, raise APP_BRAVE_MIN_INTERVAL_MS, or move to a larger Brave plan."},
 	SearchProviderAuthFailed: {StageFetch, OwnerService, false, "The search provider refused the API key.", "Check APP_BRAVE_API_KEY and the plan in the Brave Search API dashboard."},
 	SearchProviderError:      {StageFetch, OwnerService, true, "The search provider failed.", "Retry. If it persists for duckduckgo, mojeek, yahoo or yandex, the results page layout may have changed."},
-	AIUnavailable:            {StageExtract, OwnerService, true, "The AI provider failed or did not answer in time.", "Retry later. If it persists, check the provider's status and APP_AI_CRAWLER_BASE_URL."},
-	AIRateLimited:            {StageExtract, OwnerService, true, "The AI provider's rate limit was reached.", "Retry later, raise APP_AI_CRAWLER_MIN_INTERVAL_MS, or move the AI account to a higher tier."},
-	AIQuotaExceeded:          {StageExtract, OwnerService, false, "The AI provider account has no quota or credit left.", "Top up the AI provider account."},
-	AIAuthFailed:             {StageExtract, OwnerService, false, "The AI provider refused the API key or the model.", "Check APP_AI_CRAWLER_API_KEY (or APP_AI_CRAWLER_API_KEY_FILE), APP_AI_CRAWLER_MODEL and the account's tier."},
+	AIUnavailable:            {StageExtract, OwnerService, true, "The AI provider failed or did not answer in time.", "Retry later. If it persists, check the provider's status and APP_AI_CRAWLER_BASE_URL (AvalAI) or APP_AI_CRAWLER_CLOUDFLARE_ENDPOINT and APP_AI_CRAWLER_CLOUDFLARE_BASE_URL (Cloudflare)."},
+	AIRateLimited:            {StageExtract, OwnerService, true, "The AI provider's rate limit was reached.", "Retry later, raise APP_AI_CRAWLER_MIN_INTERVAL_MS (AvalAI) or APP_AI_CRAWLER_CLOUDFLARE_MIN_INTERVAL_MS (Cloudflare), or move the AI account to a higher tier."},
+	AIQuotaExceeded:          {StageExtract, OwnerService, false, "The AI provider account has no quota or credit left.", "Top up the AI provider account (for Cloudflare: the Unified Billing credits, or the provider account behind the BYOK key)."},
+	AIAuthFailed:             {StageExtract, OwnerService, false, "The AI provider refused the API key or the model.", "AvalAI: check APP_AI_CRAWLER_API_KEY (or APP_AI_CRAWLER_API_KEY_FILE), APP_AI_CRAWLER_MODEL and the account's tier. Cloudflare: check APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN (it needs the Workers AI Read and AI Gateway Run permissions) and the gateway id; with APP_AI_CRAWLER_CLOUDFLARE_NO_UNIFIED_BILLING=true, store the provider's key in the gateway (BYOK)."},
 	AIInputTooLarge:          {StageExtract, OwnerService, false, "The page is too large for the AI model.", "Lower APP_AI_CRAWLER_MAX_INPUT_CHARS."},
+	AIModelUnavailable:       {StageExtract, OwnerService, false, "The AI provider does not offer the configured model on this account, route or region.", "Copy the exact model id from the provider's catalog into APP_AI_CRAWLER_MODEL (AvalAI) or APP_AI_CRAWLER_CLOUDFLARE_MODEL (Cloudflare), and check that the account may use it."},
 	AIBadOutput:              {StageExtract, OwnerService, true, "The AI model did not return usable product JSON.", "Retry; if it persists for this site, add a site config with selectors under configs/sites/."},
 	DeadlineExceeded:         {"", OwnerService, true, "The request reached its time limit.", "Retry later."},
 	InternalError:            {"", OwnerService, true, "An unexpected error occurred in the service.", "Retry; report the request_id if it persists."},
@@ -140,7 +143,7 @@ type Failure struct {
 	// UNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, BOT_PROTECTION, JS_RENDERED_PAGE, EMPTY_PAGE, SELECTOR_NOT_FOUND,
 	// REQUIRED_FIELD_MISSING, PRICE_PARSE_FAILED, DEADLINE_EXCEEDED, INTERNAL_ERROR, ENGINE_UNAVAILABLE,
 	// SEARCH_NO_RESULT, SEARCH_PROVIDER_BLOCKED, SEARCH_QUOTA_EXCEEDED, SEARCH_PROVIDER_AUTH_FAILED, SEARCH_PROVIDER_ERROR,
-	// AI_UNAVAILABLE, AI_RATE_LIMITED, AI_QUOTA_EXCEEDED, AI_AUTH_FAILED, AI_INPUT_TOO_LARGE, AI_BAD_OUTPUT.
+	// AI_UNAVAILABLE, AI_RATE_LIMITED, AI_QUOTA_EXCEEDED, AI_AUTH_FAILED, AI_INPUT_TOO_LARGE, AI_BAD_OUTPUT, AI_MODEL_UNAVAILABLE.
 	Code            string `json:"code" binding:"required" example:"SELECTOR_NOT_FOUND"`
 	Stage           Stage  `json:"stage" binding:"required" enums:"config,fetch,page_check,extract,normalize,validate" swaggertype:"string" example:"extract"`
 	Owner           Owner  `json:"owner" binding:"required" enums:"client,site_config,source_site,service" swaggertype:"string" example:"site_config"`

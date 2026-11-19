@@ -343,13 +343,14 @@ func (l *Learner) buildConfig(o observation, sel *aicrawler.Selectors) (map[stri
 	}
 	return map[string]any{
 		"$comment": fmt.Sprintf("Learned by %s (%s, learn prompt %s) from %s on %s. Not reviewed by a person: check it with sitectl learned show, then adopt or reject it.",
-			siteconfig.EngineAICrawler, l.client.Model(), aicrawler.LearnPromptVersion, o.finalURL.String(), now.Format("2006-01-02")),
+			l.client.Engine(), l.client.Model(), aicrawler.LearnPromptVersion, o.finalURL.String(), now.Format("2006-01-02")),
 		"schema_version": 1,
 		"site_id":        siteconfig.LearnedSiteID(o.host),
 		"version":        "learned-" + now.Format("2006-01-02") + ".1",
 		"domains":        siteconfig.LearnedDomains(o.host),
 		"learned": map[string]any{
 			"status":            siteconfig.LearnedCandidate,
+			"engine":            l.client.Engine(),
 			"model":             l.client.Model(),
 			"prompt_version":    aicrawler.LearnPromptVersion,
 			"learned_from":      o.finalURL.String(),

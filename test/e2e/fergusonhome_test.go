@@ -20,9 +20,9 @@ const fergusonPath = "/duravit-030549-0hole/s1666394"
 // fergusonSite loads the real fergusonhome.com config and points it at the
 // fake shop. The real domains stay, so the page's canonical link
 // (https://www.fergusonhome.com/...) is honoured exactly as in production.
-// The live site uses a search engine (brave, alternate duckduckgo) and is
-// never fetched; the saved page is static, so the suite fetches it with the
-// default http engine to keep checking the selectors. It sends a browser
+// The live site uses ai-crawler-avalai in Chrome (behind Akamai), which does
+// not use the selectors; the saved page is static, so the suite fetches it
+// with the default http engine to keep checking them. It sends a browser
 // user agent, so the request also carries the client hints and Sec-Fetch
 // headers the http engine adds for one.
 func fergusonSite(t *testing.T) map[string]any {
@@ -127,7 +127,7 @@ func TestFergusonHome(t *testing.T) {
 	t.Run("saved page matches the fixture", func(t *testing.T) {
 		r := e.Post("/api/v1/extract", e.Key, map[string]any{"url": productURL(fergusonPath), "request_id": "ferguson-1"})
 		r.Success(t)
-		if r.Str("site_id") != "fergusonhome" || r.Str("request_id") != "ferguson-1" || r.Str("config_version") != "2026-11-13.1" {
+		if r.Str("site_id") != "fergusonhome" || r.Str("request_id") != "ferguson-1" || r.Str("config_version") != "2026-11-19.2" {
 			t.Errorf("site_id/request_id/config_version = %q/%q/%q",
 				r.Str("site_id"), r.Str("request_id"), r.Str("config_version"))
 		}

@@ -30,7 +30,8 @@ import (
 // and Yandex only through it).
 //
 // They look up the Ferguson sample request the way the server would, with
-// the settings of configs/sites/fergusonhome.com.json: both queries
+// the search settings fergusonhome.com used until 2026-11-19 (kept in its
+// $comment and in test/e2e/fergusonhome_search_test.go): both queries
 // (site_slug, then url), region us-en, uid ignored when matching. Every
 // engine is tried and the report says which one found the product, at what
 // rank, after how many queries and how fast. Mojeek, Yahoo and Yandex are
@@ -43,7 +44,7 @@ const (
 	liveUA      = "go-wordpress-extractor/live-test"
 )
 
-// liveIgnore and liveQueries mirror fetch.search in fergusonhome.com.json.
+// liveIgnore and liveQueries mirror Ferguson's former fetch.search settings.
 var (
 	liveIgnore  = []string{"uid"}
 	liveQueries = []string{"site_slug", "url"}

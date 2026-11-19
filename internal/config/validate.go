@@ -1,10 +1,13 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -222,39 +225,72 @@ func ValidateSearch(cfg *Config) error {
 	return nil
 }
 
-// ValidateAICrawler checks the AI crawler settings and loads the API key
-// from APP_AI_CRAWLER_API_KEY_FILE when APP_AI_CRAWLER_API_KEY is empty.
-// With APP_AI_CRAWLER_ENABLED=true and no key the app does not start. The
-// key is never put in an error message.
+// ValidateAICrawler checks APP_DEFAULT_ENGINE and the AI engines'
+// settings, and loads the secrets from their _FILE variables when the
+// variables themselves are empty. An engine is configured when the AI
+// crawler is on and its own settings are complete (AvalAI: a key;
+// Cloudflare: an account id and a token). The app does not start when
+// APP_DEFAULT_ENGINE names an engine that is not configured, or when the
+// AI crawler is on and no engine is. Secrets never appear in an error.
 func ValidateAICrawler(cfg *Config) error {
 	cfg.AICrawlerAPIKey = strings.TrimSpace(cfg.AICrawlerAPIKey)
+	cfg.CloudflareAPIToken = strings.TrimSpace(cfg.CloudflareAPIToken)
+	cfg.CloudflareProviderAPIKey = strings.TrimSpace(cfg.CloudflareProviderAPIKey)
+	cfg.avalaiConfigured, cfg.cloudflareConfigured = false, false
+
+	if strings.TrimSpace(cfg.legacyDefaultRule) != "" {
+		return fmt.Errorf("APP_AI_CRAWLER_DEFAULT_RULE was replaced by APP_DEFAULT_ENGINE: remove it and set " +
+			"APP_DEFAULT_ENGINE=ai-crawler-avalai (was true), ai-crawler-cloudflare, or none (was false)")
+	}
+	explicit := strings.ToLower(strings.TrimSpace(cfg.DefaultEngine))
+	cfg.DefaultEngine = explicit
+	if cfg.DefaultEngine == "" {
+		cfg.DefaultEngine = EngineNone
+		if cfg.AICrawlerEnabled {
+			cfg.DefaultEngine = EngineAvalAI
+		}
+	}
+	switch cfg.DefaultEngine {
+	case EngineNone, EngineAvalAI, EngineAICloudflare:
+	case "http", "browser", "duckduckgo", "brave", "mojeek", "yahoo", "yandex":
+		return fmt.Errorf("APP_DEFAULT_ENGINE %q cannot serve websites without a rule: that engine needs a site config. "+
+			"Expected ai-crawler-avalai, ai-crawler-cloudflare or none", cfg.DefaultEngine)
+	default:
+		return fmt.Errorf("invalid APP_DEFAULT_ENGINE: %q. Expected ai-crawler-avalai, ai-crawler-cloudflare or none", cfg.DefaultEngine)
+	}
+
 	if !cfg.AICrawlerEnabled {
+		if explicit != "" && cfg.DefaultEngine != EngineNone {
+			return fmt.Errorf("APP_DEFAULT_ENGINE is %s, but APP_AI_CRAWLER_ENABLED is false. "+
+				"Set APP_DEFAULT_ENGINE=none, or turn the AI crawler on", cfg.DefaultEngine)
+		}
 		return nil
 	}
-	u, err := url.Parse(cfg.AICrawlerBaseURL)
-	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
-		return fmt.Errorf("invalid AI_CRAWLER_BASE_URL: %q. Expected an absolute URL such as %s. Set APP_AI_CRAWLER_BASE_URL", cfg.AICrawlerBaseURL, DefaultAICrawlerBaseURL)
+	if err := validateAIShared(cfg); err != nil {
+		return err
 	}
-	if u.Scheme == "http" && !isLoopback(u.Hostname()) {
-		return fmt.Errorf("AI_CRAWLER_BASE_URL %q must use https: the API key would travel in clear text. Plain http is only accepted for localhost", cfg.AICrawlerBaseURL)
+	avalaiMissing, err := validateAvalAI(cfg)
+	if err != nil {
+		return err
 	}
-	if strings.TrimSpace(cfg.AICrawlerModel) == "" {
-		return fmt.Errorf("AI_CRAWLER_MODEL is empty. Set APP_AI_CRAWLER_MODEL, for example %s", DefaultAICrawlerModel)
+	cfMissing, err := validateCloudflare(cfg)
+	if err != nil {
+		return err
 	}
-	if cfg.AICrawlerAPIKey == "" && cfg.AICrawlerAPIKeyFile != "" {
-		b, err := os.ReadFile(cfg.AICrawlerAPIKeyFile)
-		if err != nil {
-			return fmt.Errorf("APP_AI_CRAWLER_API_KEY_FILE %q cannot be read: %w", cfg.AICrawlerAPIKeyFile, err)
-		}
-		cfg.AICrawlerAPIKey = strings.TrimSpace(string(b))
+
+	switch {
+	case cfg.DefaultEngine == EngineAvalAI && !cfg.avalaiConfigured:
+		return fmt.Errorf("APP_DEFAULT_ENGINE is ai-crawler-avalai, but that engine is not configured: %s", avalaiMissing)
+	case cfg.DefaultEngine == EngineAICloudflare && !cfg.cloudflareConfigured:
+		return fmt.Errorf("APP_DEFAULT_ENGINE is ai-crawler-cloudflare, but that engine is not configured: %s", cfMissing)
+	case !cfg.avalaiConfigured && !cfg.cloudflareConfigured:
+		return fmt.Errorf("APP_AI_CRAWLER_ENABLED is true, but no AI engine is configured. AvalAI: %s. Cloudflare: %s", avalaiMissing, cfMissing)
 	}
-	if cfg.AICrawlerAPIKey == "" {
-		return fmt.Errorf("APP_AI_CRAWLER_API_KEY or APP_AI_CRAWLER_API_KEY_FILE is required when APP_AI_CRAWLER_ENABLED is true. " +
-			"Put the key alone in secrets/avalai_api_key; keep it out of committed files such as .env")
-	}
-	if strings.ContainsAny(cfg.AICrawlerAPIKey, " \t\r\n") {
-		return fmt.Errorf("the AI crawler API key contains white space; check APP_AI_CRAWLER_API_KEY or APP_AI_CRAWLER_API_KEY_FILE")
-	}
+	return nil
+}
+
+// validateAIShared checks the settings both AI engines use.
+func validateAIShared(cfg *Config) error {
 	checks := []struct {
 		name      string
 		v, lo, hi int
@@ -263,6 +299,7 @@ func ValidateAICrawler(cfg *Config) error {
 		{"AI_CRAWLER_MAX_OUTPUT_TOKENS", cfg.AICrawlerMaxOutputTokens, 100, 100000},
 		{"AI_CRAWLER_RETRIES", cfg.AICrawlerRetries, 0, 5},
 		{"AI_CRAWLER_MIN_INTERVAL_MS", cfg.AICrawlerMinIntervalMS, 0, 60000},
+		{"AI_CRAWLER_CLOUDFLARE_MIN_INTERVAL_MS", cfg.CloudflareMinIntervalMS, 0, 60000},
 		{"AI_CRAWLER_DEFAULT_DELAY_MS", cfg.AICrawlerDefaultDelayMS, 0, 60000},
 		{"AI_CRAWLER_LEARN_PROMOTE_AFTER", cfg.AICrawlerLearnPromoteAfter, 1, 100},
 		{"AI_CRAWLER_LEARN_DEMOTE_AFTER", cfg.AICrawlerLearnDemoteAfter, 1, 100},
@@ -286,6 +323,133 @@ func ValidateAICrawler(cfg *Config) error {
 	case "json_object", "json_schema":
 	default:
 		return fmt.Errorf("invalid AI_CRAWLER_RESPONSE_FORMAT: %q. Expected json_object or json_schema", cfg.AICrawlerResponseFormat)
+	}
+	return nil
+}
+
+// readSecret returns value, or the trimmed content of file when value is
+// empty. A file that does not exist gives "" and no error, so an engine
+// that is not used does not need its secret file.
+func readSecret(value, file, fileVar string) (string, error) {
+	if value != "" || file == "" {
+		return value, nil
+	}
+	b, err := os.ReadFile(file)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("%s %q cannot be read: %w", fileVar, file, err)
+	}
+	return strings.TrimSpace(string(b)), nil
+}
+
+// validateAvalAI checks the ai-crawler-avalai settings. Without a key the
+// engine is simply not configured; missing says what to set.
+func validateAvalAI(cfg *Config) (missing string, err error) {
+	missing = "set APP_AI_CRAWLER_API_KEY, or APP_AI_CRAWLER_API_KEY_FILE to a file holding only the key " +
+		"(secrets/avalai_api_key); keep it out of committed files such as .env"
+	if cfg.AICrawlerAPIKey, err = readSecret(cfg.AICrawlerAPIKey, cfg.AICrawlerAPIKeyFile, "APP_AI_CRAWLER_API_KEY_FILE"); err != nil {
+		return missing, err
+	}
+	if cfg.AICrawlerAPIKey == "" {
+		if cfg.AICrawlerAPIKeyFile != "" {
+			missing += fmt.Sprintf(" (APP_AI_CRAWLER_API_KEY_FILE %q does not exist or is empty)", cfg.AICrawlerAPIKeyFile)
+		}
+		return missing, nil
+	}
+	if strings.ContainsAny(cfg.AICrawlerAPIKey, " \t\r\n") {
+		return missing, fmt.Errorf("the AI crawler API key contains white space; check APP_AI_CRAWLER_API_KEY or APP_AI_CRAWLER_API_KEY_FILE")
+	}
+	if err := checkBaseURL("AI_CRAWLER_BASE_URL", cfg.AICrawlerBaseURL, DefaultAICrawlerBaseURL); err != nil {
+		return missing, err
+	}
+	if strings.TrimSpace(cfg.AICrawlerModel) == "" {
+		return missing, fmt.Errorf("AI_CRAWLER_MODEL is empty. Set APP_AI_CRAWLER_MODEL, for example %s", DefaultAICrawlerModel)
+	}
+	cfg.AICrawlerSearchModel = strings.TrimSpace(cfg.AICrawlerSearchModel)
+	if strings.EqualFold(cfg.AICrawlerSearchModel, "none") {
+		cfg.AICrawlerSearchModel = ""
+	}
+	if strings.ContainsAny(cfg.AICrawlerSearchModel, " \t\r\n") {
+		return missing, fmt.Errorf("invalid AI_CRAWLER_SEARCH_MODEL: %q. Expected a model id without white space, for example %s, or none to turn ai_fetch web_search off", cfg.AICrawlerSearchModel, DefaultAICrawlerSearchModel)
+	}
+	cfg.avalaiConfigured = true
+	return "", nil
+}
+
+var hexAccountID = regexp.MustCompile(`^[0-9a-f]{32}$`)
+
+// validateCloudflare checks the ai-crawler-cloudflare settings. Without an
+// account id the engine is not configured; with one, every other setting
+// must be right.
+func validateCloudflare(cfg *Config) (missing string, err error) {
+	missing = "set APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID and the token (APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN, " +
+		"or APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE holding only the token, such as secrets/cloudflare_api_token)"
+	cfg.CloudflareAccountID = strings.ToLower(strings.TrimSpace(cfg.CloudflareAccountID))
+	if cfg.CloudflareAccountID == "" {
+		return missing, nil
+	}
+	if !hexAccountID.MatchString(cfg.CloudflareAccountID) {
+		return missing, fmt.Errorf("invalid AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID: %q. Expected 32 hex characters, as shown on the Cloudflare dashboard's account home", cfg.CloudflareAccountID)
+	}
+	cfg.CloudflareGatewayID = strings.TrimSpace(cfg.CloudflareGatewayID)
+	if cfg.CloudflareGatewayID == "" || len(cfg.CloudflareGatewayID) > 64 || strings.ContainsAny(cfg.CloudflareGatewayID, "/ \t?#") {
+		return missing, fmt.Errorf("invalid AI_CRAWLER_CLOUDFLARE_GATEWAY_ID: %q. Expected a gateway id of at most 64 characters, such as %s", cfg.CloudflareGatewayID, DefaultCloudflareGatewayID)
+	}
+	cfg.CloudflareEndpoint = strings.ToLower(strings.TrimSpace(cfg.CloudflareEndpoint))
+	switch cfg.CloudflareEndpoint {
+	case "rest", "compat":
+	default:
+		return missing, fmt.Errorf("invalid AI_CRAWLER_CLOUDFLARE_ENDPOINT: %q. Expected rest or compat", cfg.CloudflareEndpoint)
+	}
+	if cfg.CloudflareBaseURL != "" {
+		if err := checkBaseURL("AI_CRAWLER_CLOUDFLARE_BASE_URL", cfg.CloudflareBaseURL, "https://api.cloudflare.com/client/v4/accounts/<id>/ai/v1"); err != nil {
+			return missing, err
+		}
+	}
+	cfg.CloudflareModel = strings.TrimSpace(cfg.CloudflareModel)
+	if cfg.CloudflareModel == "" || strings.ContainsAny(cfg.CloudflareModel, " \t\r\n") {
+		return missing, fmt.Errorf("invalid AI_CRAWLER_CLOUDFLARE_MODEL: %q. Expected a model id from the Cloudflare catalog without white space, for example %s", cfg.CloudflareModel, DefaultCloudflareModel)
+	}
+	cfg.CloudflareReasoningEffort = strings.ToLower(strings.TrimSpace(cfg.CloudflareReasoningEffort))
+	switch cfg.CloudflareReasoningEffort {
+	case "", "none", "low", "high", "max":
+	default:
+		return missing, fmt.Errorf("invalid AI_CRAWLER_CLOUDFLARE_REASONING_EFFORT: %q. Expected none, low, high or max", cfg.CloudflareReasoningEffort)
+	}
+	if cfg.CloudflareAPIToken, err = readSecret(cfg.CloudflareAPIToken, cfg.CloudflareAPITokenFile, "APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE"); err != nil {
+		return missing, err
+	}
+	if cfg.CloudflareProviderAPIKey, err = readSecret(cfg.CloudflareProviderAPIKey, cfg.CloudflareProviderAPIKeyFile, "APP_AI_CRAWLER_CLOUDFLARE_PROVIDER_API_KEY_FILE"); err != nil {
+		return missing, err
+	}
+	if cfg.CloudflareAPIToken == "" {
+		return missing, fmt.Errorf("APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID is set, but the token is missing: set APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN, " +
+			"or put the token alone in the file named by APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE (secrets/cloudflare_api_token)")
+	}
+	if strings.ContainsAny(cfg.CloudflareAPIToken, " \t\r\n") {
+		return missing, fmt.Errorf("the Cloudflare API token contains white space; check APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN or APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE")
+	}
+	if strings.ContainsAny(cfg.CloudflareProviderAPIKey, " \t\r\n") {
+		return missing, fmt.Errorf("the Cloudflare provider API key contains white space; check APP_AI_CRAWLER_CLOUDFLARE_PROVIDER_API_KEY or its _FILE")
+	}
+	if cfg.CloudflareProviderAPIKey != "" && cfg.CloudflareEndpoint == "rest" {
+		return missing, fmt.Errorf("APP_AI_CRAWLER_CLOUDFLARE_PROVIDER_API_KEY cannot be used with APP_AI_CRAWLER_CLOUDFLARE_ENDPOINT=rest: " +
+			"Authorization carries the Cloudflare token there. Store the provider's key in the gateway (BYOK), or use ENDPOINT=compat")
+	}
+	cfg.cloudflareConfigured = true
+	return "", nil
+}
+
+// checkBaseURL accepts an absolute https URL, or plain http on localhost.
+func checkBaseURL(name, raw, example string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
+		return fmt.Errorf("invalid %s: %q. Expected an absolute URL such as %s. Set APP_%s", name, raw, example, name)
+	}
+	if u.Scheme == "http" && !isLoopback(u.Hostname()) {
+		return fmt.Errorf("%s %q must use https: the API key would travel in clear text. Plain http is only accepted for localhost", name, raw)
 	}
 	return nil
 }

@@ -1,12 +1,15 @@
-// Package aicrawler talks to an LLM over an OpenAI-compatible API (AvalAI
-// by default) for the "ai-crawler-avalai" engine: it cleans a product page,
-// builds the prompts, sends them with the official openai-go SDK and parses
-// the model's JSON. It does not fetch pages and does not decide what goes in
-// a response; the fetch and extract packages do that.
+// Package aicrawler talks to an LLM over an OpenAI-compatible API for the
+// AI engines: "ai-crawler-avalai" (AvalAI) and "ai-crawler-cloudflare"
+// (Cloudflare AI Gateway). It cleans a product page, builds the prompts,
+// sends them with the official openai-go SDK and parses the model's JSON.
+// What differs between providers is kept in a Provider profile. It does not
+// fetch pages and does not decide what goes in a response; the fetch and
+// extract packages do that.
 package aicrawler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -27,11 +30,10 @@ const (
 	FormatJSONSchema = "json_schema"
 )
 
-// Settings configure the client. Production fills them from APP_AI_CRAWLER_*.
+// Settings configure the client, whatever the provider. Production fills
+// them from the shared APP_AI_CRAWLER_* settings and the provider's own
+// minimum interval.
 type Settings struct {
-	BaseURL         string
-	Model           string
-	APIKey          string
 	Timeout         time.Duration
 	MaxOutputTokens int
 	Temperature     float64
@@ -54,6 +56,8 @@ const (
 
 // Call describes one model call (or one cache hit) for metrics.
 type Call struct {
+	// Engine is ai-crawler-avalai or ai-crawler-cloudflare.
+	Engine  string
 	Model   string
 	Purpose string
 	Host    string
@@ -92,7 +96,7 @@ func (c *Client) CacheHit(ctx context.Context) {
 		return
 	}
 	ci := infoOf(ctx)
-	c.s.Observe(Call{Model: c.s.Model, Purpose: ci.purpose, Host: ci.host, Outcome: "ok", Cached: true})
+	c.s.Observe(Call{Engine: c.p.Engine, Model: c.p.Model, Purpose: ci.purpose, Host: ci.host, Outcome: "ok", Cached: true})
 }
 
 // Message is one chat message.
@@ -110,6 +114,15 @@ type Completion struct {
 	Status       int
 	InputTokens  int64
 	OutputTokens int64
+	// Model is the model that answered when the provider says so
+	// (cf-aig-model, for a Cloudflare dynamic route); "" otherwise.
+	Model string
+	// GatewayCache is Cloudflare's cf-aig-cache-status (HIT or MISS).
+	GatewayCache string
+	// Sources are the web pages a search model used (Perplexity's
+	// citations and search_results, or url_citation annotations), in order,
+	// without duplicates. Empty for a normal call.
+	Sources []string
 }
 
 // CallError is a failed call, already mapped to a failure code.
@@ -125,22 +138,30 @@ type CallError struct {
 
 func (e *CallError) Error() string { return e.Code + ": " + e.Message }
 
-// Client sends chat completions. It is safe for concurrent use.
+// Client sends chat completions to one provider. It is safe for
+// concurrent use.
 type Client struct {
 	oc openai.Client
+	p  Provider
 	s  Settings
 
 	gateMu sync.Mutex
 	next   time.Time
 }
 
-// New builds a client. The key and base URL are passed explicitly, so the
-// SDK's own OPENAI_API_KEY and OPENAI_BASE_URL variables are never used.
-func New(s Settings) *Client {
+// New builds a client for provider p. The key and base URL are passed
+// explicitly, so the SDK's own OPENAI_API_KEY and OPENAI_BASE_URL variables
+// are never used.
+func New(p Provider, s Settings) *Client {
 	opts := []option.RequestOption{
-		option.WithBaseURL(strings.TrimRight(s.BaseURL, "/") + "/"),
-		option.WithAPIKey(s.APIKey),
+		option.WithBaseURL(strings.TrimRight(p.BaseURL, "/") + "/"),
+		option.WithAPIKey(p.APIKey),
 		option.WithMaxRetries(s.Retries),
+	}
+	// An empty key sends no Authorization header (compat with a key stored
+	// in the gateway, or Workers AI).
+	for k, v := range p.Headers {
+		opts = append(opts, option.WithHeader(k, v))
 	}
 	if s.Timeout > 0 {
 		opts = append(opts, option.WithRequestTimeout(s.Timeout))
@@ -148,11 +169,17 @@ func New(s Settings) *Client {
 	if s.HTTPClient != nil {
 		opts = append(opts, option.WithHTTPClient(s.HTTPClient))
 	}
-	return &Client{oc: openai.NewClient(opts...), s: s}
+	return &Client{oc: openai.NewClient(opts...), p: p, s: s}
 }
 
 // Model is the only model this client uses.
-func (c *Client) Model() string { return c.s.Model }
+func (c *Client) Model() string { return c.p.Model }
+
+// Engine is the engine this client serves.
+func (c *Client) Engine() string { return c.p.Engine }
+
+// Provider is the provider's name: avalai or cloudflare.
+func (c *Client) Provider() string { return c.p.Name }
 
 // wait spaces calls by MinInterval, so the provider's per-minute limit is
 // not reached by bursts.
@@ -187,13 +214,37 @@ func (c *Client) wait(ctx context.Context) error {
 // otherwise the model is asked for a JSON object. Retries of 408, 409, 429
 // and 5xx answers (honoring Retry-After) are done by the SDK.
 func (c *Client) Complete(ctx context.Context, msgs []Message, schemaName string, schema map[string]any) (*Completion, *CallError) {
+	return c.observed(ctx, c.p.Model, func() (*Completion, *CallError) {
+		return c.complete(ctx, c.p.Model, true, msgs, schemaName, schema)
+	})
+}
+
+// SearchModel is the model used for ai_fetch "web_search", or "" when the
+// provider has none.
+func (c *Client) SearchModel() string { return c.p.SearchModel }
+
+// CompleteWeb sends msgs to the provider's search model, which looks the
+// product up on the web itself. No response_format is sent: search models
+// such as Perplexity's sonar reject json_object. The answer's sources are
+// returned in Completion.Sources.
+func (c *Client) CompleteWeb(ctx context.Context, msgs []Message) (*Completion, *CallError) {
+	return c.observed(ctx, c.p.SearchModel, func() (*Completion, *CallError) {
+		return c.complete(ctx, c.p.SearchModel, false, msgs, "", nil)
+	})
+}
+
+// observed runs one call and reports it to Observe.
+func (c *Client) observed(ctx context.Context, model string, call func() (*Completion, *CallError)) (*Completion, *CallError) {
 	start := time.Now()
-	comp, cerr := c.complete(ctx, msgs, schemaName, schema)
+	comp, cerr := call()
 	if c.s.Observe != nil {
 		ci := infoOf(ctx)
-		call := Call{Model: c.s.Model, Purpose: ci.purpose, Host: ci.host, Outcome: "ok", Duration: time.Since(start)}
+		call := Call{Engine: c.p.Engine, Model: model, Purpose: ci.purpose, Host: ci.host, Outcome: "ok", Duration: time.Since(start)}
 		if comp != nil {
 			call.InputTokens, call.OutputTokens = comp.InputTokens, comp.OutputTokens
+			if comp.Model != "" {
+				call.Model = comp.Model
+			}
 		}
 		if cerr != nil {
 			call.Outcome = cerr.Code
@@ -203,12 +254,12 @@ func (c *Client) Complete(ctx context.Context, msgs []Message, schemaName string
 	return comp, cerr
 }
 
-func (c *Client) complete(ctx context.Context, msgs []Message, schemaName string, schema map[string]any) (*Completion, *CallError) {
+func (c *Client) complete(ctx context.Context, model string, jsonFormat bool, msgs []Message, schemaName string, schema map[string]any) (*Completion, *CallError) {
 	if err := c.wait(ctx); err != nil {
 		return nil, &CallError{Code: diagnose.AIUnavailable, Message: "the request's time limit was reached while waiting for the AI rate gate"}
 	}
 	params := openai.ChatCompletionNewParams{
-		Model:       c.s.Model,
+		Model:       model,
 		Temperature: openai.Float(c.s.Temperature),
 		MaxTokens:   openai.Int(int64(c.s.MaxOutputTokens)),
 	}
@@ -222,7 +273,11 @@ func (c *Client) complete(ctx context.Context, msgs []Message, schemaName string
 			params.Messages = append(params.Messages, openai.UserMessage(m.Content))
 		}
 	}
-	if c.s.ResponseFormat == FormatJSONSchema && schema != nil {
+	// Without jsonFormat no response_format is sent: the prompt asks for
+	// JSON and ParseProduct takes the outermost object.
+	switch {
+	case !jsonFormat:
+	case c.s.ResponseFormat == FormatJSONSchema && schema != nil:
 		params.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
 			OfJSONSchema: &shared.ResponseFormatJSONSchemaParam{JSONSchema: shared.ResponseFormatJSONSchemaJSONSchemaParam{
 				Name:   schemaName,
@@ -230,36 +285,105 @@ func (c *Client) complete(ctx context.Context, msgs []Message, schemaName string
 				Schema: schema,
 			}},
 		}
-	} else {
+	default:
 		params.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
 			OfJSONObject: &shared.ResponseFormatJSONObjectParam{},
 		}
 	}
 
+	if c.p.ReasoningEffort != "" {
+		params.ReasoningEffort = shared.ReasoningEffort(c.p.ReasoningEffort)
+	}
+
 	var httpResp *http.Response
-	res, err := c.oc.Chat.Completions.New(ctx, params, option.WithResponseInto(&httpResp))
-	reqID := requestID(httpResp)
+	reqOpts := []option.RequestOption{option.WithResponseInto(&httpResp)}
+	if c.p.Metadata {
+		reqOpts = append(reqOpts, option.WithHeader("cf-aig-metadata", metadata(ctx)))
+	}
+	res, err := c.oc.Chat.Completions.New(ctx, params, reqOpts...)
+	reqID := c.requestID(httpResp)
 	if err != nil {
-		return nil, c.mapError(ctx, err, reqID)
+		return nil, c.mapError(ctx, err, reqID, httpResp)
 	}
 	out := &Completion{RequestID: reqID, InputTokens: res.Usage.PromptTokens, OutputTokens: res.Usage.CompletionTokens}
 	if httpResp != nil {
 		out.Status = httpResp.StatusCode
+		out.GatewayCache = httpResp.Header.Get("cf-aig-cache-status")
+		if c.p.Name == ProviderCloudflare && strings.HasPrefix(c.p.Model, "dynamic/") {
+			out.Model = httpResp.Header.Get("cf-aig-model")
+		}
 	}
 	if len(res.Choices) == 0 {
 		return out, &CallError{Code: diagnose.AIBadOutput, Status: out.Status, RequestID: reqID, Message: "the provider answered with no choices"}
 	}
 	ch := res.Choices[0]
 	out.Content, out.FinishReason, out.Refusal = ch.Message.Content, ch.FinishReason, ch.Message.Refusal
+	out.Sources = sources(res)
 	return out, nil
 }
 
+// sources reads the pages a search model used: Perplexity's top-level
+// "citations" (URLs) and "search_results" ([{url, ...}]), then OpenAI's
+// url_citation annotations.
+func sources(res *openai.ChatCompletion) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(u string) {
+		u = strings.TrimSpace(u)
+		if u != "" && !seen[u] {
+			seen[u] = true
+			out = append(out, u)
+		}
+	}
+	if f, ok := res.JSON.ExtraFields["citations"]; ok {
+		var urls []string
+		if json.Unmarshal([]byte(f.Raw()), &urls) == nil {
+			for _, u := range urls {
+				add(u)
+			}
+		}
+	}
+	if f, ok := res.JSON.ExtraFields["search_results"]; ok {
+		var results []struct {
+			URL string `json:"url"`
+		}
+		if json.Unmarshal([]byte(f.Raw()), &results) == nil {
+			for _, r := range results {
+				add(r.URL)
+			}
+		}
+	}
+	for _, ch := range res.Choices {
+		for _, a := range ch.Message.Annotations {
+			add(a.URLCitation.URL)
+		}
+	}
+	return out
+}
+
+// metadata is the cf-aig-metadata value: a flat JSON object (at most 5
+// entries) that tags the gateway's log entry with the call's host, purpose
+// and prompt version.
+func metadata(ctx context.Context) string {
+	ci := infoOf(ctx)
+	pv := PromptVersion
+	if ci.purpose == PurposeLearn {
+		pv = LearnPromptVersion
+	}
+	m := map[string]string{"purpose": ci.purpose, "prompt_version": pv}
+	if ci.host != "" {
+		m["host"] = ci.host
+	}
+	b, _ := json.Marshal(m)
+	return string(b)
+}
+
 // requestID reads the provider's request id for support tickets.
-func requestID(r *http.Response) string {
+func (c *Client) requestID(r *http.Response) string {
 	if r == nil {
 		return ""
 	}
-	for _, h := range []string{"avalai-request-id", "x-request-id"} {
+	for _, h := range c.p.RequestIDHeaders {
 		if v := r.Header.Get(h); v != "" {
 			return v
 		}
@@ -267,41 +391,62 @@ func requestID(r *http.Response) string {
 	return ""
 }
 
-// mapError turns an SDK error into a failure code. AvalAI's codes are
-// documented at docs.avalai.ir (error handling); other OpenAI-compatible
-// providers use the same names for the common cases.
-func (c *Client) mapError(ctx context.Context, err error, reqID string) *CallError {
+// mapError turns an SDK error into a failure code. The provider's profile
+// decides first; the shared mapping follows AvalAI's codes
+// (docs.avalai.ir, error handling), which other OpenAI-compatible providers
+// use for the common cases too.
+//
+// resp is the provider's answer when one came. An error body the SDK cannot
+// decode (Cloudflare sometimes sends {"error": "text"}) still has a status
+// and is mapped from it.
+func (c *Client) mapError(ctx context.Context, err error, reqID string, resp *http.Response) *CallError {
 	var apiErr *openai.Error
-	if errors.As(err, &apiErr) {
-		ce := &CallError{Status: apiErr.StatusCode, ProviderCode: apiErr.Code, RequestID: reqID}
+	if !errors.As(err, &apiErr) && resp != nil && resp.StatusCode >= 400 {
+		apiErr = &openai.Error{StatusCode: resp.StatusCode, Response: resp}
+	}
+	if apiErr != nil {
+		pe := readProviderError(apiErr.StatusCode, apiErr.Code, strings.TrimSpace(apiErr.Message), apiErr.Response)
+		ce := &CallError{Status: apiErr.StatusCode, ProviderCode: pe.Code, RequestID: reqID}
 		if ce.RequestID == "" {
-			ce.RequestID = requestID(apiErr.Response)
+			ce.RequestID = c.requestID(apiErr.Response)
 		}
-		msg := strings.TrimSpace(apiErr.Message)
+		msg := c.redact(pe.Message)
 		if len(msg) > 300 {
 			msg = msg[:300]
 		}
-		code := strings.ToLower(apiErr.Code)
-		switch {
-		case apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden:
-			ce.Code = diagnose.AIAuthFailed
-		case apiErr.StatusCode == http.StatusTooManyRequests && (code == "insufficient_quota" || code == "quota_exceeded"):
-			ce.Code = diagnose.AIQuotaExceeded
-		case apiErr.StatusCode == http.StatusTooManyRequests:
-			ce.Code = diagnose.AIRateLimited
-		case code == "context_window_exceeded" || code == "context_length_exceeded" ||
-			apiErr.StatusCode == http.StatusRequestEntityTooLarge:
-			ce.Code = diagnose.AIInputTooLarge
-		default:
-			ce.Code = diagnose.AIUnavailable
+		if c.p.MapError != nil {
+			ce.Code = c.p.MapError(pe)
 		}
-		ce.Message = fmt.Sprintf("the AI provider answered HTTP %d (%s): %s", apiErr.StatusCode, orDash(apiErr.Code), orDash(msg))
+		if ce.Code == "" {
+			ce.Code = sharedError(pe)
+		}
+		ce.Message = fmt.Sprintf("the AI provider (%s) answered HTTP %d (%s): %s", c.p.Name, pe.Status, orDash(pe.Code), orDash(msg))
 		return ce
 	}
 	if ctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) {
-		return &CallError{Code: diagnose.AIUnavailable, RequestID: reqID, Message: "the AI provider did not answer in time"}
+		return &CallError{Code: diagnose.AIUnavailable, RequestID: reqID, Message: "the AI provider (" + c.p.Name + ") did not answer in time"}
 	}
-	return &CallError{Code: diagnose.AIUnavailable, RequestID: reqID, Message: "the AI provider could not be reached: " + redact(err.Error(), c.s.APIKey)}
+	return &CallError{Code: diagnose.AIUnavailable, RequestID: reqID, Message: "the AI provider (" + c.p.Name + ") could not be reached: " + c.redact(err.Error())}
+}
+
+// sharedError is the OpenAI-style mapping every provider falls back to.
+func sharedError(e ProviderError) string {
+	code := strings.ToLower(e.Code)
+	switch {
+	case code == "model_not_found":
+		return diagnose.AIModelUnavailable
+	case e.Status == http.StatusUnauthorized || e.Status == http.StatusForbidden:
+		return diagnose.AIAuthFailed
+	case e.Status == http.StatusTooManyRequests && (code == "insufficient_quota" || code == "quota_exceeded"):
+		return diagnose.AIQuotaExceeded
+	case e.Status == http.StatusTooManyRequests:
+		return diagnose.AIRateLimited
+	case code == "context_window_exceeded" || code == "context_length_exceeded" ||
+		e.Status == http.StatusRequestEntityTooLarge:
+		return diagnose.AIInputTooLarge
+	default:
+		return diagnose.AIUnavailable
+	}
 }
 
 func orDash(s string) string {
@@ -311,10 +456,13 @@ func orDash(s string) string {
 	return s
 }
 
-// redact removes the API key from s, in case a transport error echoes a header.
-func redact(s, key string) string {
-	if key == "" {
-		return s
+// redact removes every secret of the provider from s, in case an error
+// echoes a header.
+func (c *Client) redact(s string) string {
+	for _, key := range c.p.secrets() {
+		if key != "" {
+			s = strings.ReplaceAll(s, key, "[redacted]")
+		}
 	}
-	return strings.ReplaceAll(s, key, "[redacted]")
+	return s
 }

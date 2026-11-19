@@ -15,8 +15,8 @@ const maxAIHosts = 200
 // OtherHost is the host label used once maxAIHosts hosts are tracked.
 const OtherHost = "other"
 
-// aiKey is one AI series: model, purpose, host, outcome.
-type aiKey [4]string
+// aiKey is one AI series: engine, model, purpose, host, outcome.
+type aiKey [5]string
 
 type aiCount struct {
 	calls        uint64
@@ -27,12 +27,12 @@ type aiCount struct {
 
 type aiState struct {
 	calls     map[aiKey]*aiCount
-	cacheHits map[[2]string]uint64 // model, host
+	cacheHits map[[3]string]uint64 // engine, model, host
 	hosts     map[string]bool
 }
 
 func newAIState() aiState {
-	return aiState{calls: map[aiKey]*aiCount{}, cacheHits: map[[2]string]uint64{}, hosts: map[string]bool{}}
+	return aiState{calls: map[aiKey]*aiCount{}, cacheHits: map[[3]string]uint64{}, hosts: map[string]bool{}}
 }
 
 func (m *Metrics) aiHost(h string) string {
@@ -49,12 +49,13 @@ func (m *Metrics) aiHost(h string) string {
 	return h
 }
 
-// ObserveAICall records one call to the AI provider. outcome is "ok" or
-// the failure code.
-func (m *Metrics) ObserveAICall(model, purpose, host, outcome string, inputTokens, outputTokens int64, d time.Duration) {
+// ObserveAICall records one call to the AI provider behind engine
+// (ai-crawler-avalai or ai-crawler-cloudflare). outcome is "ok" or the
+// failure code.
+func (m *Metrics) ObserveAICall(engine, model, purpose, host, outcome string, inputTokens, outputTokens int64, d time.Duration) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	k := aiKey{model, purpose, m.aiHost(host), outcome}
+	k := aiKey{engine, model, purpose, m.aiHost(host), outcome}
 	c, ok := m.ai.calls[k]
 	if !ok {
 		c = &aiCount{}
@@ -67,10 +68,10 @@ func (m *Metrics) ObserveAICall(model, purpose, host, outcome string, inputToken
 }
 
 // ObserveAICacheHit records an AI answer served from the cache.
-func (m *Metrics) ObserveAICacheHit(model, host string) {
+func (m *Metrics) ObserveAICacheHit(engine, model, host string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.ai.cacheHits[[2]string{model, m.aiHost(host)}]++
+	m.ai.cacheHits[[3]string{engine, model, m.aiHost(host)}]++
 }
 
 // AIReport is the AI crawler's usage since the process started.
@@ -84,7 +85,7 @@ type AIReport struct {
 	OutputTokens uint64 `json:"output_tokens" binding:"required" example:"4800"`
 	// CacheHits counts answers served from the cache, which used no tokens.
 	CacheHits uint64 `json:"cache_hits" binding:"required" example:"3"`
-	// Series has one entry per model, purpose, host and outcome.
+	// Series has one entry per engine, model, purpose, host and outcome.
 	Series []AICallCount `json:"series" binding:"required"`
 	// CacheHitsByHost maps each host to its cache hits.
 	CacheHitsByHost map[string]uint64 `json:"cache_hits_by_host" binding:"required"`
@@ -92,6 +93,8 @@ type AIReport struct {
 
 // AICallCount is one extract_ai_calls_total series with its tokens.
 type AICallCount struct {
+	// Engine is the AI engine that made the call.
+	Engine  string `json:"engine" binding:"required" enums:"ai-crawler-avalai,ai-crawler-cloudflare" example:"ai-crawler-avalai"`
 	Model   string `json:"model" binding:"required" example:"deepseek-v4.1-flash"`
 	Purpose string `json:"purpose" binding:"required" enums:"extract,repair,learn" example:"extract"`
 	// Host is the shop's host, "other" once 200 hosts are tracked.
@@ -107,22 +110,22 @@ type AICallCount struct {
 func (m *Metrics) aiSnapshot() AIReport {
 	r := AIReport{Series: make([]AICallCount, 0, len(m.ai.calls)), CacheHitsByHost: map[string]uint64{}}
 	for k, c := range m.ai.calls {
-		r.Series = append(r.Series, AICallCount{Model: k[0], Purpose: k[1], Host: k[2], Outcome: k[3],
+		r.Series = append(r.Series, AICallCount{Engine: k[0], Model: k[1], Purpose: k[2], Host: k[3], Outcome: k[4],
 			Calls: c.calls, InputTokens: c.inputTokens, OutputTokens: c.outputTokens, SumSeconds: c.seconds})
 		r.Calls += c.calls
 		r.InputTokens += c.inputTokens
 		r.OutputTokens += c.outputTokens
-		if k[3] != "ok" {
+		if k[4] != "ok" {
 			r.Failed += c.calls
 		}
 	}
 	sort.Slice(r.Series, func(i, j int) bool {
 		a, b := r.Series[i], r.Series[j]
-		return strings.Join([]string{a.Host, a.Purpose, a.Outcome, a.Model}, "|") < strings.Join([]string{b.Host, b.Purpose, b.Outcome, b.Model}, "|")
+		return strings.Join([]string{a.Host, a.Purpose, a.Outcome, a.Engine, a.Model}, "|") < strings.Join([]string{b.Host, b.Purpose, b.Outcome, b.Engine, b.Model}, "|")
 	})
 	for k, n := range m.ai.cacheHits {
 		r.CacheHits += n
-		r.CacheHitsByHost[k[1]] += n
+		r.CacheHitsByHost[k[2]] += n
 	}
 	return r
 }
@@ -134,15 +137,15 @@ func (m *Metrics) writeAI(w io.Writer) {
 	}
 	sort.Slice(keys, func(i, j int) bool { return strings.Join(keys[i][:], "|") < strings.Join(keys[j][:], "|") })
 	labels := func(k aiKey) string {
-		return fmt.Sprintf("model=%q,purpose=%q,host=%q,outcome=%q", esc(k[0]), esc(k[1]), esc(k[2]), esc(k[3]))
+		return fmt.Sprintf("engine=%q,model=%q,purpose=%q,host=%q,outcome=%q", esc(k[0]), esc(k[1]), esc(k[2]), esc(k[3]), esc(k[4]))
 	}
 
-	fmt.Fprintln(w, "# HELP extract_ai_calls_total Calls to the AI provider, by model, purpose (extract, repair, learn), host, and outcome (ok or failure code).")
+	fmt.Fprintln(w, "# HELP extract_ai_calls_total Calls to the AI provider, by engine, model, purpose (extract, repair, learn), host, and outcome (ok or failure code).")
 	fmt.Fprintln(w, "# TYPE extract_ai_calls_total counter")
 	for _, k := range keys {
 		fmt.Fprintf(w, "extract_ai_calls_total{%s} %d\n", labels(k), m.ai.calls[k].calls)
 	}
-	fmt.Fprintln(w, "# HELP extract_ai_tokens_total Tokens used at the AI provider, by model, purpose, host, outcome, and kind (input or output).")
+	fmt.Fprintln(w, "# HELP extract_ai_tokens_total Tokens used at the AI provider, by engine, model, purpose, host, outcome, and kind (input or output).")
 	fmt.Fprintln(w, "# TYPE extract_ai_tokens_total counter")
 	for _, k := range keys {
 		c := m.ai.calls[k]
@@ -155,14 +158,14 @@ func (m *Metrics) writeAI(w io.Writer) {
 		fmt.Fprintf(w, "extract_ai_call_seconds_total{%s} %g\n", labels(k), m.ai.calls[k].seconds)
 	}
 
-	hits := make([][2]string, 0, len(m.ai.cacheHits))
+	hits := make([][3]string, 0, len(m.ai.cacheHits))
 	for k := range m.ai.cacheHits {
 		hits = append(hits, k)
 	}
-	sort.Slice(hits, func(i, j int) bool { return hits[i][0]+"|"+hits[i][1] < hits[j][0]+"|"+hits[j][1] })
+	sort.Slice(hits, func(i, j int) bool { return strings.Join(hits[i][:], "|") < strings.Join(hits[j][:], "|") })
 	fmt.Fprintln(w, "# HELP extract_ai_cache_hits_total AI answers served from the cache, which used no tokens.")
 	fmt.Fprintln(w, "# TYPE extract_ai_cache_hits_total counter")
 	for _, k := range hits {
-		fmt.Fprintf(w, "extract_ai_cache_hits_total{model=%q,host=%q} %d\n", esc(k[0]), esc(k[1]), m.ai.cacheHits[k])
+		fmt.Fprintf(w, "extract_ai_cache_hits_total{engine=%q,model=%q,host=%q} %d\n", esc(k[0]), esc(k[1]), esc(k[2]), m.ai.cacheHits[k])
 	}
 }

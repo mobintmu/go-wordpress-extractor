@@ -38,8 +38,9 @@ const (
 	UnitRial  = "rial"
 	UnitUSD   = "usd"
 	UnitEUR   = "eur"
-	// UnitAuto lets the ai-crawler-avalai engine read the currency from
-	// each page. Only allowed with that engine.
+	// UnitAuto lets an AI engine (ai-crawler-avalai or
+	// ai-crawler-cloudflare) read the currency from each page. Only allowed
+	// with those engines.
 	UnitAuto = "auto"
 )
 
@@ -95,11 +96,33 @@ const (
 	EngineYahoo  = "yahoo"
 	EngineYandex = "yandex"
 	// EngineAICrawler fetches the page with the http engine (or the browser
-	// engine) and extracts the product with an LLM over an
-	// OpenAI-compatible API (AvalAI by default). It is also the default rule
-	// for hosts that have no site config.
+	// engine) and extracts the product with an LLM through AvalAI's
+	// OpenAI-compatible API. It is the default engine for hosts that have
+	// no rule of their own unless APP_DEFAULT_ENGINE says otherwise.
 	EngineAICrawler = "ai-crawler-avalai"
+	// EngineAICloudflare does the same as EngineAICrawler, with the LLM
+	// call going through Cloudflare AI Gateway.
+	EngineAICloudflare = "ai-crawler-cloudflare"
 )
+
+// AIFetchWebSearch is the fetch.ai_fetch value that never contacts the
+// site: the provider's search model looks the product up on the web, and
+// the values are returned unverified (warning AI_UNVERIFIED).
+const AIFetchWebSearch = "web_search"
+
+// AIEngines lists the engines that extract with an LLM. Each can read any
+// page, so each can be the default engine (APP_DEFAULT_ENGINE).
+var AIEngines = []string{EngineAICrawler, EngineAICloudflare}
+
+// IsAIEngine reports whether name is an AI engine.
+func IsAIEngine(name string) bool {
+	for _, e := range AIEngines {
+		if e == name {
+			return true
+		}
+	}
+	return false
+}
 
 // SearchEngines lists every engine that reads search results instead of
 // the site, in the order the documentation uses.
@@ -155,10 +178,11 @@ type Fetch struct {
 	TimeoutSeconds   int      `json:"timeout_seconds"`
 	Retries          *int     `json:"retries"`
 	RespectRobotsTxt *bool    `json:"respect_robots_txt"`
-	// AIFetch is how the ai-crawler-avalai engine fetches the page: "http"
-	// (default, with a retry in Chrome for JavaScript-only pages when the
-	// browser engine is enabled) or "browser" (always Chrome). Only allowed
-	// with that engine.
+	// AIFetch is how an AI engine gets the page: "http" (default, with a
+	// retry in Chrome for JavaScript-only pages when the browser engine is
+	// enabled), "browser" (always Chrome), or "web_search" (the site is
+	// never contacted; the provider's search model looks the product up).
+	// Only allowed with an AI engine.
 	AIFetch string `json:"ai_fetch"`
 }
 
@@ -295,8 +319,9 @@ func (a *AttrList) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// IsAI reports whether the site uses the ai-crawler-avalai engine.
-func (s *Site) IsAI() bool { return s.Fetch.Engine == EngineAICrawler }
+// IsAI reports whether the site uses an AI engine (ai-crawler-avalai or
+// ai-crawler-cloudflare).
+func (s *Site) IsAI() bool { return IsAIEngine(s.Fetch.Engine) }
 
 // LimitKey is the key for throttling, cookies and the per-site limiter:
 // the site_id, or for the default AI rule "ai:<host>".

@@ -36,8 +36,8 @@ func AppOptions() fx.Option {
 			fetchOptions,
 			fetch.New,
 			newBrowserFetcher,
-			newAIClient,
-			newAIEngine,
+			newAIClients,
+			newAIEngines,
 			newLearner,
 			newFetchRouter,
 			extract.NewService,
@@ -101,52 +101,102 @@ func newBrowserFetcher(lc fx.Lifecycle, cfg *config.Config, opts fetch.Options, 
 // fetch.alternate_engines entry). The search engines ("duckduckgo",
 // "brave", "mojeek", "yahoo", "yandex") are registered only when their
 // APP_<ENGINE>_ENABLED switch is on.
-func newFetchRouter(cfg *config.Config, opts fetch.Options, httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher, ai *fetch.AIEngine, log *zap.Logger) extract.Fetcher {
-	engines := []fetch.Engine{httpEngine, browser, ai}
+func newFetchRouter(cfg *config.Config, opts fetch.Options, httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher, ai aiEngines, log *zap.Logger) extract.Fetcher {
+	engines := []fetch.Engine{httpEngine, browser}
+	for _, e := range ai {
+		engines = append(engines, e)
+	}
 	engines = append(engines, fetch.NewSearchEngines(opts, fetch.SearchSettings(cfg.SearchSettings()), log)...)
 	r := fetch.NewRouter(engines...)
 	log.Info("fetch engines registered", zap.Strings("engines", r.Engines()))
 	return r
 }
 
-// newAIClient builds the OpenAI-compatible client for the
-// "ai-crawler-avalai" engine when APP_AI_CRAWLER_ENABLED is on, and returns
-// nil otherwise.
-func newAIClient(cfg *config.Config, m *metrics.Metrics) *aicrawler.Client {
-	if !cfg.AICrawlerEnabled {
-		return nil
+// aiClients holds one LLM client per configured AI engine. A field is nil
+// when its engine is not configured.
+type aiClients struct {
+	avalai     *aicrawler.Client
+	cloudflare *aicrawler.Client
+}
+
+// forEngine returns the client of engine, or nil.
+func (c aiClients) forEngine(engine string) *aicrawler.Client {
+	switch engine {
+	case aicrawler.EngineAvalAI:
+		return c.avalai
+	case aicrawler.EngineCloudflare:
+		return c.cloudflare
 	}
-	return aicrawler.New(aicrawler.Settings{
-		BaseURL:         cfg.AICrawlerBaseURL,
-		Model:           cfg.AICrawlerModel,
-		APIKey:          cfg.AICrawlerAPIKey,
-		Timeout:         cfg.AICrawlerTimeout,
-		MaxOutputTokens: cfg.AICrawlerMaxOutputTokens,
-		Temperature:     cfg.AICrawlerTemperature,
-		Retries:         cfg.AICrawlerRetries,
-		MinInterval:     time.Duration(cfg.AICrawlerMinIntervalMS) * time.Millisecond,
-		ResponseFormat:  cfg.AICrawlerResponseFormat,
-		Observe: func(c aicrawler.Call) {
-			if c.Cached {
-				m.ObserveAICacheHit(c.Model, c.Host)
-				return
-			}
-			m.ObserveAICall(c.Model, c.Purpose, c.Host, c.Outcome, c.InputTokens, c.OutputTokens, c.Duration)
-		},
-	})
+	return nil
 }
 
-// newAIEngine builds the "ai-crawler-avalai" engine, or nil when the AI
-// crawler is off. It fetches with the http engine and, for JavaScript
-// pages, with the browser engine when that is enabled.
-func newAIEngine(cfg *config.Config, httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher, client *aicrawler.Client, log *zap.Logger) *fetch.AIEngine {
-	return fetch.NewAIEngine(httpEngine, browser, client, aicrawler.NewCache(cfg.AICrawlerCacheTTL), cfg.AICrawlerMaxInputChars, log)
+// aiEngines are the configured AI fetch engines, in a fixed order.
+type aiEngines []*fetch.AIEngine
+
+// newAIClients builds the OpenAI-compatible clients of the AI engines whose
+// settings are complete (APP_AI_CRAWLER_ENABLED plus the engine's own
+// settings): "ai-crawler-avalai" calls AvalAI, "ai-crawler-cloudflare"
+// calls Cloudflare AI Gateway. Both share the limits and the metrics.
+func newAIClients(cfg *config.Config, m *metrics.Metrics) aiClients {
+	shared := func(minIntervalMS int) aicrawler.Settings {
+		return aicrawler.Settings{
+			Timeout:         cfg.AICrawlerTimeout,
+			MaxOutputTokens: cfg.AICrawlerMaxOutputTokens,
+			Temperature:     cfg.AICrawlerTemperature,
+			Retries:         cfg.AICrawlerRetries,
+			MinInterval:     time.Duration(minIntervalMS) * time.Millisecond,
+			ResponseFormat:  cfg.AICrawlerResponseFormat,
+			Observe: func(c aicrawler.Call) {
+				if c.Cached {
+					m.ObserveAICacheHit(c.Engine, c.Model, c.Host)
+					return
+				}
+				m.ObserveAICall(c.Engine, c.Model, c.Purpose, c.Host, c.Outcome, c.InputTokens, c.OutputTokens, c.Duration)
+			},
+		}
+	}
+	var out aiClients
+	if cfg.AvalAIConfigured() {
+		out.avalai = aicrawler.New(aicrawler.AvalAI(cfg.AICrawlerBaseURL, cfg.AICrawlerModel, cfg.AICrawlerAPIKey, cfg.AICrawlerSearchModel), shared(cfg.AICrawlerMinIntervalMS))
+	}
+	if cfg.CloudflareConfigured() {
+		out.cloudflare = aicrawler.New(aicrawler.Cloudflare(aicrawler.CloudflareSettings{
+			AccountID:        cfg.CloudflareAccountID,
+			GatewayID:        cfg.CloudflareGatewayID,
+			Endpoint:         cfg.CloudflareEndpoint,
+			BaseURL:          cfg.CloudflareBaseURL,
+			Model:            cfg.CloudflareModel,
+			ReasoningEffort:  cfg.CloudflareReasoningEffort,
+			APIToken:         cfg.CloudflareAPIToken,
+			ProviderAPIKey:   cfg.CloudflareProviderAPIKey,
+			NoUnifiedBilling: cfg.CloudflareNoUnifiedBilling,
+			CollectLog:       cfg.CloudflareCollectLog,
+		}), shared(cfg.CloudflareMinIntervalMS))
+	}
+	return out
 }
 
-// newLearner builds the selector learner when the AI crawler and
-// APP_AI_CRAWLER_LEARN_SELECTORS are on, and returns nil otherwise. Running
-// learning jobs are cancelled and awaited on stop.
-func newLearner(lc fx.Lifecycle, cfg *config.Config, client *aicrawler.Client, log *zap.Logger) *extract.Learner {
+// newAIEngines builds one AI engine per configured client. They fetch with
+// the http engine and, for JavaScript pages, with the browser engine when
+// that is enabled. They share one answer cache, keyed on the engine too.
+func newAIEngines(cfg *config.Config, httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher, clients aiClients, log *zap.Logger) aiEngines {
+	cache := aicrawler.NewCache(cfg.AICrawlerCacheTTL)
+	var out aiEngines
+	for _, c := range []*aicrawler.Client{clients.avalai, clients.cloudflare} {
+		if e := fetch.NewAIEngine(httpEngine, browser, c, cache, cfg.AICrawlerMaxInputChars, log); e != nil {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// newLearner builds the selector learner when APP_AI_CRAWLER_LEARN_SELECTORS
+// is on and APP_DEFAULT_ENGINE names an AI engine, and returns nil
+// otherwise. Learning calls use the default engine: only websites without a
+// rule are learned, and those are the ones it serves. Running learning jobs
+// are cancelled and awaited on stop.
+func newLearner(lc fx.Lifecycle, cfg *config.Config, clients aiClients, log *zap.Logger) *extract.Learner {
+	client := clients.forEngine(cfg.DefaultAIEngine())
 	if client == nil || !cfg.AICrawlerLearnSelectors {
 		return nil
 	}

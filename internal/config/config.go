@@ -93,22 +93,37 @@ type Config struct {
 	YandexEnabled       bool
 	YandexMinIntervalMS int
 
-	// AI crawler: the "ai-crawler-avalai" engine extracts products with an
-	// LLM over an OpenAI-compatible API (AvalAI by default).
+	// DefaultEngine is the engine for any website without a rule of its
+	// own (no site config and no active learned config):
+	// ai-crawler-avalai, ai-crawler-cloudflare, or none (SITE_NOT_CONFIGURED).
+	// Read from APP_DEFAULT_ENGINE; when that is empty it is
+	// ai-crawler-avalai with the AI crawler on and none with it off.
+	DefaultEngine string
+	// legacyDefaultRule is APP_AI_CRAWLER_DEFAULT_RULE, which was replaced
+	// by APP_DEFAULT_ENGINE: the server refuses to start while it is set.
+	legacyDefaultRule string
 
-	// AICrawlerEnabled turns the engine on. It needs an API key.
+	// AI crawler: the AI engines extract products with an LLM over an
+	// OpenAI-compatible API. "ai-crawler-avalai" calls AvalAI and
+	// "ai-crawler-cloudflare" calls Cloudflare AI Gateway; the limits, cache,
+	// format and learning settings below are shared.
+
+	// AICrawlerEnabled turns the AI engines on. Each engine is on when its
+	// own settings are complete: AvalAI needs a key, Cloudflare an account
+	// id and a token.
 	AICrawlerEnabled bool
-	// AICrawlerDefaultRule serves every host without a site config with
-	// the AI crawler. When false, such hosts get SITE_NOT_CONFIGURED.
-	AICrawlerDefaultRule bool
-	// AICrawlerBaseURL is the OpenAI-compatible API base, ending in /v1.
+	// AICrawlerBaseURL is AvalAI's OpenAI-compatible API base, ending in /v1.
 	AICrawlerBaseURL string
-	// AICrawlerModel is the only model used; there is no fallback model.
+	// AICrawlerModel is the only AvalAI model used; there is no fallback model.
 	AICrawlerModel string
-	// AICrawlerAPIKey is the provider's API key. Secret: never logged.
+	// AICrawlerAPIKey is AvalAI's API key. Secret: never logged.
 	AICrawlerAPIKey string
 	// AICrawlerAPIKeyFile holds only the key; read when AICrawlerAPIKey is empty.
 	AICrawlerAPIKeyFile string
+	// AICrawlerSearchModel is the AvalAI model that searches the web
+	// itself, used by sites with fetch.ai_fetch "web_search". "none" (or
+	// empty after validation) turns that mode off.
+	AICrawlerSearchModel string
 	// AICrawlerTimeout bounds one LLM call (each retry gets its own).
 	AICrawlerTimeout time.Duration
 	// AICrawlerMaxInputChars caps the cleaned page sent to the model.
@@ -119,7 +134,7 @@ type Config struct {
 	AICrawlerTemperature float64
 	// AICrawlerRetries is how often a 408, 409, 429 or 5xx answer is retried.
 	AICrawlerRetries int
-	// AICrawlerMinIntervalMS is the minimum gap between two LLM calls.
+	// AICrawlerMinIntervalMS is the minimum gap between two AvalAI calls.
 	AICrawlerMinIntervalMS int
 	// AICrawlerCacheTTL keeps an extraction for the same page and model.
 	AICrawlerCacheTTL time.Duration
@@ -141,6 +156,79 @@ type Config struct {
 	AICrawlerLearnDemoteAfter int
 	// AICrawlerLearnMaxAttemptsPerDay caps learning calls per host per day.
 	AICrawlerLearnMaxAttemptsPerDay int
+
+	// Engine "ai-crawler-cloudflare" (Cloudflare AI Gateway). It is
+	// configured when the AI crawler is on and the account id is set.
+
+	// CloudflareAccountID is the Cloudflare account id (32 hex characters).
+	CloudflareAccountID string
+	// CloudflareGatewayID names the gateway; "default" is created on first use.
+	CloudflareGatewayID string
+	// CloudflareEndpoint is "rest" (recommended) or "compat".
+	CloudflareEndpoint string
+	// CloudflareBaseURL overrides the URL built from the endpoint. Optional.
+	CloudflareBaseURL string
+	// CloudflareModel is the model id from Cloudflare's catalog.
+	CloudflareModel string
+	// CloudflareReasoningEffort is sent as reasoning_effort: none, low,
+	// high or max.
+	CloudflareReasoningEffort string
+	// CloudflareAPIToken is the Cloudflare API token (rest) or the gateway
+	// token (compat). Secret: never logged.
+	CloudflareAPIToken string
+	// CloudflareAPITokenFile holds only the token; read when the token is empty.
+	CloudflareAPITokenFile string
+	// CloudflareProviderAPIKey is the provider's own key, compat only. Secret.
+	CloudflareProviderAPIKey string
+	// CloudflareProviderAPIKeyFile holds only that key.
+	CloudflareProviderAPIKeyFile string
+	// CloudflareNoUnifiedBilling sends cf-aig-no-wholesale, so a call
+	// without a usable key fails instead of spending credits.
+	CloudflareNoUnifiedBilling bool
+	// CloudflareCollectLog false asks the gateway not to log prompts and answers.
+	CloudflareCollectLog bool
+	// CloudflareMinIntervalMS is the minimum gap between two Cloudflare calls.
+	CloudflareMinIntervalMS int
+
+	// Set by ValidateAICrawler: which AI engines have complete settings.
+	avalaiConfigured     bool
+	cloudflareConfigured bool
+}
+
+// Engine names accepted by APP_DEFAULT_ENGINE. They match siteconfig's
+// engine names; config does not import siteconfig.
+const (
+	EngineNone         = "none"
+	EngineAvalAI       = "ai-crawler-avalai"
+	EngineAICloudflare = "ai-crawler-cloudflare"
+)
+
+// AvalAIConfigured reports whether the ai-crawler-avalai engine is on.
+func (cfg *Config) AvalAIConfigured() bool { return cfg.AICrawlerEnabled && cfg.avalaiConfigured }
+
+// CloudflareConfigured reports whether the ai-crawler-cloudflare engine is on.
+func (cfg *Config) CloudflareConfigured() bool {
+	return cfg.AICrawlerEnabled && cfg.cloudflareConfigured
+}
+
+// DefaultAIEngine is the engine of the default rule, or "" when websites
+// without a rule are not served (APP_DEFAULT_ENGINE=none).
+func (cfg *Config) DefaultAIEngine() string {
+	if cfg.DefaultEngine == EngineNone || !cfg.AICrawlerEnabled {
+		return ""
+	}
+	return cfg.DefaultEngine
+}
+
+// AIModel is the model the AI engine uses, or "" when it is not on.
+func (cfg *Config) AIModel(engine string) string {
+	switch {
+	case engine == EngineAvalAI && cfg.AvalAIConfigured():
+		return cfg.AICrawlerModel
+	case engine == EngineAICloudflare && cfg.CloudflareConfigured():
+		return cfg.CloudflareModel
+	}
+	return ""
 }
 
 const (
@@ -166,6 +254,7 @@ const (
 
 	DefaultAICrawlerBaseURL         = "https://api.avalai.ir/v1"
 	DefaultAICrawlerModel           = "deepseek-v4.1-flash"
+	DefaultAICrawlerSearchModel     = "sonar"
 	DefaultAICrawlerTimeout         = 45 * time.Second
 	DefaultAICrawlerMaxInputChars   = 60000
 	DefaultAICrawlerMaxOutputTokens = 2000
@@ -177,6 +266,12 @@ const (
 	DefaultAICrawlerPromoteAfter    = 3
 	DefaultAICrawlerDemoteAfter     = 3
 	DefaultAICrawlerLearnAttempts   = 3
+
+	DefaultCloudflareGatewayID       = "default"
+	DefaultCloudflareEndpoint        = "rest"
+	DefaultCloudflareModel           = "@cf/deepseek-ai/deepseek-v4.1-flash-1017"
+	DefaultCloudflareReasoningEffort = "none"
+	DefaultCloudflareIntervalMS      = 500
 )
 
 func newViper() *viper.Viper {
@@ -202,8 +297,11 @@ func NewConfig() (*Config, error) {
 		zap.String("proxy", proxy), zap.Bool("browser", cfg.BrowserEnabled),
 		zap.Bool("duckduckgo", cfg.DuckDuckGoEnabled), zap.Bool("brave", cfg.BraveEnabled),
 		zap.Bool("mojeek", cfg.MojeekEnabled), zap.Bool("yahoo", cfg.YahooEnabled), zap.Bool("yandex", cfg.YandexEnabled),
-		zap.Bool("ai_crawler", cfg.AICrawlerEnabled), zap.String("ai_model", cfg.AICrawlerModel), zap.String("ai_base_url", cfg.AICrawlerBaseURL),
-		zap.Bool("ai_default_rule", cfg.AICrawlerEnabled && cfg.AICrawlerDefaultRule), zap.Bool("ai_learn", cfg.AICrawlerEnabled && cfg.AICrawlerLearnSelectors))
+		zap.Bool("ai_crawler", cfg.AICrawlerEnabled),
+		zap.Bool("ai_avalai", cfg.AvalAIConfigured()), zap.String("ai_avalai_model", cfg.AIModel(EngineAvalAI)),
+		zap.Bool("ai_cloudflare", cfg.CloudflareConfigured()), zap.String("ai_cloudflare_model", cfg.AIModel(EngineAICloudflare)),
+		zap.String("ai_cloudflare_endpoint", cfg.CloudflareEndpoint),
+		zap.String("default_engine", cfg.DefaultEngine), zap.Bool("ai_learn", cfg.AICrawlerEnabled && cfg.AICrawlerLearnSelectors))
 
 	return cfg, nil
 }
@@ -234,9 +332,9 @@ func buildConfig(v *viper.Viper) *Config {
 	v.SetDefault("YANDEX_ENABLED", false)
 	v.SetDefault("YANDEX_MIN_INTERVAL_MS", DefaultScrapedIntervalMS)
 	v.SetDefault("AI_CRAWLER_ENABLED", false)
-	v.SetDefault("AI_CRAWLER_DEFAULT_RULE", true)
 	v.SetDefault("AI_CRAWLER_BASE_URL", DefaultAICrawlerBaseURL)
 	v.SetDefault("AI_CRAWLER_MODEL", DefaultAICrawlerModel)
+	v.SetDefault("AI_CRAWLER_SEARCH_MODEL", DefaultAICrawlerSearchModel)
 	v.SetDefault("AI_CRAWLER_TIMEOUT", DefaultAICrawlerTimeout)
 	v.SetDefault("AI_CRAWLER_MAX_INPUT_CHARS", DefaultAICrawlerMaxInputChars)
 	v.SetDefault("AI_CRAWLER_MAX_OUTPUT_TOKENS", DefaultAICrawlerMaxOutputTokens)
@@ -250,6 +348,13 @@ func buildConfig(v *viper.Viper) *Config {
 	v.SetDefault("AI_CRAWLER_LEARN_PROMOTE_AFTER", DefaultAICrawlerPromoteAfter)
 	v.SetDefault("AI_CRAWLER_LEARN_DEMOTE_AFTER", DefaultAICrawlerDemoteAfter)
 	v.SetDefault("AI_CRAWLER_LEARN_MAX_ATTEMPTS_PER_DAY", DefaultAICrawlerLearnAttempts)
+	v.SetDefault("AI_CRAWLER_CLOUDFLARE_GATEWAY_ID", DefaultCloudflareGatewayID)
+	v.SetDefault("AI_CRAWLER_CLOUDFLARE_ENDPOINT", DefaultCloudflareEndpoint)
+	v.SetDefault("AI_CRAWLER_CLOUDFLARE_MODEL", DefaultCloudflareModel)
+	v.SetDefault("AI_CRAWLER_CLOUDFLARE_REASONING_EFFORT", DefaultCloudflareReasoningEffort)
+	v.SetDefault("AI_CRAWLER_CLOUDFLARE_NO_UNIFIED_BILLING", true)
+	v.SetDefault("AI_CRAWLER_CLOUDFLARE_COLLECT_LOG", false)
+	v.SetDefault("AI_CRAWLER_CLOUDFLARE_MIN_INTERVAL_MS", DefaultCloudflareIntervalMS)
 
 	cfg := &Config{
 		ENV:                   v.GetString("ENV"),
@@ -290,12 +395,15 @@ func buildConfig(v *viper.Viper) *Config {
 		YandexEnabled:           v.GetBool("YANDEX_ENABLED"),
 		YandexMinIntervalMS:     v.GetInt("YANDEX_MIN_INTERVAL_MS"),
 
+		DefaultEngine:     v.GetString("DEFAULT_ENGINE"),
+		legacyDefaultRule: v.GetString("AI_CRAWLER_DEFAULT_RULE"),
+
 		AICrawlerEnabled:                v.GetBool("AI_CRAWLER_ENABLED"),
-		AICrawlerDefaultRule:            v.GetBool("AI_CRAWLER_DEFAULT_RULE"),
 		AICrawlerBaseURL:                v.GetString("AI_CRAWLER_BASE_URL"),
 		AICrawlerModel:                  v.GetString("AI_CRAWLER_MODEL"),
 		AICrawlerAPIKey:                 v.GetString("AI_CRAWLER_API_KEY"),
 		AICrawlerAPIKeyFile:             v.GetString("AI_CRAWLER_API_KEY_FILE"),
+		AICrawlerSearchModel:            v.GetString("AI_CRAWLER_SEARCH_MODEL"),
 		AICrawlerTimeout:                v.GetDuration("AI_CRAWLER_TIMEOUT"),
 		AICrawlerMaxInputChars:          v.GetInt("AI_CRAWLER_MAX_INPUT_CHARS"),
 		AICrawlerMaxOutputTokens:        v.GetInt("AI_CRAWLER_MAX_OUTPUT_TOKENS"),
@@ -310,6 +418,20 @@ func buildConfig(v *viper.Viper) *Config {
 		AICrawlerLearnPromoteAfter:      v.GetInt("AI_CRAWLER_LEARN_PROMOTE_AFTER"),
 		AICrawlerLearnDemoteAfter:       v.GetInt("AI_CRAWLER_LEARN_DEMOTE_AFTER"),
 		AICrawlerLearnMaxAttemptsPerDay: v.GetInt("AI_CRAWLER_LEARN_MAX_ATTEMPTS_PER_DAY"),
+
+		CloudflareAccountID:          v.GetString("AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID"),
+		CloudflareGatewayID:          v.GetString("AI_CRAWLER_CLOUDFLARE_GATEWAY_ID"),
+		CloudflareEndpoint:           v.GetString("AI_CRAWLER_CLOUDFLARE_ENDPOINT"),
+		CloudflareBaseURL:            v.GetString("AI_CRAWLER_CLOUDFLARE_BASE_URL"),
+		CloudflareModel:              v.GetString("AI_CRAWLER_CLOUDFLARE_MODEL"),
+		CloudflareReasoningEffort:    v.GetString("AI_CRAWLER_CLOUDFLARE_REASONING_EFFORT"),
+		CloudflareAPIToken:           v.GetString("AI_CRAWLER_CLOUDFLARE_API_TOKEN"),
+		CloudflareAPITokenFile:       v.GetString("AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE"),
+		CloudflareProviderAPIKey:     v.GetString("AI_CRAWLER_CLOUDFLARE_PROVIDER_API_KEY"),
+		CloudflareProviderAPIKeyFile: v.GetString("AI_CRAWLER_CLOUDFLARE_PROVIDER_API_KEY_FILE"),
+		CloudflareNoUnifiedBilling:   v.GetBool("AI_CRAWLER_CLOUDFLARE_NO_UNIFIED_BILLING"),
+		CloudflareCollectLog:         v.GetBool("AI_CRAWLER_CLOUDFLARE_COLLECT_LOG"),
+		CloudflareMinIntervalMS:      v.GetInt("AI_CRAWLER_CLOUDFLARE_MIN_INTERVAL_MS"),
 	}
 	if cfg.APIKeysFile == "" {
 		cfg.APIKeysFile = DefaultAPIKeysFile(cfg.ENV)
