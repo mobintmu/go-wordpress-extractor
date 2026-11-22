@@ -1,0 +1,132 @@
+{
+  "status": "success",
+  "url": "https://www.voltlighting.com/mr11-decorative-rock-light",
+  "site_id": "ai_voltlighting_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 5718,
+      "output": 1308
+    }
+  },
+  "completeness": "full",
+  "product": {
+    "title": "Decorative Rock Light",
+    "url": "https://www.voltlighting.com/mr11-decorative-rock-light",
+    "image_url": "https://www.voltlighting.com/media/catalog/product/r/o/rocklight_0003_brightness_contrast-1.png?quality=80&fit=bounds&height=&width=&format=jpeg",
+    "description": "Elevate your outdoor space with the VOLT® MR11 Decorative Rock Light, a discreet low voltage landscape lighting fixture designed to blend naturally into your surroundings. Its epoxy resin body with a cast brass faceplate creates a realistic rock appearance that works beautifully among shrubs, small trees, and garden beds. The adjustable gimbal gives you control over the direction of the light, while the customizable MR11 LED bulb lets you choose the brightness and color temperature that best fits your landscape. With its natural appearance and versatile design, this rock light makes it easy to add subtle landscape accent lighting without taking attention away from the beauty of your outdoor space.",
+    "price": {
+      "current": 3399,
+      "regular": null,
+      "currency": "USD",
+      "raw": "$33.99",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "Additional Color",
+        "value": "Bronze"
+      },
+      {
+        "group": "Materials",
+        "name": "Construction",
+        "value": "Resin w/ Cast Brass Faceplate"
+      },
+      {
+        "group": "Materials",
+        "name": "Finishes",
+        "value": "Antique Bronze"
+      },
+      {
+        "group": "Materials",
+        "name": "Mounting",
+        "value": "5\" ground spike included"
+      },
+      {
+        "group": "Materials",
+        "name": "Lead Wire",
+        "value": "4ft cUL certified 18AWG"
+      },
+      {
+        "group": "Materials",
+        "name": "Lens",
+        "value": "Clear flat glass"
+      },
+      {
+        "group": "Photometrics",
+        "name": "Light Source",
+        "value": "LED MR11 bulb (sold separately)"
+      },
+      {
+        "group": "Photometrics",
+        "name": "Light Output",
+        "value": "See specs for MR11 bulbs"
+      },
+      {
+        "group": "Photometrics",
+        "name": "Color Temperature (CCT)",
+        "value": "See specs for MR11 bulbs"
+      },
+      {
+        "group": "Photometrics",
+        "name": "Beam Angle",
+        "value": "See specs for MR11 bulbs"
+      },
+      {
+        "group": "Photometrics",
+        "name": "Life (L70)",
+        "value": "See specs for MR11 bulbs"
+      },
+      {
+        "group": "Electrical",
+        "name": "Power (Watts)",
+        "value": "See specs for MR11 bulbs"
+      },
+      {
+        "group": "Electrical",
+        "name": "Operating Voltage",
+        "value": "12VAC"
+      },
+      {
+        "group": "Electrical",
+        "name": "Power Supply",
+        "value": "Low Voltage Transformer (sold separately)"
+      },
+      {
+        "group": "Certifications",
+        "name": "Safety",
+        "value": "UL & cUL Listed"
+      },
+      {
+        "group": "Certifications",
+        "name": "Protection",
+        "value": "IP67 Rated"
+      },
+      {
+        "group": "Certifications",
+        "name": "Warranty",
+        "value": "Lifetime"
+      }
+    ],
+    "features": [
+      "Blends Into the Landscape: The decorative rock design helps the fixture integrate naturally into garden beds and planted areas for a more seamless lighting installation.",
+      "Customizable MR11 Lighting: Choose from compatible MR11 LED bulbs with different lumens, beam angles, and color temperatures, including options for warm white and RGBCW color changing illumination.",
+      "Flexible Light Direction: The adjustable gimbal allows you to aim the light output toward shrubs, small trees, or other landscape features you want to highlight.",
+      "Easy Ground Placement: A 5\" ground stake is included, along with a 4 ft. cUL certified 18AWG lead wire, providing convenient placement within your landscape.",
+      "Ready for Outdoor Conditions: The fixture operates at 12VAC and features a clear flat glass lens, IP67 protection, UL and cUL® listing, and a Lifetime Warranty for dependable outdoor use."
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": []
+}

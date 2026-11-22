@@ -1,0 +1,117 @@
+{
+  "status": "success",
+  "url": "https://www.hermanmiller.com/products/seating/office-chairs/aeron-chair/",
+  "site_id": "ai_hermanmiller_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.hermanmiller.com/products/seating/office-chairs/aeron-chair/",
+      "https://www.hermanmiller.com/products/seating/office-chairs/aeron-chair/specs/",
+      "https://www.hermanmiller.com/products/seating/office-chairs/aeron-chair/design-story/",
+      "https://www.hermanmiller.com/products/seating/office-chairs/aeron-chair/product-images/",
+      "https://www.hermanmiller.com/products/seating/office-chairs/aeron-chair/product-images/aeron-family/423b4381-344c-44c2-8abf-3ad8f00564f6/",
+      "https://www.hermanmiller.com/products/seating/office-chairs/aeron-chair/pro-resources/"
+    ],
+    "tokens": {
+      "input": 564,
+      "output": 556
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Aeron Chair",
+    "url": "https://www.hermanmiller.com/products/seating/office-chairs/aeron-chair/",
+    "image_url": null,
+    "description": "Ergonomic to the core, Aeron was designed for all types of human bodies, thanks to extensive research of designers Bill Stumpf and Don Chadwick. The Aeron Chair has been the benchmark for ergonomic seating ever since its debut in 1994. Today’s Aeron Chair incorporates 8Z Pellicle for smarter weight distribution, adjustable PostureFit SL for total spinal support, and Harmonic 2 Tilt for balanced recline and natural movement. Aeron is available in six material expressions and three sizes—A, B, and C.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "group": "Dimensions",
+        "name": "Aeron Chair–A Size–Armless",
+        "value": "Height: 34.2\"–38.5\"; Width: 27.5\"; Depth: 27\"–27.5\"; Seat Depth: 16\"; Seat Height: 14.4\"–19.3\""
+      },
+      {
+        "group": "Dimensions",
+        "name": "Aeron Chair–A Size–Fixed Arms",
+        "value": "Height: 34.2\"–38.5\"; Width: 27.5\"; Depth: 27\"–27.5\"; Seat Depth: 16\"; Seat Height: 14.4\"–19.3\"; Arm Height: 8.5\""
+      },
+      {
+        "group": "Dimensions",
+        "name": "Aeron Chair–A Size–Fully Adjustable Arms",
+        "value": "Height: 34.2\"–38.5\"; Width: 27.5\"–29.3\"; Depth: 27\"–27.5\"; Seat Depth: 16\"; Seat Height: 14.4\"–19.3\"; Arm Height: 7.5\"–11.5\""
+      },
+      {
+        "group": "Options",
+        "name": "Sizes",
+        "value": "A, B, and C"
+      },
+      {
+        "group": "Options",
+        "name": "Colors",
+        "value": "Onyx, Graphite, Carbon, Mineral, Nightfall, and Jasper"
+      },
+      {
+        "group": "Sustainability",
+        "name": "Recycled material",
+        "value": "More than 50%"
+      },
+      {
+        "group": "Design",
+        "name": "Designers",
+        "value": "Bill Stumpf and Don Chadwick"
+      }
+    ],
+    "features": [
+      "8Z Pellicle",
+      "Adjustable PostureFit SL",
+      "Harmonic 2 Tilt",
+      "Three sizes designed for a wide range of body types",
+      "Six available material expressions",
+      "Ocean-bound plastic incorporated into the chair"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the stock status."
+    }
+  ]
+}

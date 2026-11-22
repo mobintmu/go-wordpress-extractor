@@ -1,0 +1,27 @@
+{
+  "url": "https://www.voltlighting.com/mr11-decorative-rock-light",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Decorative Rock Light",
+      "url": "https://www.voltlighting.com/mr11-decorative-rock-light",
+      "image_url": "https://www.voltlighting.com/media/catalog/product/r/o/rocklight_0003_brightness_contrast-1.png?quality=80\u0026fit=bounds\u0026height=265\u0026width=265\u0026canvas=265:265\u0026format=jpeg",
+      "description": "This MR11 up light mimics the appearance of a rock to seamlessly blend into your landscape. Constructed of epoxy resin with a brass faceplate. Lifetime warranty.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T22:31:23Z"
+}

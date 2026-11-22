@@ -1,0 +1,87 @@
+{
+  "status": "success",
+  "url": "https://www.timbertech.com/product/pro-legacy-collection/",
+  "site_id": "timbertech",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 2938,
+      "output": 1927
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Legacy Collection",
+    "url": "https://www.timbertech.com/product/pro-legacy-collection/",
+    "image_url": "https://www.timbertech.com/product/pro-legacy-collection/media_134ffd9fb7b8b0c67d0d96c52e5b6a5836fbc25fb.webp?width=1200&format=pjpg&optimize=medium",
+    "description": "Explore the TimberTech Composite Legacy Collection, defined by hand-scraped textures, cascading hues, and unique board-to-board variation for a realistic wood look.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "group": "Options and Dimensions",
+        "name": "Deck Boards – Actual dimensions",
+        "value": "5.36″ x 0.94″"
+      },
+      {
+        "group": "Options and Dimensions",
+        "name": "Fascia Boards – Actual dimensions",
+        "value": "0.58″ x 11.95″"
+      },
+      {
+        "group": "Options and Dimensions",
+        "name": "Riser Boards – Actual dimensions",
+        "value": "0.58″ x 7.25″"
+      },
+      {
+        "group": "Deck Fastener Compatibility",
+        "name": "Grooved boards",
+        "value": "CONCEALoc ® hidden fastener"
+      },
+      {
+        "group": "Deck Fastener Compatibility",
+        "name": "Square-shouldered boards",
+        "value": "Cortex screw & plug system, TOPLoc color-matched face screws"
+      },
+      {
+        "group": "Deck Fastener Compatibility",
+        "name": "Fascia",
+        "value": "Cortex for Fascia"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "price",
+      "reason": "NOT_ON_PAGE",
+      "message": "The price was not found on this product page."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_ON_PAGE",
+      "message": "The stock status was not found on this product page."
+    }
+  ]
+}

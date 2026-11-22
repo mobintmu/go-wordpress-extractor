@@ -1,0 +1,51 @@
+{
+  "$comment": "SoundSeal (acoustical panels and architectural sound control, SoundSeal Inc.) runs a server-rendered CMS with product pages under /architectural-interiors/products/<category>/<product>. The product name is the h1, the description is the meta description and the image is og:image. The site asks visitors to contact sales for pricing, so there is no price in the markup: price is not configured and the product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. There are no specs in the markup (dimensions and performance are in the page body and PDFs, which the selectors do not read). Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and description (state unknown); browser: BOT_PROTECTION; ai-crawler-avalai: the same fields with state call_for_price, at 4,795+1,150 tokens. http is selected: the same data except the call-for-price state, at no cost. Checked against the saved (curl) S-4200 Tuned Absorber/Diffuser Panel page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "soundseal",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "soundseal.com",
+    "www.soundseal.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/architectural-interiors/products/[a-z0-9-]+/[a-z0-9-]+$"
+      ],
+      "root": "html:has(h1)",
+      "fields": {
+        "title": {
+          "selector": "h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

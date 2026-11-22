@@ -1,0 +1,140 @@
+{
+  "status": "success",
+  "url": "https://www.pella.com/shop/windows/250-series/single-hung-windows/",
+  "site_id": "ai_pella_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.pella.com/shop/windows/250-series/single-hung-windows/",
+      "https://www.pella.com/shop/windows/250-series/single-hung-windows-two-wide/"
+    ],
+    "tokens": {
+      "input": 561,
+      "output": 579
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Pella® 250 Series Vinyl Single-Hung Window",
+    "url": "https://www.pella.com/shop/windows/250-series/single-hung-windows/",
+    "image_url": null,
+    "description": "Single-hung windows feature a bottom sash that opens and closes for ventilation, and a top sash that remains stationary. With smart, energy-efficient choices and the most features and options of our vinyl products, Pella 250 Series single-hung windows are the perfect addition to your home.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "name": "Configuration",
+        "value": "1-wide"
+      },
+      {
+        "group": "Performance",
+        "name": "Performance class and grade",
+        "value": "R35-R50"
+      },
+      {
+        "group": "Performance",
+        "name": "STC",
+        "value": "25 for dual-pane windows; 28 for triple-pane windows"
+      },
+      {
+        "group": "Size",
+        "name": "Available sizes",
+        "value": "14-1/2\" x 23-1/2” to 53-1/2” x 77-1/2”"
+      },
+      {
+        "group": "Frame",
+        "name": "Overall frame depth",
+        "value": "3-1/4\" on all frame types"
+      },
+      {
+        "group": "Frame",
+        "name": "Frame construction",
+        "value": "Frame members are mitered and heat fused to provide a fully welded corner assembly."
+      },
+      {
+        "group": "Sash",
+        "name": "Sash construction",
+        "value": "Sash members are extruded, rigid PVC, and are mitered and heat-fused to provide a fully welded corner assembly."
+      },
+      {
+        "group": "Sash",
+        "name": "Sash lift",
+        "value": "Includes an integral extruded sash lift as standard."
+      },
+      {
+        "group": "Sash",
+        "name": "Glass",
+        "value": "Contains sealed insulating glass."
+      },
+      {
+        "group": "Weatherstripping",
+        "name": "Weatherstripping",
+        "value": "Sash is weatherstripped around the sash perimeter with a fin-type, pile weatherstripping and vinyl wrapped foam weatherstrip."
+      },
+      {
+        "group": "Glazing System",
+        "name": "Glass quality",
+        "value": "Quality float glass complying with AS™ C 1036."
+      },
+      {
+        "group": "Glazing System",
+        "name": "Glass installation",
+        "value": "Exterior face-glazed sealed insulating glass."
+      },
+      {
+        "group": "Glazing System",
+        "name": "Glass options",
+        "value": "Dual-Pane insulating glass or 1\" Triple-Pane"
+      }
+    ],
+    "features": [
+      "Pella's precision welding process creates more durable products that resist warping or twisting over time and are 52% stronger than ordinary vinyl.",
+      "Available in sizes from 14-1/2\" x 23-1/2” to 53-1/2” x 77-1/2”.",
+      "Popular configurations include arch head, springline, partial arch head and partial springline configurations.",
+      "Select combinations are available for online purchase."
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the stock status."
+    }
+  ]
+}

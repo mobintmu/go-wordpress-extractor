@@ -1,0 +1,37 @@
+{
+  "url": "https://www.laminart.com/coal-706",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Coal Buffalo 706",
+      "url": "https://www.laminart.com/coal-706",
+      "image_url": "https://images.wilsonart.com/media/catalog/product/cache/206845fc4dee3a159cd9ed4f83c4d3e9/7/0/706---coal-buffalo_beauty-medium_970_320.jpg",
+      "description": "These beautiful, sustainable leather veneers can be used anywhere you would specify wood veneer. From cabinetry to furniture, Laminart’s recycled leather veneers add a natural and beautiful touch to any project!",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "name": "Translucent",
+          "value": "No"
+        },
+        {
+          "name": "Vertical use only",
+          "value": "No"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T18:45:10Z"
+}

@@ -87,7 +87,9 @@ func Build(snap *siteconfig.Snapshot, models map[string]string) ListResponse {
 			Currency: e.Site.Locale.Currency(),
 			Origin:   e.Origin,
 		}
-		if e.Site.IsAI() {
+		// An unresolved "default" (APP_DEFAULT_ENGINE=none) is left out:
+		// engine is always a concrete engine name in this response.
+		if e.Site.IsAI() && e.Site.Fetch.Engine != siteconfig.EngineDefault {
 			s.Engine, s.Model = e.Site.Fetch.Engine, models[e.Site.Fetch.Engine]
 		}
 		out.Sites = append(out.Sites, s)

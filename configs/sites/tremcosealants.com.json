@@ -1,0 +1,35 @@
+{
+  "$comment": "Tremco (sealants and coatings, Tremco Construction Products) product pages time out for every page fetch from this network, including AvalAI's page fetch. So the site uses the default engine (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance) with ai_fetch web_search; the shop is never contacted and the values are unverified (AI_UNVERIFIED). The data sheet values (movement capability, skin time, cure time) come from the search model only. Engines tried on 2026-11-19: http and ai_fetch http: FETCH_TIMEOUT; browser: FETCH_TIMEOUT; ai_fetch browser: FETCH_TIMEOUT; web_search: success (6 specs, 7 features, 563+330 tokens). Needs APP_AI_CRAWLER_ENABLED with an AvalAI key.",
+  "schema_version": 1,
+  "site_id": "tremco",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "tremcosealants.com",
+    "www.tremcosealants.com"
+  ],
+  "fetch": {
+    "engine": "default",
+    "ai_fetch": "web_search",
+    "timeout_seconds": 60
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/products/[a-z0-9-]+$"
+      ]
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

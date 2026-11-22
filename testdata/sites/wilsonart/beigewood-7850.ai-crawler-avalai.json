@@ -1,0 +1,70 @@
+{
+  "status": "success",
+  "url": "https://www.wilsonart.com/beigewood-7850",
+  "site_id": "wilsonart",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 1600,
+      "output": 1032
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Beigewood 7850",
+    "url": "https://www.wilsonart.com/beigewood-7850",
+    "image_url": null,
+    "description": "A rotary cut oak laminate design. Overall color is beige with lavender and yellow undertones and light tan graining.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "name": "Design Repeat (Width X Length)",
+        "value": "18\" X 51.417\""
+      },
+      {
+        "name": "Finish",
+        "value": "60 Matte"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_ON_PAGE",
+      "message": "The product image was not found on this product page."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_ON_PAGE",
+      "message": "The price was not found on this product page."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_ON_PAGE",
+      "message": "The stock status was not found on this product page."
+    }
+  ]
+}

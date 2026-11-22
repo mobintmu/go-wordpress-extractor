@@ -1,0 +1,20 @@
+{
+  "url": "https://www.veneersupplies.com/products/Flat-Cut-Rosewood-Bolivian-Veneer-Sheet--55-x-71.html",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Flat Cut Rosewood (Bolivian) Veneer Sheet 5.5\" x 71\"",
+      "url": "https://www.veneersupplies.com/products/Flat-Cut-Rosewood-Bolivian-Veneer-Sheet--55-x-71.html",
+      "image_url": "https://www.veneersupplies.com/product_images/y/35847__79651.jpg",
+      "description": "Flat Cut Rosewood (Bolivian) Veneer Sheet",
+      "price": {
+        "current": 1654,
+        "regular": null,
+        "currency": "USD",
+        "raw": "$16.54",
+        "state": "available"
+      }
+    }
+  },
+  "saved_at": "2026-11-19T18:49:01Z"
+}

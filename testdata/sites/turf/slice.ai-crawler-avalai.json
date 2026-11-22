@@ -1,0 +1,65 @@
+{
+  "status": "success",
+  "url": "https://turf.design/products/slice",
+  "site_id": "turf",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 1858,
+      "output": 723
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Slice",
+    "url": "https://turf.design/products/slice",
+    "image_url": "https://cdn.sanity.io/images/182mhtsn/production/e81cb49b4799a370355695e5457553abfe899cdd-1200x1200.jpg?rect=0,285,1200,630&w=1200&h=630",
+    "description": "Nest lights or frame a ceiling’s best features with Slice. The tile’s angular wedge design lets you create intriguing patterns everyone will want a piece of.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "name": "Acoustic Rating",
+        "value": "NRC .85"
+      },
+      {
+        "name": "Felt Specification",
+        "value": "Polyester (PET) felt 60% pre-consumer recycled"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "price",
+      "reason": "NOT_ON_PAGE",
+      "message": "The price was not found on this product page."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_ON_PAGE",
+      "message": "The stock status was not found on this product page."
+    }
+  ]
+}

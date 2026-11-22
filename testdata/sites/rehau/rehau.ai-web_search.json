@@ -1,0 +1,82 @@
+{
+  "status": "success",
+  "url": "https://www.rehau.com/us-en/mechanicalplumbing/search-by-product/raupex-pipe",
+  "site_id": "ai_rehau_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.rehau.com/us-en/mechanicalplumbing/search-by-product/raupex-pipe"
+    ],
+    "tokens": {
+      "input": 569,
+      "output": 285
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "RAUPEX Crosslinked Polyethylene (PEXa) Pipe",
+    "url": "https://www.rehau.com/us-en/mechanicalplumbing/search-by-product/raupex-pipe",
+    "image_url": null,
+    "description": "From raw material to finished pipe, under one roof. At our plant in Cullman, Alabama we blend, extrude and test our proprietary formulation to create PEXa pipe. We make sure each foot of pipe that leaves the plant doesn't just meet industry standards, but exceeds them. In order to give you extra piece of mind, every batch of pipe we produce is held until all quality controls tests have been completed to our satisfaction. RAUPEX pipe is built to hold up to a hard day on your job site, not just to pass tests in a laboratory.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "features": [
+      "Optimum strength",
+      "Enhanced temperature and pressure capabilities",
+      "Better flexibility than other types of PEX",
+      "Tough to withstand jobsite conditions",
+      "Uniform crosslinking",
+      "Co-extruded ethylene-vinyl alcohol (EVOH) oxygen diffusion barrier on RAUPEX O2 barrier pipe",
+      "Flexible to navigate around crowded mechanical chases during construction",
+      "Maintains excellent long-term flow performance by resisting scale"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the stock status."
+    },
+    {
+      "field": "specs",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the specifications."
+    }
+  ]
+}

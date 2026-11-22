@@ -1,0 +1,158 @@
+{
+  "status": "success",
+  "url": "https://www.usg.com/en-US/p/product/sheetrock-brand-lay-in-gypsum-ceiling-panels-3260",
+  "site_id": "ai_usg_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.usg.com/en-US/p/product/sheetrock-brand-lay-in-gypsum-ceiling-panels-3260"
+    ],
+    "tokens": {
+      "input": 572,
+      "output": 552
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Sheetrock® Brand Lay-in Gypsum Ceiling Panels",
+    "url": "https://www.usg.com/en-US/p/product/sheetrock-brand-lay-in-gypsum-ceiling-panels-3260",
+    "image_url": null,
+    "description": "Smooth-Textured panels. Superior fire protection and extraordinary dimensional stability, these face-laminated gypsum panels also provide good ceiling attenuation class values. Sheetrock® Brand Lay-in Gypsum Ceiling Panels adhere to strict federal standards and USDA/FSIS requirements, and they meet strict requirements for food processing areas. The panels are perfect for exterior soffits, parking garages, kitchens, food preparation areas, restrooms, utility areas, locker rooms and marine environments.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "name": "Item Number",
+        "value": "3260"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Panel Size",
+        "value": "2 ft x 2 ft"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Thickness",
+        "value": "1/2 in"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Edge Profile",
+        "value": "Square"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Color",
+        "value": "Flat White (050)"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Material",
+        "value": "Gypsum Panel"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Sound Attenuation (CAC)",
+        "value": "35"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Light Reflectance (LR)",
+        "value": "0.77"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Fire Rating",
+        "value": "Firecode®"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Smoke Developed",
+        "value": "50 or less"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Flame Spread",
+        "value": "25 or less"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Thermal Resistance",
+        "value": "R-0.45"
+      },
+      {
+        "group": "Physical Data",
+        "name": "Warranty",
+        "value": "ClimaPlus™ Performance"
+      },
+      {
+        "group": "Physical Data",
+        "name": "ASTM E1264-23 Classification",
+        "value": "Type G, Form G2, Pattern G"
+      },
+      {
+        "name": "Weight per Carton",
+        "value": "33"
+      },
+      {
+        "name": "Pieces per Carton",
+        "value": "4"
+      },
+      {
+        "name": "Square Feet per Carton",
+        "value": "16"
+      }
+    ],
+    "features": [
+      "Panels meet USDA/FSIS requirements for food processing areas",
+      "ClimaPlus™ 30-year lifetime system warranty against visible sag",
+      "Superior fire protection",
+      "Extraordinary dimensional stability",
+      "Good ceiling attenuation class values",
+      "Suitable for exterior soffits, parking garages, kitchens, food preparation areas, restrooms, utility areas, locker rooms and marine environments"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the stock status."
+    }
+  ]
+}

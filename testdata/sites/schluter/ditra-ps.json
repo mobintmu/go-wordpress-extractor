@@ -1,0 +1,27 @@
+{
+  "url": "https://www.schluter.com/schluter-us/en_US/Membranes/Uncoupling-(DITRA)/Schluter%C2%AE-DITRA-PS/p/DITRA_PS",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Schluter®-DITRA-PS",
+      "url": "https://www.schluter.com/schluter-us/en_US/Membranes/Uncoupling-(DITRA)/Schluter-DITRA-PS/p/DITRA_PS",
+      "image_url": "https://assets.schluter.com/image/570120892212/image_5ds425pobl2pbek7bl65fart4d/-S430-FJPG/prod-ditra-ps-010-web.jpg",
+      "description": "Schluter®-DITRA-PS - Peel \u0026 stick uncoupling membrane",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T21:53:57Z"
+}

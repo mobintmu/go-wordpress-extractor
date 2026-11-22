@@ -1,0 +1,27 @@
+{
+  "url": "https://turf.design/products/slice",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Slice",
+      "url": "https://turf.design/products/slice",
+      "image_url": "https://cdn.sanity.io/images/182mhtsn/production/e81cb49b4799a370355695e5457553abfe899cdd-1200x1200.jpg?rect=0,285,1200,630\u0026w=1200\u0026h=630",
+      "description": "Nest lights or frame a ceiling’s best features with Slice. The tile’s angular wedge design lets you create intriguing patterns.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T22:09:08Z"
+}

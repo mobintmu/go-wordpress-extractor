@@ -1,0 +1,35 @@
+{
+  "$comment": "Daltile (porcelain and ceramic tile, Mohawk Industries) times out on plain HTTP and AvalAI's page fetch, and headless Chrome is denied (ACCESS_DENIED), so the site uses the default engine (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance) with ai_fetch web_search. The shop is never contacted; values are unverified (AI_UNVERIFIED) and may be out of date. Engines tried on 2026-11-19: http: FETCH_TIMEOUT; browser: ACCESS_DENIED; ai_fetch http: FETCH_TIMEOUT; ai_fetch browser: ACCESS_DENIED; web_search: success (16 specs, 5 features, 561+410 tokens). Needs APP_AI_CRAWLER_ENABLED with an AvalAI key.",
+  "schema_version": 1,
+  "site_id": "daltile",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "daltile.com",
+    "www.daltile.com"
+  ],
+  "fetch": {
+    "engine": "default",
+    "ai_fetch": "web_search",
+    "timeout_seconds": 60
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/products/[a-z0-9-]+/[a-z0-9-]+(?:/[a-z0-9-]+)?$"
+      ]
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

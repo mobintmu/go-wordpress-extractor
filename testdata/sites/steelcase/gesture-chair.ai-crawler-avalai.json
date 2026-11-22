@@ -1,0 +1,45 @@
+{
+  "status": "success",
+  "url": "https://store.steelcase.com/seating/ergonomic-chairs/gesture",
+  "site_id": "ai-crawler-default",
+  "config_version": "builtin-1",
+  "config_origin": "default",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 2037,
+      "output": 1001
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Gesture",
+    "url": "https://store.steelcase.com/seating/ergonomic-chairs/gesture",
+    "image_url": "https://storemedia.steelcase.com/image/upload/v1770041562/B2CProducts/Gesture/26-0268837.jpg",
+    "description": "Gesture redefines the relationship between you and your chair. Voted best office chair, its 360-degree arms, contoured back and adjustments are designed for all the ways technology shapes your posture.",
+    "price": {
+      "current": 165900,
+      "regular": 221300,
+      "currency": "USD",
+      "raw": "2213 1659",
+      "state": "available"
+    }
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "specs",
+      "reason": "NOT_ON_PAGE",
+      "message": "The specifications was not found on this product page."
+    }
+  ]
+}

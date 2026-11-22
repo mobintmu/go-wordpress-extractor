@@ -148,3 +148,22 @@ func (f failFetcher) Fetch(_ context.Context, _ *siteconfig.Site, u *url.URL) (*
 	f.t.Errorf("fetcher called for %s although --html was given", u)
 	return nil, nil
 }
+
+// A paid engine's recorded answer (<name>.<engine>.json) sits next to the
+// fixtures but is not one.
+func TestFixtureFilesSkipsRecordedAnswers(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "shop")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"b-sample.json", "a-sample.json", "a-sample.ai-crawler-avalai.json", "a-sample.html"} {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := fixtureFiles(root, "shop")
+	if len(got) != 2 || filepath.Base(got[0]) != "a-sample.json" || filepath.Base(got[1]) != "b-sample.json" {
+		t.Errorf("fixtureFiles = %v, want a-sample.json and b-sample.json", got)
+	}
+}

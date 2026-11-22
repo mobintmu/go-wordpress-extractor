@@ -1,0 +1,83 @@
+{
+  "status": "success",
+  "url": "https://www.flor.com/area-rugs_carpet-tiles/solids/made-you-look/21-1361.html",
+  "site_id": "ai_flor_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.flor.com/area-rugs_carpet-tiles/solids/made-you-look/21-1361.html"
+    ],
+    "tokens": {
+      "input": 574,
+      "output": 296
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Made You Look - Pearl",
+    "url": "https://www.flor.com/area-rugs_carpet-tiles/solids/made-you-look/21-1361.html",
+    "image_url": null,
+    "description": "Bring every big, colorful dream to life with this Made You Look solid rug style. This box of crayons works well combined with carpet tiles across collections and can be cut to create a unique design. This is a random pattern and no two carpet tiles are alike. The pattern will not align.",
+    "price": {
+      "current": 2000,
+      "regular": null,
+      "currency": "USD",
+      "raw": "$20.00 per tile",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "Item No.",
+        "value": "21-1361"
+      },
+      {
+        "group": "Product Construction",
+        "name": "Construction",
+        "value": "Tufted Sheared"
+      },
+      {
+        "group": "Product Construction",
+        "name": "Fiber Content",
+        "value": "Nylon"
+      },
+      {
+        "group": "Product Construction",
+        "name": "Dye Method",
+        "value": "100% Solution Dye"
+      },
+      {
+        "name": "Tile Size",
+        "value": "19.69 in x 19.69 in (50 cm x 50 cm)"
+      }
+    ],
+    "features": [
+      "FLOR tiles measure 19.7\" × 19.7\" (50cm × 50cm)",
+      "Include a 10% overage",
+      "All tiles are cut against the grain",
+      "FLOR squares and cut pieces are connected with FLOR dots"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    }
+  ]
+}

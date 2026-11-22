@@ -1,0 +1,68 @@
+{
+  "status": "success",
+  "url": "https://www.kichler.com/2-fixture-mount-in-centennial-brass-15515CBR",
+  "site_id": "ai_kichler_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 5173,
+      "output": 904
+    }
+  },
+  "completeness": "full",
+  "product": {
+    "title": "2 Fixture Mount in Centennial Brass",
+    "url": "https://www.kichler.com/2-fixture-mount-in-centennial-brass-15515CBR",
+    "image_url": "https://images.ctfassets.net/vpu87v9zuty9/57HXcBXDP4Jql4QoW08gBN/658fe5f0df7654af3e54f0e6a581d07e/15515cbr.jpg",
+    "description": "12V Brass Two Fixture Mount in Centennial Brass is ideal for creating clean, professional lighting installations that stand the test of time. Expertly crafted from solid, cast brass to deliver unmatched durability, even in the harshest weather conditions and coastal environments.",
+    "price": {
+      "current": 2299,
+      "regular": null,
+      "currency": "USD",
+      "raw": "$22.99",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "Attribute",
+        "value": "12V Landscape Accessories"
+      },
+      {
+        "name": "Height",
+        "value": "1"
+      },
+      {
+        "name": "Length",
+        "value": "2"
+      },
+      {
+        "name": "Width",
+        "value": "2"
+      },
+      {
+        "name": "finish",
+        "value": "Black Brass"
+      },
+      {
+        "name": "finish",
+        "value": "Centennial Brass"
+      }
+    ],
+    "features": [
+      "Wet Rated"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": []
+}

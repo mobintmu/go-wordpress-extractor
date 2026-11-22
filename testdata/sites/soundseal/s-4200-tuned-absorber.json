@@ -1,0 +1,27 @@
+{
+  "url": "https://www.soundseal.com/architectural-interiors/products/acoustical-wall-panels/s-4200-tuned-absorbers",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "S-4200 Tuned Absorber/Diffuser Panel",
+      "url": "https://www.soundseal.com/architectural-interiors/products/acoustical-wall-panels/s-4200-tuned-absorbers",
+      "image_url": "https://www.soundseal.com/assets/images/5/og-backup-gnph8a7sz54jqp3.jpg",
+      "description": "S-4200 Tuned Absorber Panel: tuned absorber/diffuser providing broadband absorption and diffusion for auditoriums, studios, classrooms. Sizes, mounts, fabrics.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T21:54:41Z"
+}

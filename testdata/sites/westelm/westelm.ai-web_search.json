@@ -1,0 +1,83 @@
+{
+  "status": "success",
+  "url": "https://www.westelm.com/products/yamazaki-sofa-back-console-table-w-shelf-d18054/",
+  "site_id": "ai_westelm_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.westelm.com/products/yamazaki-sofa-back-console-table-w-shelf-d18054/"
+    ],
+    "tokens": {
+      "input": 568,
+      "output": 262
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Yamazaki Sofa Back Console Table w/ Shelf (50\")",
+    "url": "https://www.westelm.com/products/yamazaki-sofa-back-console-table-w-shelf-d18054/",
+    "image_url": null,
+    "description": "Designed in Japan with small spaces in mind. Slim and long profile is perfect for behind a sofa or in an entryway. Great for displaying photos, books, decorative objects and more.",
+    "price": {
+      "current": 19500,
+      "regular": null,
+      "currency": "USD",
+      "raw": "$195",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "Dimensions",
+        "value": "49.6\"w x 8.1\"d x 25.6\"h"
+      },
+      {
+        "name": "Weight",
+        "value": "18.7 lbs."
+      },
+      {
+        "name": "Frame",
+        "value": "Steel frame"
+      },
+      {
+        "name": "Shelf",
+        "value": "Wooden top shelf"
+      },
+      {
+        "name": "Quantity",
+        "value": "Sold individually"
+      },
+      {
+        "name": "Origin",
+        "value": "Imported"
+      }
+    ],
+    "features": [
+      "Designed in Japan with small spaces in mind.",
+      "Slim and long profile is perfect for behind a sofa or in an entryway.",
+      "Great for displaying photos, books, decorative objects and more."
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    }
+  ]
+}

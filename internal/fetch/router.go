@@ -74,6 +74,10 @@ func (r *Router) Fetch(ctx context.Context, site *siteconfig.Site, target *url.U
 		return page, fail
 	}
 	if len(names) == 1 {
+		if names[0] == siteconfig.EngineDefault {
+			return &Page{RequestedURL: target.String()}, diagnose.New(diagnose.EngineUnavailable, diagnose.ConfidenceHigh,
+				"The site config selects the default fetch engine, but APP_DEFAULT_ENGINE is none on this instance (enabled: %v).", r.Engines())
+		}
 		return &Page{RequestedURL: target.String()}, diagnose.New(diagnose.EngineUnavailable, diagnose.ConfidenceHigh,
 			"The site config selects fetch engine %q, which is not enabled on this instance (enabled: %v).", names[0], r.Engines())
 	}

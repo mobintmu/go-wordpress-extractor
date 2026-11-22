@@ -1,0 +1,91 @@
+{
+  "status": "success",
+  "url": "https://www.richelieu.com/us/en/category/kitchen-and-bathroom-accessories/kitchen/under-sink-cabinets/tip-out-trays/miscellaneous-tip-out-tray-hinges/1249728/sku-1162G",
+  "site_id": "ai_richelieu_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.richelieu.com/us/en/category/furniture-equipment/wall-shelf-supports/concealed-shelf-support/triade-brackets-for-the-installation-of-concrete-walls/1166247/sku-11162G",
+      "https://www.richelieu.com/us/en/category/kitchen-and-bathroom-accessories/kitchen/under-sink-cabinets/1051450",
+      "https://www.richelieu.com/us/en/category/kitchen-and-bathroom-accessories/kitchen/under-sink-solutions/under-sink-storage-products-accessories/1003357",
+      "https://www.richelieu.com/us/en/catalog/kitchen-and-bathroom-accessories/1194479?catalog=1001756&mode=browse&imgMode=t&sort=&nbPerPage=48&page=13",
+      "https://www.richelieu.com/us/en/kitchen/category/kitchen/under-sink-cabinets/1292398",
+      "https://www.richelieu.com/us/en/category/kitchen-and-bathroom-accessories/1194479?imgMode=m&sort=&nbPerPage=48&uf_1018573=kg&page=13&unit=m",
+      "https://www.richelieu.com/us/en/catalog",
+      "https://www.richelieu.com/us/en/catalog/lighting-solutions-and-accessories/1003995?catalog=1001756&mode=browse",
+      "https://www.richelieu.com/us/en/index",
+      "https://www.richelieu.com/us/en/"
+    ],
+    "tokens": {
+      "input": 595,
+      "output": 151
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Miscellaneous Tip-Out Tray Hinges",
+    "url": "https://www.richelieu.com/us/en/category/kitchen-and-bathroom-accessories/kitchen/under-sink-cabinets/tip-out-trays/miscellaneous-tip-out-tray-hinges/1249728/sku-1162G",
+    "image_url": null,
+    "description": null,
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "name": "Product Dimension - Width",
+        "value": "3 3/4 in"
+      },
+      {
+        "name": "Product Dimension - Depth",
+        "value": "2 1/4 in"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "description",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the description."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the stock status."
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "status": "success",
+  "url": "https://marble.com/granite-countertops/gran-perla/1179",
+  "site_id": "marble",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 8958,
+      "output": 976
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Gran Perla Granite",
+    "url": "https://marble.com/granite-countertops/gran-perla/1179",
+    "image_url": "https://marble.com/uploads/materials/1179/1280X720/granite_Gran-Perla_tnfrCwQbI5Oye6Ajmyss.jpg",
+    "description": "Gran Perla granite is a magnificent black and grey speckled stone that is ideal for kitchen countertops, bathroom vanity tops, bathtub surrounds, fireplace surrounds and outdoor living spaces. If you are looking for a neutral-colored surface that is pleasing to the eye, Gran Perla granite may be just what you are looking for. Whether you install it as a new kitchen countertop, bathroom vanity top, bathtub surround, fireplace surround, outdoor kitchen countertop or any other home surfaces, Gran Perla granite will look amazing. Considering the high-quality appearance and its ability to stand up to wear and tear in any space, Gran Perla granite is a great option for any home. Granite in general can also increase the overall value of your home. Installing Gran Perla granite can very well end up being one of the best investments you ever make for your home.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "group": "Item Details",
+        "name": "Original Name",
+        "value": "Gran Perla"
+      },
+      {
+        "group": "Item Details",
+        "name": "Material Type",
+        "value": "Granite"
+      },
+      {
+        "group": "Item Details",
+        "name": "Country of origin",
+        "value": "Other"
+      },
+      {
+        "group": "Item Details",
+        "name": "Colors",
+        "value": "Grey, White"
+      }
+    ],
+    "features": [
+      "Exterior Elevation",
+      "Bar",
+      "Outside Barbecue",
+      "Outside Bar",
+      "Wash Station",
+      "Fireplace Surround",
+      "Bathroom Floor Panels",
+      "Bathroom Wall",
+      "Butler Pantry",
+      "Hot Tub Surround",
+      "Bathroom Backsplash",
+      "Bathroom Vanity Top",
+      "Kitchen Backsplash",
+      "Kitchen Countertop",
+      "Other"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "price",
+      "reason": "NOT_ON_PAGE",
+      "message": "The price was not found on this product page."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_ON_PAGE",
+      "message": "The stock status was not found on this product page."
+    }
+  ]
+}

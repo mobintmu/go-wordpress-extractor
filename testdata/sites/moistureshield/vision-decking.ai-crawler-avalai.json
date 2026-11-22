@@ -1,0 +1,78 @@
+{
+  "status": "success",
+  "url": "https://www.moistureshield.com/products/composite-decking/vision/",
+  "site_id": "ai_moistureshield_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 2641,
+      "output": 1236
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Vision®",
+    "url": "https://www.moistureshield.com/products/composite-decking/vision/",
+    "image_url": "https://www.moistureshield.com/wp-content/uploads/2019/09/MS_TX_APRIL2022_RES_VisionCathedralStone_004_preview.jpg",
+    "description": "It’s time to step up to the future of composite decking. MoistureShield Vision, our strongest capped wood composite board, is protected with our exclusive DiamondDefense™ Coating to exude distinctive style while resisting scratches, stains, and damage on impact. MoistureShield’s Vision deck boards are available in beautiful color options and textures that reflect the look of real hardwood while ensuring unmatched performance features designed to last a lifetime.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "name": "Available lengths",
+        "value": "12′, 16′ and 20′"
+      },
+      {
+        "name": "Structural warranty",
+        "value": "50-year transferable structural warranty"
+      },
+      {
+        "name": "Fade and stain warranty",
+        "value": "50-year fade and stain warranty"
+      }
+    ],
+    "features": [
+      "1″ x 6″ deck boards",
+      "Available in 12′, 16′ and 20′ lengths",
+      "Offered in solid edge and grooved",
+      "50-year transferable structural warranty",
+      "50-year fade and stain warranty",
+      "Zero Structural Field Failures",
+      "DiamondDefense™ Coating creates the strongest composite cap in the industry to resist damage from scratches, stains and fading"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "price",
+      "reason": "NOT_ON_PAGE",
+      "message": "The price was not found on this product page."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_ON_PAGE",
+      "message": "The stock status was not found on this product page."
+    }
+  ]
+}

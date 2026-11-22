@@ -1,0 +1,86 @@
+{
+  "url": "https://www.1000bulbs.com/product/37/STAG-FEP.html",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Stage and Studio - T6",
+      "url": "https://www.1000bulbs.com/product/37/STAG-FEP.html",
+      "image_url": "https://assets.1000bulbs.com/variants/ZfdG1tTbC8DdAwhZYqRb2aNC/3c395886577c81e21c6a0ce7827fae94ea23b815ff5372720073fa52fb3f291a",
+      "description": "Description The PLT FEP stage and studio lamp operates at 1,000 watts and 220 volts. It has a T6 bulb shape, with a G9.5 base, and an average life of 150 hours.",
+      "price": {
+        "current": 2155,
+        "regular": null,
+        "currency": "USD",
+        "raw": "$21.55 ea.",
+        "state": "available"
+      },
+      "specs": [
+        {
+          "name": "Brand",
+          "value": "PLT"
+        },
+        {
+          "name": "MPN (Part No.)",
+          "value": "FEP"
+        },
+        {
+          "name": "UPC",
+          "value": "031293032508"
+        },
+        {
+          "name": "Lighting Technology",
+          "value": "Halogen"
+        },
+        {
+          "name": "Bulb Shape",
+          "value": "T6"
+        },
+        {
+          "name": "ANSI Code",
+          "value": "FEP"
+        },
+        {
+          "name": "Bulb Color",
+          "value": "Clear"
+        },
+        {
+          "name": "Life Hours",
+          "value": "150"
+        },
+        {
+          "name": "Wattage",
+          "value": "1,000 Watt"
+        },
+        {
+          "name": "Lumens (Mean)",
+          "value": "26500"
+        },
+        {
+          "name": "Voltage",
+          "value": "220"
+        },
+        {
+          "name": "Base Type",
+          "value": "G9.5"
+        },
+        {
+          "name": "Filament Type",
+          "value": "CC-8"
+        },
+        {
+          "name": "Burn Position",
+          "value": "Universal"
+        },
+        {
+          "name": "Length",
+          "value": "4 in."
+        },
+        {
+          "name": "Diameter",
+          "value": "0.77 in."
+        }
+      ]
+    }
+  },
+  "saved_at": "2026-11-19T18:33:41Z"
+}

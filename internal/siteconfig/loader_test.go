@@ -242,6 +242,35 @@ func TestFetchEngine(t *testing.T) {
 	if e.Err == nil || !strings.Contains(e.Err.Error(), "engine") {
 		t.Fatalf("unknown engine accepted: %v", e.Err)
 	}
+	// "default" follows APP_DEFAULT_ENGINE: it is a valid AI engine here and
+	// the registry resolves it to the configured AI engine.
+	e = load(t, fixture{"sites/s.test.json": site(t, map[string]any{"fetch": map[string]any{"engine": "default", "ai_fetch": "web_search"}}), keep: "{}"})[0]
+	if e.Err != nil || e.Site.Fetch.Engine != EngineDefault || !e.Site.IsAI() || e.Site.NeedsFixture() {
+		t.Fatalf("default engine: %+v (err %v)", e.Site, e.Err)
+	}
+}
+
+func TestResolveDefaultEngine(t *testing.T) {
+	entries := []*Entry{
+		{Site: &Site{Fetch: Fetch{Engine: EngineDefault}}},
+		{Site: &Site{Fetch: Fetch{Engine: EngineHTTP}}},
+		{Site: nil},
+	}
+	ResolveDefaultEngine(entries, EngineAICloudflare)
+	if got := entries[0].Site.Fetch.Engine; got != EngineAICloudflare {
+		t.Errorf("default engine resolved to %q, want %q", got, EngineAICloudflare)
+	}
+	if got := entries[1].Site.Fetch.Engine; got != EngineHTTP {
+		t.Errorf("http engine changed to %q", got)
+	}
+
+	// APP_DEFAULT_ENGINE=none (or the AI crawler off) leaves the site as it
+	// is; the router then reports ENGINE_UNAVAILABLE.
+	entries[0].Site.Fetch.Engine = EngineDefault
+	ResolveDefaultEngine(entries, "")
+	if got := entries[0].Site.Fetch.Engine; got != EngineDefault {
+		t.Errorf("default engine with no APP_DEFAULT_ENGINE = %q, want %q", got, EngineDefault)
+	}
 }
 
 func TestSearchEngines(t *testing.T) {
@@ -329,5 +358,24 @@ func TestSearchEngines(t *testing.T) {
 	}
 	if SearchEngineList() != `"duckduckgo", "brave", "mojeek", "yahoo" or "yandex"` {
 		t.Errorf("SearchEngineList() = %s", SearchEngineList())
+	}
+}
+
+func TestNeedsFixture(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		fetch Fetch
+		want  bool
+	}{
+		{"http", Fetch{Engine: "http"}, true},
+		{"browser", Fetch{Engine: "browser"}, true},
+		{"search engine", Fetch{Engine: "duckduckgo"}, false},
+		{"ai page fetch", Fetch{Engine: "ai-crawler-avalai", AIFetch: "http"}, true},
+		{"ai web search", Fetch{Engine: "ai-crawler-avalai", AIFetch: "web_search"}, false},
+	} {
+		s := &Site{Fetch: c.fetch}
+		if got := s.NeedsFixture(); got != c.want {
+			t.Errorf("%s: NeedsFixture = %v, want %v", c.name, got, c.want)
+		}
 	}
 }

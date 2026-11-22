@@ -1,0 +1,58 @@
+{
+  "$comment": "Havwoods runs a Next.js-style React storefront with styled-components (class names such as PdpTopSectionstyles__Name-sc-1xqpdmq-5 kKQUAL carry a build hash), so every selector matches on the stable 'Component__Part' prefix. Product URLs are /<region>/products/hw<number>/ (the US store is /us/, from /us/sitemap.xml; the uk, au, ... stores share the template). Havwoods is a trade supplier: the page shows no price, only 'Order sample', 'Request pricing' and 'View in showroom' buttons, so price fields are not configured, price_area is that button block and 'Request pricing' is the call-for-price word: every product returns price.state call_for_price with price.current null. There is no out-of-stock markup to base availability on ('In Stock' is one of the feature bullets), so availability is not configured. The product description slot is filled by JavaScript and is empty in the server HTML, so description joins the bullets of the first feature box (Features: installation, warranty, underfloor heating, ...); the Downloads box next to it is left out. The image is og:image from <head> (the full Cloudinary panel image), which is why root is the html element anchored on the product name. Specs are the Specifications table (td name, td value; the header row has no value and is skipped). Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image, description, call_for_price and 14 specs; browser: same data, slower; duckduckgo: SEARCH_NO_RESULT; mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: the same data (call_for_price, 14 specs) at 6,568+941 tokens; ai-crawler-cloudflare: not configured. http is selected: the same data at no cost. Checked against saved (curl) Amazon 13 Prime 260mm 1-Strip and Willow Rustic 305mm Chevron pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "havwoods",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "havwoods.com",
+    "www.havwoods.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ],
+    "call_for_price_words": [
+      "Request pricing"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/[a-z]{2,3}/products/hw[0-9]+/?$"
+      ],
+      "root": "html:has(main h1[class*='PdpTopSectionstyles__Name'])",
+      "price_area": "main [class*='PdpTopSectionstyles__DescriptionWrapper']",
+      "fields": {
+        "title": {
+          "selector": "main h1[class*='PdpTopSectionstyles__Name']",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "main [class*='PdpTopSectionstyles__FeatureBoxes'] > div:first-child [class*='PdpTopSectionstyles__FeatureBoxItem']",
+          "pick": "join",
+          "separator": "\n"
+        }
+      },
+      "specs": {
+        "row": "main table[class*='PdpTopSectionstyles__Specifications'] tr",
+        "name": "td:first-child",
+        "value": "td:last-child"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

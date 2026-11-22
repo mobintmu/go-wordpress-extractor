@@ -1,0 +1,44 @@
+{
+  "$comment": "Marvin (windows and doors, Marvin Family of Brands) runs a server-rendered site with product pages under /products/<type>/<line>/<product>. The product name is the h1 and the description is the meta description; the canonical link is on the page. Marvin sells through dealers and quotes prices per configuration, so there is no price and no stock signal: price and availability are not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. The specifications (sizes, materials, U-factors) are rendered by scripts and are not in the HTML, so no specs are configured. The page is large (about 2 MB), so the service needs a body limit above the default for this site. Engines tried on the sample on 2026-11-19: http: SUCCESS with title and description; browser: the same, slower; ai-crawler-avalai: the same fields at 955+271 tokens. http is selected: the same data at no cost. Checked against the saved (curl) Elevate Double Hung Window page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "marvin",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "marvin.com",
+    "www.marvin.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/products/[a-z-]+/[a-z-]+/[a-z0-9-]+$"
+      ],
+      "root": "html:has(h1)",
+      "fields": {
+        "title": {
+          "selector": "h1",
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

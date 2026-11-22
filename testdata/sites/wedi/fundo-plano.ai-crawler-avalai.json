@@ -1,0 +1,142 @@
+{
+  "status": "success",
+  "url": "https://www.wedi.net/en/products/flush-to-floor-showers/fundo-shower-element-with-point-drainage/fundo-plano",
+  "site_id": "wedi",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 6469,
+      "output": 1808
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Fundo Plano",
+    "url": "https://www.wedi.net/en/products/flush-to-floor-showers/fundo-shower-element-with-point-drainage/fundo-plano",
+    "image_url": "https://www.wedi.net/fileadmin/_processed_/d/a/csm_03_bodengleiche_duschen_01_punktentw%C3%A4sserung_02_fundo_plano_977a1a00ba.jpg",
+    "description": "The thinnest wedi floor-level shower system currently on the market. With the pre-fabricated drainage, the total thickness of the system is only 65 mm. In the case of renovations where every millimetre counts, this innovation is absolutely unbeatable. The tileable shower elements are not only highly practical and reliable, they have opened up a whole new world of design possibilities for wet rooms and bathrooms.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "group": "Technical properties of Fundo Plano",
+        "name": "Wheelchair load-bearing from minimum tile size",
+        "value": "50 x 50 mm"
+      },
+      {
+        "group": "Technical properties of Fundo Plano",
+        "name": "Glass mosaic from 3 mm, minimum size",
+        "value": "20 x 20 mm"
+      },
+      {
+        "group": "Technical properties of Fundo Plano",
+        "name": "Minimum foundation height depending on the drain",
+        "value": "65 mm"
+      },
+      {
+        "group": "Technical properties of Fundo Plano",
+        "name": "Surface slope (from outer edge of Fundo floor element to outer edge)",
+        "value": "≥ 2,4 %"
+      },
+      {
+        "group": "Technical properties of drain",
+        "name": "Frame (fixed to the element)",
+        "value": "136 × 136 × 8 mm"
+      },
+      {
+        "group": "Technical properties of drain",
+        "name": "Stainless steel grid",
+        "value": "132 × 132 mm"
+      },
+      {
+        "group": "Technical properties of drain",
+        "name": "Levelling frame",
+        "value": "136 × 136 × 24,7 mm"
+      },
+      {
+        "group": "Technical properties of drain",
+        "name": "Drain performance",
+        "value": "30 l/min; 0,5 l/s"
+      },
+      {
+        "group": "Technical properties of drain",
+        "name": "Connection pipe made from ABS",
+        "value": "DN 40"
+      },
+      {
+        "group": "Technical properties of drain",
+        "name": "Appropriate tile thickness",
+        "value": "8 – 25 mm"
+      },
+      {
+        "group": "Technical properties of raw foam building board systems",
+        "name": "Extruded polystyrene hard foam core",
+        "value": "XPS"
+      },
+      {
+        "group": "Technical properties of raw foam building board systems",
+        "name": "Thermal conductivity EN 13164",
+        "value": "0,036 W/mK"
+      },
+      {
+        "group": "Technical properties of raw foam building board systems",
+        "name": "Basic density according to EN 1602",
+        "value": "32 kg/m³"
+      },
+      {
+        "group": "Technical properties of raw foam building board systems",
+        "name": "Temperature limits",
+        "value": "-50°C / +75°C"
+      },
+      {
+        "group": "Technical properties of raw foam building board systems",
+        "name": "Fire behaviour EN 13501",
+        "value": "E"
+      },
+      {
+        "group": "Technical properties of raw foam building board systems",
+        "name": "Tested waterproofness",
+        "value": "1,5 bar"
+      }
+    ],
+    "features": [
+      "Certainty thanks to a uniform predefined slope",
+      "Entire system is 100% waterproof",
+      "Simple and safe to work with - tested by those in the trade"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "price",
+      "reason": "NOT_ON_PAGE",
+      "message": "The price was not found on this product page."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_ON_PAGE",
+      "message": "The stock status was not found on this product page."
+    }
+  ]
+}

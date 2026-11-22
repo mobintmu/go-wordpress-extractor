@@ -1,0 +1,27 @@
+{
+  "url": "https://www.dap.com/products/adhesives/weldwood-landau-top-and-trim-1145-high-heat-resistant-contact-cement",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Weldwood Landau Top \u0026 Trim 1145 High Heat Resistant Contact Cement",
+      "url": "https://www.dap.com/products/adhesives/weldwood-landau-top-and-trim-1145-high-heat-resistant-contact-cement",
+      "image_url": null,
+      "description": "The ideal contact cement for automotive interior applications.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T21:12:41Z"
+}

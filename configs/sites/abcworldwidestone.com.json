@@ -1,0 +1,49 @@
+{
+  "$comment": "ABC Stone (ABC Worldwide Stone, NY) runs WordPress with a custom theme; its stone catalogue is the 'portfolio' post type at /portfolio/<slug>/ (about 800 stones in portfolio-sitemap.xml; /portfolio/ alone is the listing and does not match). It is a slab supplier, not a shop: there is no price, cart or stock line ('Please contact your ABC Stone representative for availability and lead-times'), so price and availability are not configured and every stone returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. The title is the h1, the image is the full-size featured image, and there is no description. Specs are the Dimensions, Thickness and Finish notes (h4 name, following p value, siblings layout); they are the same standard text on every stone. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and 3 specs; browser: same data, slower (22 s); duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: the same fields, with the spec text repeated as a description, at 2,181+617 tokens; ai-crawler-cloudflare: not configured. http is selected: the same data at no cost. Checked against saved (curl) Gris Macael Dusted and Santamargherita Palladio Griso pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "abcworldwidestone",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "abcworldwidestone.com",
+    "www.abcworldwidestone.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/portfolio/[a-z0-9][a-z0-9-]*/?$"
+      ],
+      "root": "div.portfolio_content_outer:has(div.portfolio_content h1)",
+      "fields": {
+        "title": {
+          "selector": "div.portfolio_content h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "div.single_portfolio_image img",
+          "attr": [
+            "src"
+          ],
+          "pick": "first"
+        }
+      },
+      "specs": {
+        "layout": "siblings",
+        "group": "div.portfolio_single_outer",
+        "name": "h4"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

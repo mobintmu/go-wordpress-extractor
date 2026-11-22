@@ -1,0 +1,63 @@
+{
+  "status": "success",
+  "url": "https://stonelandusa.com/product/grigio-carnico-sl-614/",
+  "site_id": "stonelandusa",
+  "config_version": "2026-11-19.10",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 2115,
+      "output": 406
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Grigio Carnico SL 614",
+    "url": "https://stonelandusa.com/product/grigio-carnico-sl-614/",
+    "image_url": "https://stonelandusa.com/wp-content/uploads/2021/06/grigio-carnico-thumb-1.jpg",
+    "description": null,
+    "price": {
+      "current": 182175,
+      "regular": null,
+      "currency": "USD",
+      "raw": "1821.75",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "Type",
+        "value": "Marble"
+      },
+      {
+        "name": "Texture",
+        "value": "Honed, Polished"
+      },
+      {
+        "name": "Size",
+        "value": "126\"x75\""
+      },
+      {
+        "name": "In Stock",
+        "value": "Yes"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "description",
+      "reason": "NOT_ON_PAGE",
+      "message": "The description was not found on this product page."
+    }
+  ]
+}

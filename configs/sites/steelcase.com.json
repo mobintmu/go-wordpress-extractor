@@ -1,0 +1,60 @@
+{
+  "$comment": "Steelcase (office seating and desks) runs a Next.js-style storefront (store.steelcase.com and steelcase.com). Product pages are /seating/<category>/<product> and /desks/<category>/<product>. The product name is in og:title and the <h1> is not in the server HTML; the description is the meta description and the image is og:image. The price is only in the page's schema.org Product JSON-LD ($1,659 on the sample, with the struck-through $2,213 regular price), which the selectors cannot read, so fetch.engine is default (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance): the LLM reads the JSON-LD price (price 165900 cents, regular 221300, available) with the image and description, each checked against the page. The selectors are the http fallback and the saved fixture (title, image and description). Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and description but no price; browser: not needed; ai-crawler-avalai (AI page fetch over http, browser and web_search): the same plus the price. ai-crawler-avalai is selected because it returns the price. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key on the instance. Checked against the saved (curl) Gesture chair page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "steelcase",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "steelcase.com",
+    "www.steelcase.com",
+    "store.steelcase.com"
+  ],
+  "fetch": {
+    "engine": "default"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/seating/[a-z-]+/[a-z-]+$",
+        "^/desks/[a-z-]+/[a-z0-9-]+$",
+        "^/products/office-chairs/[a-z-]+/?$"
+      ],
+      "root": "html:has(meta[property='og:title'])",
+      "fields": {
+        "title": {
+          "selector": "meta[property='og:title']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

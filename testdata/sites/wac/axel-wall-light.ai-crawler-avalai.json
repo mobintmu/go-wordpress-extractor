@@ -1,0 +1,113 @@
+{
+  "status": "success",
+  "url": "https://waclighting.com/product/axel/",
+  "site_id": "wac",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 2288,
+      "output": 1647
+    }
+  },
+  "completeness": "full",
+  "product": {
+    "title": "Axel Wall Light 3000K",
+    "url": "https://waclighting.com/product/axel/",
+    "image_url": "https://waclighting.com/storage/waclighting-images/top_prod_image/WS-W44014-BK_IMRO_4.jpg",
+    "description": "Clean and tight. A fixture that can be installed in any direction.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "call_for_price"
+    },
+    "specs": [
+      {
+        "name": "Model & Size",
+        "value": "WS-W44011 - 11\""
+      },
+      {
+        "group": "WS-W44011 - 11\"",
+        "name": "Color Temp",
+        "value": "3000K"
+      },
+      {
+        "group": "WS-W44011 - 11\"",
+        "name": "Finish",
+        "value": "BK - Black"
+      },
+      {
+        "group": "WS-W44011 - 11\"",
+        "name": "LED Watts",
+        "value": "20W"
+      },
+      {
+        "group": "WS-W44011 - 11\"",
+        "name": "LED Lumens",
+        "value": "1410"
+      },
+      {
+        "group": "WS-W44011 - 11\"",
+        "name": "Delivered Lumens",
+        "value": "629"
+      },
+      {
+        "name": "Model & Size",
+        "value": "WS-W44014 - 14\""
+      },
+      {
+        "group": "WS-W44014 - 14\"",
+        "name": "Color Temp",
+        "value": "3000K"
+      },
+      {
+        "group": "WS-W44014 - 14\"",
+        "name": "Finish",
+        "value": "BK - Black"
+      },
+      {
+        "group": "WS-W44014 - 14\"",
+        "name": "LED Watts",
+        "value": "30W"
+      },
+      {
+        "group": "WS-W44014 - 14\"",
+        "name": "LED Lumens",
+        "value": "2137"
+      },
+      {
+        "group": "WS-W44014 - 14\"",
+        "name": "Delivered Lumens",
+        "value": "813"
+      }
+    ],
+    "features": [
+      "Delivered Lumens: Up to 813lm",
+      "CCT: 3000K",
+      "CRI: 90",
+      "Power: 20W, 30W",
+      "Input: 120 VAC, 50/60Hz",
+      "ELV Dimming: 100-10%",
+      "Rated Life: 50000 Hours",
+      "Construction: Aluminum hardware with silk screen tempered glass diffuser",
+      "Special frame design to secure glass diffuser",
+      "Weather resistant coating",
+      "ACLED driverless technology",
+      "Can be mounted on wall in all orientations"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": []
+}

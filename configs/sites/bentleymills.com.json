@@ -1,0 +1,49 @@
+{
+  "$comment": "Bentley Mills is a commercial carpet mill on WordPress + WooCommerce with the Restoration theme (child theme restoration-child) and a custom product layout: the product name is an h2 in the #product-detail-view header bar (no h1), and the page has no canonical link, so product.url is the requested URL. Product URLs are /product/<number>-<slug>/ (from mvc_product-sitemap.xml). There is no price, cart or stock text: products are specified and sampled through reps ('Order Samples'), so price and availability are not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. There is no product description text in the page either. The image is the first gallery image (img.image.first-image, CloudFront or wp-content). Specs come from the SPECS modal (#specifications-info): one div.info-wrapper per row with a span.info-wrapper-title name and a p value (24 rows on the sample: product type, collection, dye method, construction, gauge, fiber, recycled content, pattern repeat, ...). Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and 24 specs; browser: same data, slower; duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: title, image and only 5 specs at 1,517+660 tokens; ai-crawler-avalai web_search: 18 specs, unverified, no image (561+450 tokens); ai-crawler-cloudflare: not configured. http is selected: the most data at no cost. Checked against saved (curl) Agnona (broadloom) and Expo Hall (carpet tile) pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "bentleymills",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "bentleymills.com",
+    "www.bentleymills.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/product/[0-9]+-[a-z0-9-]+/?$"
+      ],
+      "root": "div#wrapper:has(#product-detail-view div.product-title-section h2)",
+      "fields": {
+        "title": {
+          "selector": "#product-detail-view div.product-title-section h2",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "div.type-product img.image.first-image",
+          "attr": [
+            "src"
+          ],
+          "pick": "first"
+        }
+      },
+      "specs": {
+        "row": "#specifications-info div.specification-modal__body > div.info-wrapper",
+        "name": "span.info-wrapper-title",
+        "value": "p"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

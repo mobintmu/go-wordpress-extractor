@@ -213,9 +213,9 @@ func (g *gate) dialDirect(ctx context.Context, network, addr string) (net.Conn, 
 }
 
 // proxyFor checks the destination before handing a plain http:// request
-// to the outbound proxy, as the HTTP engine does.
+// to the outbound proxy, as the HTTP engine does. The proxy resolves hostnames.
 func (g *gate) proxyFor(req *http.Request) (*url.URL, error) {
-	if err := g.dialer.CheckDestination(req.Context(), req.URL.Hostname(), portOf(req.URL)); err != nil {
+	if err := g.dialer.CheckProxiedDestination(req.URL.Hostname(), portOf(req.URL)); err != nil {
 		return nil, err
 	}
 	return g.upstream, nil
@@ -238,7 +238,7 @@ func (g *gate) dialUpstream(ctx context.Context, network, addr string) (net.Conn
 func (g *gate) connectViaUpstream(ctx context.Context, hostport string) (net.Conn, error) {
 	host, portStr, _ := net.SplitHostPort(hostport)
 	port, _ := strconv.Atoi(portStr)
-	if err := g.dialer.CheckDestination(ctx, host, port); err != nil {
+	if err := g.dialer.CheckProxiedDestination(host, port); err != nil {
 		return nil, err
 	}
 	conn, err := g.dialUpstream(ctx, "tcp", g.upstream.Host)

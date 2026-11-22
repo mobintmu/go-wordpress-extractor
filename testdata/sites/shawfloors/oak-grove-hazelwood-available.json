@@ -1,0 +1,82 @@
+{
+  "url": "https://shawfloors.com/en-us/laminate/oak-grove-hazelwood/sl119-02039",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Oak Grove - HAZELWOOD",
+      "url": "https://shawfloors.com/en-us/laminate/oak-grove-hazelwood/sl119-02039",
+      "image_url": "https://shawfloors.widen.net/content/l2y7fh28kz/jpeg/sl119_02039_main?w=840\u0026h=0\u0026fmt=jpeg\u0026quality=85\u0026keep=c\u0026crop=true",
+      "description": "Crafted to reflect the beauty of nature and the warmth of home, each plank in Oak Grove celebrates the timeless elegance of oak, with rustic textures that evoke the charm of a sunlit forest.",
+      "price": {
+        "current": 499,
+        "regular": null,
+        "currency": "USD",
+        "raw": "$4.99 SF",
+        "state": "available"
+      },
+      "specs": [
+        {
+          "group": "Overview",
+          "name": "Style Name",
+          "value": "OAK GROVE"
+        },
+        {
+          "group": "Overview",
+          "name": "Style Number",
+          "value": "SL119"
+        },
+        {
+          "group": "Overview",
+          "name": "Color Name",
+          "value": "HAZELWOOD"
+        },
+        {
+          "group": "Overview",
+          "name": "Color Number",
+          "value": "02039"
+        },
+        {
+          "group": "Overview",
+          "name": "Flooring Type",
+          "value": "Laminate"
+        },
+        {
+          "group": "Construction",
+          "name": "Width",
+          "value": "7.55\""
+        },
+        {
+          "group": "Construction",
+          "name": "Edge Profile",
+          "value": "LOCK N PLACE"
+        },
+        {
+          "group": "Construction",
+          "name": "Texture",
+          "value": "ALL OVER"
+        },
+        {
+          "group": "Construction",
+          "name": "Edge Description",
+          "value": "LACQUERED BEVEL"
+        },
+        {
+          "group": "Construction",
+          "name": "Finish",
+          "value": "Waterproof"
+        },
+        {
+          "group": "Construction",
+          "name": "Area per Carton",
+          "value": "21.24 sq ft"
+        },
+        {
+          "group": "Construction",
+          "name": "Installation Grade",
+          "value": "Above, On, Below"
+        }
+      ]
+    }
+  },
+  "saved_at": "2026-11-19T16:39:31Z"
+}

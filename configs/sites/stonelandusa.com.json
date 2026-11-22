@@ -1,0 +1,58 @@
+{
+  "$comment": "Stone Land (marble, quartzite and granite slabs, NJ) runs WooCommerce with the Astra theme and a custom product block (div.product-data-table: the h1 and the Type/Texture/Size/In Stock rows). Product URLs are /product/<slug>/ from product-sitemap.xml. The visible page has no price: the WooCommerce summary (stock line and Add to cart) is hidden with display:none and the buttons say 'Get Quote' and 'Request Sample'. The WooCommerce Product JSON-LD in the page still carries the slab price (Offer price 1821.75 USD on the sample), which only the LLM reads, so fetch.engine is default (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance): it returns title, image, the price in USD (state available) and the four data-table rows as specs. Note that the site chooses not to show this price; if only visible data should be used, drop fetch to use http, which returns call_for_price ('Get Quote' in price_area). The selectors are that http fallback and the saved fixture: title, the gallery image (data-large_image), and specs from the data table without the In Stock row; there is no product description. No out-of-stock page was found ('In Stock: Yes' on every sample), so availability is not configured. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image, 3 specs and call_for_price; browser: the same, slower; duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: SUCCESS with the same fields plus the JSON-LD price $1,821.75 and 4 specs at 2,115+406 tokens (an earlier run returned 175 cents because of a price-parsing bug for amounts over 999 without thousands separators, fixed in internal/normalize the same day); ai-crawler-cloudflare: not configured. ai-crawler-avalai is selected because it returns the price. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key on the instance. Checked against saved (curl) Grigio Carnico SL 614 and Calacatta Reclusa Extra SL1328 pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "stonelandusa",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "stonelandusa.com",
+    "www.stonelandusa.com"
+  ],
+  "fetch": {
+    "engine": "default"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ],
+    "call_for_price_words": [
+      "Get Quote"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/product/[a-z0-9][a-z0-9-]*/?$"
+      ],
+      "root": "div.type-product:has(div.product-data-table h1.product_title)",
+      "price_area": "div.get-quote-wrap",
+      "fields": {
+        "title": {
+          "selector": "div.product-data-table h1.product_title",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "div.woocommerce-product-gallery__image img",
+          "attr": [
+            "data-large_image",
+            "data-src",
+            "src"
+          ],
+          "pick": "first"
+        }
+      },
+      "specs": {
+        "row": "div.product-data-table div.prod_info > div.item:not(:has(div.instock))",
+        "name": "div.att_title",
+        "value": "div.info"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

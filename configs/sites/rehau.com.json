@@ -1,0 +1,35 @@
+{
+  "$comment": "rehau.com (Access-controlled manufacturer site): REHAU product pages return access denied (403) for every page fetch from this network; AvalAI's page fetch works but its answer cannot be checked against a saved page. The site is never contacted; the search model answers from the web and the values are unverified (AI_UNVERIFIED). Engines tried on 2026-11-19: direct page fetch, browser and AvalAI page fetch were denied, timed out or blocked (see the trial log); web_search returned data. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key.",
+  "schema_version": 1,
+  "site_id": "rehau",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "rehau.com",
+    "www.rehau.com"
+  ],
+  "fetch": {
+    "engine": "default",
+    "ai_fetch": "web_search",
+    "timeout_seconds": 60
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/us-en/mechanicalplumbing/search-by-product/[a-z0-9-]+$"
+      ]
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "url": "https://abcworldwidestone.com/portfolio/gris-macael-dusted/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Gris Macael Dusted",
+      "url": "https://abcworldwidestone.com/portfolio/gris-macael-dusted/",
+      "image_url": "https://abcworldwidestone.com/wp-content/uploads/Gris-Macael-Dusted-scaled.jpg",
+      "description": null,
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "name": "Dimensions",
+          "value": "As each stone is unique, sizes will vary upon availability. Average slab size is 80” x 40” – 120” x 70”. Tiles or special sizes may be available upon request."
+        },
+        {
+          "name": "Thickness",
+          "value": "Standard stock thickness is ¾” and 1 ¼” for most materials, however 2” and other thicknesses may be available upon request."
+        },
+        {
+          "name": "Finish",
+          "value": "Standard finishes are polished \u0026 honed, specialty textured finishes such as leather, bamboo and others may be available in stock or upon request. Please contact your ABC Stone representative for availability and lead-times."
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T17:49:10Z"
+}

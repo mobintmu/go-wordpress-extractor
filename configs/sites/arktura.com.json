@@ -1,0 +1,49 @@
+{
+  "$comment": "Arktura (architectural wall and ceiling panels) runs WordPress with a custom theme (arktura-new). Its product catalogue is the product-line template at the top level (/<line>/, for example /vapor-exterior/ and /ruelo/, listed as product_line/ in product_line-sitemap.xml); the /product/ posts are project installations (for example /product/optiv/), rendered client-side with no product data, so they are not product pages. There is no price or stock on any product line (architects specify these panels through the company), so price is not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. Title is the header h1, the image is the first header gallery image (data-src, lazy-loaded), and the description is the intro paragraph. Specs are not configured: the product line pages have no spec table. The root is the main content element. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and description; browser: the same, slower; duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: the same fields at 2,937+281 tokens; ai-crawler-cloudflare: not configured. http is selected: the same data at no cost. Checked against saved (curl) Vapor Exterior and Ruelo product-line pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "arktura",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "arktura.com",
+    "www.arktura.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/[a-z0-9][a-z0-9-]*/?$"
+      ],
+      "root": "body.template-product-line main#content:has(header.product-header h1)",
+      "fields": {
+        "title": {
+          "selector": "header.product-header div.product-header-intro h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "header.product-header div.product-header-gallery img",
+          "attr": [
+            "data-src",
+            "src"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "header.product-header div.product-header-intro p.content",
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

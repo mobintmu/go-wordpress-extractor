@@ -1,0 +1,35 @@
+{
+  "$comment": "Brava (composite roof tiles, synthetic slate, cedar shake and barrel tile) is behind bot protection, so plain HTTP, headless Chrome and AvalAI's page fetch all fail with BOT_PROTECTION. The site uses the default engine (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance) with ai_fetch web_search; the shop is never contacted and the values are unverified (AI_UNVERIFIED). Engines tried on 2026-11-19: http and browser: BOT_PROTECTION; ai_fetch http and browser: BOT_PROTECTION; web_search: success (12 specs, 7 features, 563+430 tokens). Needs APP_AI_CRAWLER_ENABLED with an AvalAI key.",
+  "schema_version": 1,
+  "site_id": "bravarooftile",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "bravarooftile.com",
+    "www.bravarooftile.com"
+  ],
+  "fetch": {
+    "engine": "default",
+    "ai_fetch": "web_search",
+    "timeout_seconds": 60
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/roof-tiles/[a-z0-9-]+/?$"
+      ]
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

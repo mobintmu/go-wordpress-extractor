@@ -1,0 +1,27 @@
+{
+  "url": "https://www.bostik.com/global/en/bostik-academy/library/product-portfolio/decoration-paint/a535/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "BOSTIK A535 ACRYL PARQUET",
+      "url": "https://www.bostik.com/global/en/bostik-academy/library/product-portfolio/decoration-paint/a535/",
+      "image_url": "https://www.bostik.com/files/live/sites/shared_bostik/files/Images/Global/Bostik%20Academy/Product%20Portfolio%20-%20S%26B/Decoration%20%26%20Paint/bostik-global-packshot-acryl-parquet-v1.png",
+      "description": "Achieve perfectly matched results with BOSTIK A535 ACRYL PARQUET sealant, specially designed for wooden floor joints.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T18:41:09Z"
+}

@@ -1,0 +1,44 @@
+{
+  "$comment": "Ann Sacks (annsacks.com redirects here) is Kohler's tile brand on a Next.js App Router storefront (self.__next_f, React Server Components) behind Akamai. The product page HTML is a JavaScript shell: no h1, price or gallery in the markup, only <title>, the meta description, a canonical link and a schema.org Product JSON-LD block (name, price, image), which the selectors cannot read. Product URLs are /p/<category>/<slug> (for example /p/trim/savoy-0-5-x-8-box-liner-trim-as11682-trim-boxliner); the site has no sitemap.xml and robots.txt is a default Apache page with no rules. The default User-Agent (ProductExtractor/1.0) is tarpitted (FETCH_TIMEOUT after 93 s, twice) while a Chrome User-Agent gets the page in under 2 s, so fetch.user_agent is a Chrome string. fetch.engine is default (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance): the LLM reads the product from the page (including the JSON-LD) and every value is checked against the page; prices are in US dollars. The selectors are a fallback for the http engine and the saved fixture: root is the document, title is <title> (it carries an 'Ann Sacks ' prefix) and description is the meta description; image and price are not in the markup, so the http engine returns PRICE_MISSING. Engines tried on the sample on 2026-11-19: http: FETCH_TIMEOUT with the default User-Agent, and with a Chrome User-Agent only the fallback fields (title, description; no price, image or specs); browser: FETCH_TIMEOUT (headless Chrome, 109 s); duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: SUCCESS with title, price $21.95, image and description at 1,163+321 tokens; ai-crawler-cloudflare: not configured. ai-crawler-avalai is selected: it is the only engine that returns the price and image. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key on the instance. Checked against the Savoy 0.5\" x 8\" Box Liner Trim page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "annsacks",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "annsacks.kohler.com",
+    "annsacks.com",
+    "www.annsacks.com"
+  ],
+  "fetch": {
+    "engine": "default",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/p/[a-z0-9-]+/[a-z0-9-]+/?$"
+      ],
+      "root": "html:has(script[type='application/ld+json'])",
+      "fields": {
+        "title": {
+          "selector": "head > title",
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  }
+}

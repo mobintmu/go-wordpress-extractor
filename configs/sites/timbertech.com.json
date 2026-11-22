@@ -1,0 +1,54 @@
+{
+  "$comment": "TimberTech (composite and PVC decking, railing and trim, AZEK) runs a server-rendered site with collection pages under /product/<collection>/ (for example /product/pro-legacy-collection/). The collection name is the h1, the description is the meta description and the image is og:image. TimberTech sells through dealers and lumberyards, so there is no price and no stock signal: price and availability are not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. The board sizes, finishes and colour options are in tabs rendered in a form the selectors do not read, so fetch.engine is default (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance): the LLM returns the collection specs (6 on the sample), with the image and description, each checked against the page, at about 2,938+1,927 tokens per request. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and description; browser: the same; ai-crawler-avalai: the same plus 6 specs. ai-crawler-avalai is selected because it returns the specs. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key on the instance. Checked against the saved (curl) Legacy Collection page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "timbertech",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "timbertech.com",
+    "www.timbertech.com"
+  ],
+  "fetch": {
+    "engine": "default"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/product/[a-z0-9-]+/?$"
+      ],
+      "root": "html:has(h1)",
+      "fields": {
+        "title": {
+          "selector": "h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

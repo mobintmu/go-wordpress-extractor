@@ -1,0 +1,45 @@
+{
+  "status": "success",
+  "url": "https://annsacks.kohler.com/p/trim/savoy-0-5-x-8-box-liner-trim-as11682-trim-boxliner",
+  "site_id": "annsacks",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 1163,
+      "output": 321
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Savoy 0.5\" x 8\" Box Liner Trim",
+    "url": "https://annsacks.kohler.com/p/trim/savoy-0-5-x-8-box-liner-trim-as11682-trim-boxliner",
+    "image_url": "https://kohler.scene7.com/is/image/kohlergbhcloudprod/aad33730_rgb",
+    "description": "The Savoy collection has an extensive range of field, mosaic and trim formats, offering limitless possibilities at great value. Shop the exclusive collection today!",
+    "price": {
+      "current": 2195,
+      "regular": null,
+      "currency": "USD",
+      "raw": "21.95",
+      "state": "available"
+    }
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "specs",
+      "reason": "NOT_ON_PAGE",
+      "message": "The specifications was not found on this product page."
+    }
+  ]
+}

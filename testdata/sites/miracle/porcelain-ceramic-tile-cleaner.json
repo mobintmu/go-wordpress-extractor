@@ -1,0 +1,27 @@
+{
+  "url": "https://miracle-sealants.com/miracle-sealants-porcelain-ceramic-tile-cleaner/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Porcelain \u0026 Ceramic Tile Scrubbing Cleaner",
+      "url": "https://miracle-sealants.com/miracle-sealants-porcelain-ceramic-tile-cleaner/",
+      "image_url": "https://miracle-sealants.com/wp-content/uploads/2026/08/asset_fbd8b5cee5b8f523.webp",
+      "description": "Miracle Sealants Porcelain \u0026 Ceramic Tile Scrubbing Cleaner effectively lifts grease, soap scum, dirt, and stains from tile and stone surfaces without harsh chemicals. Shop the professional-grade quart size.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T21:31:56Z"
+}

@@ -1,0 +1,27 @@
+{
+  "url": "https://www.wedi.net/en/products/flush-to-floor-showers/fundo-shower-element-with-point-drainage/fundo-plano",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Fundo Plano",
+      "url": "https://www.wedi.net/en/products/flush-to-floor-showers/fundo-shower-element-with-point-drainage/fundo-plano",
+      "image_url": "https://www.wedi.net/fileadmin/_processed_/d/a/csm_03_bodengleiche_duschen_01_punktentw%C3%A4sserung_02_fundo_plano_977a1a00ba.jpg",
+      "description": "Discover the \"Fundo Plano\" flush-to-floor shower element with integrated drainage at wedi.net. Smart✔ Waterproof✔ Fast \u0026 reliable✔",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T22:27:12Z"
+}

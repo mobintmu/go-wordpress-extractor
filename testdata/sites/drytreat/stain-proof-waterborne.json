@@ -1,0 +1,27 @@
+{
+  "url": "https://www.drytreat.com/sealers/residential/stain-proof-waterborne/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Premium Waterborne Impregnating Sealer",
+      "url": "https://www.drytreat.com/sealers/residential/stain-proof-waterborne/",
+      "image_url": null,
+      "description": "Premium Waterborne Impregnating Sealer is a water-based sealing technology designed to seal a range of stone and masonry surfaces.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T21:13:31Z"
+}

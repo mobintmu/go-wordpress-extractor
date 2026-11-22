@@ -335,7 +335,7 @@ func (e *proxyError) Unwrap() error { return e.err }
 
 // proxyFor checks the destination of req and returns the configured proxy.
 func (f *Fetcher) proxyFor(req *http.Request) (*url.URL, error) {
-	if err := f.dialer.CheckDestination(req.Context(), req.URL.Hostname(), portOf(req.URL)); err != nil {
+	if err := f.dialer.CheckProxiedDestination(req.URL.Hostname(), portOf(req.URL)); err != nil {
 		return nil, err
 	}
 	return f.opts.Proxy, nil

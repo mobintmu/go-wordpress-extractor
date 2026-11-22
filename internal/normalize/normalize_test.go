@@ -29,6 +29,13 @@ func TestLowestPrice(t *testing.T) {
 		{"$1,250.00 $999.95", "usd", 99995, false},
 		{"$10.00 – $20.00", "usd", 1000, false},
 		{"$0.00", "usd", -1, false},
+		// Four or more digits without a thousands separator are one amount,
+		// not "182" and "1.75".
+		{"1821.75", "usd", 182175, false},
+		{"$1299.00", "usd", 129900, false},
+		{"$12345", "usd", 1234500, false},
+		{"1234,50 €", "eur", 123450, false},
+		{"$2.19 / Sq Ft $51.75 / box", "usd", 219, false},
 		{"Call for price", "usd", -1, true},
 		{"65,90 €", "eur", 6590, false},
 		{"1.234,50 €", "eur", 123450, false},

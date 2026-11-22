@@ -168,8 +168,7 @@ func rows(entries []*siteconfig.Entry, fixtureRoot string) []siteRow {
 			r.Warnings = siteconfig.SearchWarnings(e.Site)
 		}
 		if fixtureRoot != "" {
-			files, _ := filepath.Glob(filepath.Join(fixtureRoot, e.SiteID, "*.json"))
-			r.Fixtures = len(files)
+			r.Fixtures = len(fixtureFiles(fixtureRoot, e.SiteID))
 		}
 		out = append(out, r)
 	}
@@ -456,9 +455,8 @@ func RunFixtures(dir, root string) ([]TestResult, error) {
 	snap := staticSnapshot{siteconfig.NewSnapshot(entries)}
 	var results []TestResult
 	for _, e := range entries {
-		files, _ := filepath.Glob(filepath.Join(root, e.SiteID, "*.json"))
-		sort.Strings(files)
-		if len(files) == 0 && e.Err == nil && e.Site.IsEnabled() {
+		files := fixtureFiles(root, e.SiteID)
+		if len(files) == 0 && e.Err == nil && e.Site.IsEnabled() && e.Site.NeedsFixture() {
 			results = append(results, TestResult{Site: e.SiteID, Fixture: "-", Diff: "site has no fixtures; add one with sitectl fixture"})
 		}
 		for _, jf := range files {
@@ -466,6 +464,21 @@ func RunFixtures(dir, root string) ([]TestResult, error) {
 		}
 	}
 	return results, nil
+}
+
+// fixtureFiles returns a site's fixture files, <name>.json, sorted. Files
+// whose name has another dot, such as <name>.ai-crawler-avalai.json, are a
+// paid engine's recorded answer for the end-to-end tests, not fixtures.
+func fixtureFiles(root, siteID string) []string {
+	all, _ := filepath.Glob(filepath.Join(root, siteID, "*.json"))
+	var files []string
+	for _, f := range all {
+		if !strings.Contains(strings.TrimSuffix(filepath.Base(f), ".json"), ".") {
+			files = append(files, f)
+		}
+	}
+	sort.Strings(files)
+	return files
 }
 
 func runFixture(snap staticSnapshot, site, jsonPath string) TestResult {

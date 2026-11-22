@@ -1,0 +1,27 @@
+{
+  "url": "https://www.timbertech.com/product/pro-legacy-collection/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Legacy Collection",
+      "url": "https://www.timbertech.com/product/pro-legacy-collection/",
+      "image_url": "https://www.timbertech.com/product/pro-legacy-collection/media_134ffd9fb7b8b0c67d0d96c52e5b6a5836fbc25fb.webp?width=1200\u0026format=pjpg\u0026optimize=medium",
+      "description": "Explore the TimberTech Composite Legacy Collection, defined by hand-scraped textures, cascading hues, and unique board-to-board variation for a realistic wood look.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T22:24:43Z"
+}

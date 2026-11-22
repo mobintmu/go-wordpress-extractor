@@ -1,0 +1,51 @@
+{
+  "$comment": "VeneerSupplies.com (exotic wood veneer, a US seller) runs a Shopping-cart style store on its own platform with server-rendered product pages under /products/<name>.html. Prices are in US dollars per sheet and sold from stock ('Sheets in Stock'). The price is em.ProductPrice in the details block, with the JSON-LD offer carrying the same value. The title is the BlockProductTitle h2, the image is the product photo (/product_images/y/), and the description is the product description paragraph. The veneer details (width, length, square feet, thickness, flatness, grade, veneer number, sheets in stock) are one table with two cells of line-break text, not name/value rows, so fetch.engine is default (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance): the LLM returns 11 specs (species, width, length, square feet, thickness, flat, veneer number, stock, shipping) at 3,283+1,729 tokens, each checked against the page. The selectors are the http fallback and the saved fixture. Availability is not configured (stock count is in the table text). The root is the page container, because the image and description are outside the details block. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, price $16.54, image and description, no specs; browser: the same; ai-crawler-avalai: the same fields plus 11 specs; duckduckgo, mojeek, yandex, yahoo and brave were not needed for this site's data and are recorded in the trial log. ai-crawler-avalai is selected because it returns the veneer details. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key on the instance. Checked against the saved (curl) Flat Cut Rosewood (Bolivian) 5.5 x 71 sheet page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "veneersupplies",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "veneersupplies.com",
+    "www.veneersupplies.com"
+  ],
+  "fetch": {
+    "engine": "default"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/products/[A-Za-z0-9%._-]+\\.html$"
+      ],
+      "root": "div#Container:has(div.BlockProductTitle h2)",
+      "price_area": "div.DetailRow em.ProductPrice",
+      "fields": {
+        "title": {
+          "selector": "div.BlockProductTitle h2",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "img[src*='/product_images/y/']",
+          "attr": [
+            "src"
+          ],
+          "pick": "first"
+        },
+        "price_current": {
+          "selector": "div.DetailRow em.ProductPrice",
+          "pick": "first"
+        },
+        "description": {
+          "selector": "div.ProductDescriptionContainer p",
+          "pick": "first"
+        }
+      }
+    }
+  }
+}

@@ -116,6 +116,23 @@ type Registry struct {
 	fingerprint   string
 }
 
+// ResolveDefaultEngine replaces fetch.engine "default" with engine in every
+// valid entry. The registry calls it with APP_DEFAULT_ENGINE, so a site config
+// can follow the instance's default AI engine instead of naming one. With
+// engine "" (APP_DEFAULT_ENGINE is none, or the AI crawler is off) entries keep
+// "default": the site is loaded but a request for it fails with
+// ENGINE_UNAVAILABLE.
+func ResolveDefaultEngine(entries []*Entry, engine string) {
+	if engine == "" {
+		return
+	}
+	for _, e := range entries {
+		if e.Site != nil && e.Site.Fetch.Engine == EngineDefault {
+			e.Site.Fetch.Engine = engine
+		}
+	}
+}
+
 // NewRegistry loads every site config. Invalid sites are logged and marked
 // unavailable; only an unreadable directory stops startup.
 func NewRegistry(cfg *config.Config, log *zap.Logger) (*Registry, error) {
@@ -144,6 +161,7 @@ func (r *Registry) Reload() error {
 	if err != nil {
 		return err
 	}
+	ResolveDefaultEngine(entries, r.defaultEngine)
 	active, hasActive, err := LoadActive(r.dir)
 	if err != nil {
 		return err

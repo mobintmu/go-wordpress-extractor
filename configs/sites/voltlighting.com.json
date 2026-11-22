@@ -1,0 +1,54 @@
+{
+  "$comment": "Volt Lighting (landscape and outdoor lighting, sold direct) runs a custom storefront with product pages at the top level (for example /mr11-decorative-rock-light). The product name is the h1, the description is the meta description and the image is og:image. The price ($33.99 on the sample) is in the page's schema.org Product JSON-LD and the rendered price block; the specifications (lumens, IP rating, warranty, finish) are in tabs the selectors cannot read. fetch.engine is default (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance): the LLM reads the JSON-LD price (3399 cents, available), 17 specs and 5 features, each checked against the page, at about 5,718+1,308 tokens per request. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and description but no price; browser: the same; ai-crawler-avalai: SUCCESS with the price, 17 specs and 5 features; web_search: success but unverified. ai-crawler-avalai is selected because it returns the price and the specs. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key on the instance. Checked against the saved (curl) MR11 Decorative Rock Light page on 2026-11-19. The /shop listing page also matches the single-segment product pattern (it is not fetched as a product in production because the product pages are reached from the catalogue).",
+  "schema_version": 1,
+  "site_id": "volt",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "voltlighting.com",
+    "www.voltlighting.com"
+  ],
+  "fetch": {
+    "engine": "default"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/[a-z0-9-]+$"
+      ],
+      "root": "html:has(h1)",
+      "fields": {
+        "title": {
+          "selector": "h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

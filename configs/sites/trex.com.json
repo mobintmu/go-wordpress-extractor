@@ -1,0 +1,54 @@
+{
+  "$comment": "Trex (composite decking and railing) runs a server-rendered site with product pages under /products/<category>/<product> (the Smart Decking Sample Kit is a sample product priced at $5.00). The product name is the h1, the description is the meta description and the image is og:image (the live AI answer names an image that is not in the saved page, so the replayed answer omits it). The price is only in the page's schema.org Product JSON-LD, which the selectors cannot read, so fetch.engine is default (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance): the LLM reads the JSON-LD price (500 cents, available), the SKU spec and the sample list (5 features), each checked against the page, at about 4,109+712 tokens per request. Trex sells through dealers and online samples, so only this sample kit carries a price; the selectors are the http fallback and the saved fixture (title, image and the meta description where present). Engines tried on the sample on 2026-11-19: http: SUCCESS with title and image but no price; browser: BOT_PROTECTION; ai-crawler-avalai (AI page fetch over http): SUCCESS with the price, SKU and 5 features; web_search: success but unverified. ai-crawler-avalai (AI page fetch) is selected because it returns the price. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key on the instance. Checked against the saved (curl) Smart Decking Sample Kit page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "trex",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "trex.com",
+    "www.trex.com"
+  ],
+  "fetch": {
+    "engine": "default"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/products/[a-z-]+/[a-z0-9-]+/?$"
+      ],
+      "root": "html:has(h1)",
+      "fields": {
+        "title": {
+          "selector": "h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

@@ -379,7 +379,7 @@ Copy the trial config to `configs/sites/<domain>.json` and set its `fetch` block
 - `http`: no `engine` key needed. Do not add other `fetch` keys unless the site needs them (slow site → higher `timeout_seconds`; strict rate limit → higher `delay_ms`; a browser User-Agent if the default one was blocked).
 - `browser`: `"fetch": {"engine": "browser"}` (see `hafele.com.de.json`).
 - A search engine: `engine`, one `alternate_engines` entry with a different index (`md/ENGINES.md` section 5), and the `search` block (see `lumens.com.json`).
-- An AI engine: `engine`, and `ai_fetch` only if it is not `http` (see `fergusonhome.com.json`). Keep the selectors.
+- An AI engine: `engine` (use `default` to follow `APP_DEFAULT_ENGINE`, or name `ai-crawler-avalai` / `ai-crawler-cloudflare`), and `ai_fetch` only if it is not `http` (see `fergusonhome.com.json`). Keep the selectors.
 
 Set the `version` back to `<today>.1` and write the `$comment`: platform, theme, price unit, the date you checked, **the engine results in one sentence each** (for example "http: SUCCESS with all fields; browser: same data, slower; duckduckgo: partial; ai-crawler-avalai: same data, 9,800 tokens"), and why the winner was chosen. Whoever changes the engine later needs that record.
 

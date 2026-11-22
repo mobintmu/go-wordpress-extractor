@@ -1,0 +1,129 @@
+{
+  "status": "success",
+  "url": "https://www.lowes.com/pd/allen-roth-Nutmeg-Hickory-3-8-in-T-x-5-in-W-Handsculpted-Engineered-Hardwood-Flooring-32-29-sq-ft-Carton/50223071",
+  "site_id": "ai_lowes_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.lowes.com/pd/allen-roth-Nutmeg-Hickory-3-8-in-T-x-5-in-W-Handsculpted-Engineered-Hardwood-Flooring-32-29-sq-ft-Carton/50223071"
+    ],
+    "tokens": {
+      "input": 602,
+      "output": 739
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "allen + roth Nutmeg Hickory 3/8-in T x 5-in W Handscraped Engineered Hardwood Flooring (32.29-sq ft / Carton)",
+    "url": "https://www.lowes.com/pd/allen-roth-Nutmeg-Hickory-3-8-in-T-x-5-in-W-Handsculpted-Engineered-Hardwood-Flooring-32-29-sq-ft-Carton/50223071",
+    "image_url": null,
+    "description": "Engineered wood flooring with a hickory veneer, HDF core, eucalyptus bottom layer, aluminum oxide finish, and locking installation system. Measures 3/8-in H x 5-in W x 15.75-in to 47.24-in L and covers 32.29 sq. ft. per carton.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "out_of_stock"
+    },
+    "specs": [
+      {
+        "name": "Number of Plies",
+        "value": "3"
+      },
+      {
+        "name": "Locking System",
+        "value": "Locking"
+      },
+      {
+        "name": "Texture",
+        "value": "Handscraped"
+      },
+      {
+        "name": "Color/Finish Family",
+        "value": "Brown"
+      },
+      {
+        "name": "Subfloor Type",
+        "value": "Plywood or concrete"
+      },
+      {
+        "name": "Species",
+        "value": "Hickory"
+      },
+      {
+        "name": "Collection Name",
+        "value": "allen+roth"
+      },
+      {
+        "name": "Paintable",
+        "value": "No"
+      },
+      {
+        "name": "Manufacturer Color/Finish",
+        "value": "Nutmeg"
+      },
+      {
+        "name": "Finish Type",
+        "value": "Prefinished"
+      },
+      {
+        "name": "Actual Thickness (Inches)",
+        "value": ".37"
+      },
+      {
+        "name": "Square Footage Per Carton (Sq. Feet)",
+        "value": "32.29"
+      },
+      {
+        "name": "Actual Width (Inches)",
+        "value": "5"
+      },
+      {
+        "name": "Variable Width",
+        "value": "No"
+      },
+      {
+        "name": "Common Thickness in Inches",
+        "value": "3/8-in"
+      },
+      {
+        "name": "Veneer Thickness (Inches)",
+        "value": ".05"
+      }
+    ],
+    "features": [
+      "Easy glueless installation with licensed lock and fold technology",
+      "Strong UV finish with aluminum oxide",
+      "Artisan hand scrape brings the wood character to life",
+      "Limited 25 year residential warranty"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    }
+  ]
+}

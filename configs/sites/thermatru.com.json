@@ -1,0 +1,35 @@
+{
+  "$comment": "thermatru.com (Access-controlled manufacturer site): Therma-Tru door style pages are access-denied (403) for every page fetch from this network. The site is never contacted; the search model answers from the web and the values are unverified (AI_UNVERIFIED). Engines tried on 2026-11-19: direct page fetch, browser and AvalAI page fetch were denied (ACCESS_DENIED or BOT_PROTECTION); web_search returned data. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key.",
+  "schema_version": 1,
+  "site_id": "thermatru",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "thermatru.com",
+    "www.thermatru.com"
+  ],
+  "fetch": {
+    "engine": "default",
+    "ai_fetch": "web_search",
+    "timeout_seconds": 60
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/explore-products/door-style/[A-Za-z0-9-]+$"
+      ]
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

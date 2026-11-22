@@ -1,0 +1,52 @@
+{
+  "status": "success",
+  "url": "https://www.trex.com/products/decking/the-smart-kit/",
+  "site_id": "ai_trex_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 4109,
+      "output": 712
+    }
+  },
+  "completeness": "full",
+  "product": {
+    "title": "The Smart Decking Sample Kit",
+    "url": "https://www.trex.com/products/decking/the-smart-kit/",
+    "image_url": null,
+    "description": "Inspired by HGTV® Smart Home 2026, this curated sample kit captures a modern coastal aesthetic through a thoughtful selection of Trex colors, including Salt Flat, Millstone, Biscayne, Golden Hour, and Honey Grove. Together, these hues bring warmth, contrast, and versatility, making it easy to explore how different tones and textures can shape an outdoor space that feels fresh, relaxed, and timeless.",
+    "price": {
+      "current": 500,
+      "regular": null,
+      "currency": "USD",
+      "raw": "5.0",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "SKU",
+        "value": "Smart-Kit"
+      }
+    ],
+    "features": [
+      "Trex Enhance® 3.5-in Composite Decking Sample in Honey Grove",
+      "Trex Transcend® Lineage™ 3.5-in Composite Decking Sample in Biscayne",
+      "Trex Transcend® Lineage™ 3.5-in Composite Decking Sample in Salt Flat",
+      "Trex Select® 3.5-in Composite Decking Sample in Millstone",
+      "Trex Enhance® Naturals 3.5-in Composite Decking Sample in Golden Hour"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": []
+}

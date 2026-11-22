@@ -1,0 +1,27 @@
+{
+  "url": "https://annsacks.kohler.com/p/trim/savoy-0-5-x-8-box-liner-trim-as11682-trim-boxliner",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Ann Sacks Savoy 0.5\" x 8\" Box Liner Trim",
+      "url": "https://annsacks.kohler.com/p/trim/savoy-0-5-x-8-box-liner-trim-as11682-trim-boxliner",
+      "image_url": null,
+      "description": "The Savoy collection has an extensive range of field, mosaic and trim formats, offering limitless possibilities at great value. Shop the exclusive collection today!",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T17:17:38Z"
+}

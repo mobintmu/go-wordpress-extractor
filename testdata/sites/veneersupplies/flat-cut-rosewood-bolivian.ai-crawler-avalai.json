@@ -1,0 +1,90 @@
+{
+  "status": "success",
+  "url": "https://www.veneersupplies.com/products/Flat-Cut-Rosewood-Bolivian-Veneer-Sheet--55-x-71.html",
+  "site_id": "veneersupplies",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 3283,
+      "output": 1729
+    }
+  },
+  "completeness": "full",
+  "product": {
+    "title": "Flat Cut Rosewood (Bolivian) Veneer Sheet 5.5\" x 71\"",
+    "url": "https://www.veneersupplies.com/products/Flat-Cut-Rosewood-Bolivian-Veneer-Sheet--55-x-71.html",
+    "image_url": "https://www.veneersupplies.com/product_images/y/35847__79651.jpg",
+    "description": "This unbacked and unfinished wood veneer is priced and sold by the sheet. The width, length, and thickness shown above are approximate. Orders for two or more sheets will be shipped in sequence so a variety of lay out patterns including bookmatching can be achieved. We recommend flattening this veneer with Super-Soft 2™ which helps soften crotch, burl, and other wavy veneers by temporarily plasticizing the wood cells. This softener makes veneer remarkably flexible which helps prevent splits and cracks during the flattening process. The picture shown is the actual bundle from which your order will be fulfilled. We do not artificially enhance the character or grain of our veneer images. Any figure in this veneer will be intensified when a finish is applied.",
+    "price": {
+      "current": 1654,
+      "regular": null,
+      "currency": "USD",
+      "raw": "$16.54",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "Species",
+        "value": "Rosewood (Bolivian)"
+      },
+      {
+        "name": "Width",
+        "value": "5.5\""
+      },
+      {
+        "name": "Length",
+        "value": "71\""
+      },
+      {
+        "name": "Square Feet",
+        "value": "2.71"
+      },
+      {
+        "name": "Thickness",
+        "value": "1/45\""
+      },
+      {
+        "name": "Flat",
+        "value": "No"
+      },
+      {
+        "name": "Veneer #",
+        "value": "35847"
+      },
+      {
+        "name": "Sheets in Stock",
+        "value": "18"
+      },
+      {
+        "name": "Shipping",
+        "value": "Ships in 1 Business Day"
+      },
+      {
+        "name": "Current Stock",
+        "value": "18"
+      },
+      {
+        "name": "Shipping Saver",
+        "value": "Yes"
+      }
+    ],
+    "features": [
+      "Ships in 1 Business Day",
+      "Shipping Saver: Yes",
+      "Order as much of this veneer as you wish and the shipping cost stays the same!"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": []
+}

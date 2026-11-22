@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -148,29 +149,36 @@ func (d *SafeDialer) DialContext(ctx context.Context, network, addr string) (net
 	return nil, lastErr
 }
 
-// CheckDestination resolves host and reports a NotAllowedError when the
-// port is blocked or every address is private or reserved. It is used when
-// requests go through a proxy, which connects to the destination itself.
-func (d *SafeDialer) CheckDestination(ctx context.Context, host string, port int) error {
+// deniedHostnames are names that must never be sent through a proxy even
+// though the proxy resolves hostnames: loopback names and cloud metadata
+// endpoints.
+var deniedHostnames = map[string]bool{
+	"localhost":                true,
+	"metadata.google.internal": true,
+	"metadata":                 true,
+	"instance-data":            true,
+}
+
+// CheckProxiedDestination is the check for requests that go through a
+// configured outbound proxy. The proxy resolves hostnames itself, so a
+// hostname is not resolved here and its addresses are not checked: this is
+// what lets a host whose name the local resolver poisons (the network
+// answers a private address) be reached through the proxy. Refused: blocked
+// ports, IP literals that are private, loopback or reserved, and loopback or
+// metadata names. The operator opts in by configuring the proxy.
+func (d *SafeDialer) CheckProxiedDestination(host string, port int) error {
 	if BlockedPorts[port] {
 		return &NotAllowedError{Host: host, Port: port, Reason: "a blocked port"}
 	}
-	var ips []net.IP
-	if ip := net.ParseIP(host); ip != nil {
-		ips = []net.IP{ip}
-	} else {
-		var err error
-		if ips, err = d.Resolve(ctx, host); err != nil {
-			return err
-		}
-	}
-	if len(ips) == 0 {
-		return &net.DNSError{Err: "no addresses", Name: host, IsNotFound: true}
-	}
-	for _, ip := range ips {
+	name := strings.ToLower(strings.TrimSuffix(host, "."))
+	if ip := net.ParseIP(name); ip != nil {
 		if !d.IPAllowed(ip) {
 			return &NotAllowedError{Host: host, Port: port, IP: ip, Reason: "a private, loopback, link-local, or reserved address"}
 		}
+		return nil
+	}
+	if deniedHostnames[name] || strings.HasSuffix(name, ".localhost") || strings.HasSuffix(name, ".local") || strings.HasSuffix(name, ".internal") {
+		return &NotAllowedError{Host: host, Port: port, Reason: "a loopback or metadata name"}
 	}
 	return nil
 }

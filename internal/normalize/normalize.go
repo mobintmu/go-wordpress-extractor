@@ -89,10 +89,13 @@ func Prices(text string) ([]int64, error) {
 	return out, nil
 }
 
-// amountRe matches a dollar or euro amount: thousands groups of three digits
-// and an optional fraction of one or two digits, in either notation
-// ("1,234.50", "19.99", "1.234,50", "65,90", "420").
-var amountRe = regexp.MustCompile(`\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?`)
+// amountRe matches a dollar or euro amount: digits, optional thousands
+// groups of three digits and an optional fraction of one or two digits, in
+// either notation ("1,234.50", "19.99", "1.234,50", "65,90", "420",
+// "1821.75"). The leading run takes every digit, so an amount written
+// without thousands separators is never split ("1821.75" is not "182" and
+// "1.75").
+var amountRe = regexp.MustCompile(`\d+(?:[.,]\d{3})*(?:[.,]\d{1,2})?`)
 
 // cents returns every amount in text, in cents. A trailing group of one or
 // two digits after a separator is the fraction, so both "1,234.50" and

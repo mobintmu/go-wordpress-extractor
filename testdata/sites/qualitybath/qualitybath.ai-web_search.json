@@ -1,0 +1,101 @@
+{
+  "status": "success",
+  "url": "https://www.qualitybath.com/california-faucets-sh-083-showerhead-55-8-dia-product-246185.htm",
+  "site_id": "ai_qualitybath_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.qualitybath.com/california-faucets-sh-083-showerhead-55-8-dia-product-246185.htm"
+    ],
+    "tokens": {
+      "input": 575,
+      "output": 480
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "California Faucets Showerhead SH-083 5-5/8\" DIA",
+    "url": "https://www.qualitybath.com/california-faucets-sh-083-showerhead-55-8-dia-product-246185.htm",
+    "image_url": null,
+    "description": "Contemporary Style Brass 5-5/8\" Multi-Function Showerhead. 1/2\" FIP inlet. 3 function: rain, air & massage. Self-cleaning rubber jets. All brass pivot ball & body. 5-5/8” diameter, gray face.",
+    "price": {
+      "current": 29925,
+      "regular": null,
+      "currency": "USD",
+      "raw": "$299.25",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "Certifications",
+        "value": "Watersense"
+      },
+      {
+        "name": "Shape",
+        "value": "Round"
+      },
+      {
+        "name": "Flow Rate",
+        "value": "1.8 GPM 2.0 GPM 2.5 GPM"
+      },
+      {
+        "name": "Diameter",
+        "value": "5-5/8\""
+      },
+      {
+        "name": "Spray Pattern",
+        "value": "Massage Rain"
+      },
+      {
+        "name": "Spray Settings",
+        "value": "Multi"
+      },
+      {
+        "name": "Overview",
+        "value": "QualityBath.com is an authorized California Faucets dealer."
+      },
+      {
+        "name": "Brand",
+        "value": "California Faucets"
+      },
+      {
+        "name": "Model Number",
+        "value": "SH-083"
+      },
+      {
+        "name": "Alternative SKU",
+        "value": "California Faucets SH-083.18-ABF, California Faucets SH-083.18-ACF, California Faucets SH-083.18-ANF, California Faucets SH-083.18-BBU, California Faucets SH-083.18-BLK, California Faucets SH-083.18-BLKN, California Faucets SH-083.18-BNU, California Faucets SH-083.18-BTB, California Faucets SH-083.18-CB, California Faucets SH-083.18-GRP"
+      }
+    ],
+    "features": [
+      "1/2\" FIP inlet",
+      "3 function: rain, air & massage",
+      "Self-cleaning rubber jets",
+      "All brass pivot ball & body",
+      "5-5/8” diameter, gray face"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    }
+  ]
+}

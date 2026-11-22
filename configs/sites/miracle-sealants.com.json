@@ -1,0 +1,51 @@
+{
+  "$comment": "Miracle Sealants (tile, stone and grout cleaners and sealers, Miracle Sealants Company) runs a WordPress site with server-rendered product pages at the top level (/miracle-sealants-<product>/; the post sitemap lists them). The product name is the h1, the description is the meta description and the image is og:image. Products are sold through retailers and distributors, so there is no price and no stock signal: price and availability are not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. There are no specs on the page (technical data is in PDF sheets). Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and description; browser: FETCH_TIMEOUT; ai-crawler-avalai: the same fields at 6,049+563 tokens. http is selected: the same data at no cost. Checked against the saved (curl) Porcelain and Ceramic Tile Scrubbing Cleaner page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "miracle",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "miracle-sealants.com",
+    "www.miracle-sealants.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/miracle-sealants-[a-z0-9-]+/?$"
+      ],
+      "root": "html:has(h1)",
+      "fields": {
+        "title": {
+          "selector": "h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

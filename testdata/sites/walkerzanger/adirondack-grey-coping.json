@@ -1,0 +1,49 @@
+{
+  "url": "https://www.walkerzanger.com/product/18x48x1-1-2-adirondack-grey-coping-natural/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Adirondack Grey Coping Natural 18x48x1-1/2",
+      "url": "https://www.walkerzanger.com/product/18x48x1-1-2-adirondack-grey-coping-natural/",
+      "image_url": "https://www.walkerzanger.com/wp-content/uploads/2026/01/1212POMIVNCNARGVONLN_0034QZSBUNCLTRGGARLE_2LIMADGCOP1848_1_232162.jpg",
+      "description": "Tile brings texture, scale, and design freedom to interior and exterior spaces. From subtle, refined surfaces to bold statement installations, tile can be used to shape everything from floors and walls to backsplashes and decorative features. With a broad selection of materials, finishes, and formats, tile offers long-term performance while allowing designers to create spaces that feel intentional, layered, and enduring in both residential and commercial settings.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "name": "Material",
+          "value": "Limestone"
+        },
+        {
+          "name": "Color",
+          "value": "Adirondack Grey"
+        },
+        {
+          "name": "Finish",
+          "value": "Natural"
+        },
+        {
+          "name": "Size",
+          "value": "18\" x 48\""
+        },
+        {
+          "name": "Thickness",
+          "value": "1 -1/4 Inch"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T17:36:28Z"
+}

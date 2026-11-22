@@ -1,0 +1,155 @@
+{
+  "status": "success",
+  "url": "https://www.daltile.com/products/concrete-look/portfolio/white",
+  "site_id": "ai_daltile_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.daltile.com/products/concrete-look/portfolio/white"
+    ],
+    "tokens": {
+      "input": 561,
+      "output": 410
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "White",
+    "url": "https://www.daltile.com/products/concrete-look/portfolio/white",
+    "image_url": null,
+    "description": "An impressive palette of neutral hues create calm monochromatic effects in this cement-look porcelain tile. The colors and sizes coordinate for smooth wall and floor design. Portfolio is bound to be a favorite in any commercial space.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "group": "White Rectangle",
+        "name": "Color Code",
+        "value": "PF02"
+      },
+      {
+        "group": "White Rectangle",
+        "name": "Thickness",
+        "value": "5/16"
+      },
+      {
+        "group": "White Rectangle",
+        "name": "Nominal Size",
+        "value": "12X24, 6X24"
+      },
+      {
+        "group": "White Rectangle",
+        "name": "Finish",
+        "value": "Matte"
+      },
+      {
+        "group": "White Rectangle",
+        "name": "Shade Variation",
+        "value": "V2: Medium"
+      },
+      {
+        "group": "White Square",
+        "name": "Color Code",
+        "value": "PF02"
+      },
+      {
+        "group": "White Square",
+        "name": "Thickness",
+        "value": "5/16"
+      },
+      {
+        "group": "White Square",
+        "name": "Nominal Size",
+        "value": "24X24"
+      },
+      {
+        "group": "White Square",
+        "name": "Finish",
+        "value": "Matte"
+      },
+      {
+        "group": "White Square",
+        "name": "Shade Variation",
+        "value": "V2: Medium"
+      },
+      {
+        "group": "White Straight Joint",
+        "name": "Color Code",
+        "value": "PF02"
+      },
+      {
+        "group": "White Straight Joint",
+        "name": "Thickness",
+        "value": "1/4"
+      },
+      {
+        "group": "White Straight Joint",
+        "name": "Nominal Size",
+        "value": "2X2"
+      },
+      {
+        "group": "White Straight Joint",
+        "name": "Finish",
+        "value": "Matte"
+      },
+      {
+        "group": "White Straight Joint",
+        "name": "Shade Variation",
+        "value": "V2: Medium"
+      },
+      {
+        "name": "Country of Origin",
+        "value": "Mexico"
+      }
+    ],
+    "features": [
+      "Cement-look porcelain tile",
+      "Suitable for dry and level interior floors",
+      "Suitable for wet and level interior floors",
+      "Suitable for residential or light commercial shower floors",
+      "Suitable for countertops"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the stock status."
+    }
+  ]
+}

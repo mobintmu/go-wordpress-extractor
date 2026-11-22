@@ -1,0 +1,27 @@
+{
+  "url": "https://www.visualcomfort.com/us/p/charleston-medium-lantern-5291004",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Charleston Medium Lantern",
+      "url": "https://www.visualcomfort.com/us/p/charleston-medium-lantern-5291004",
+      "image_url": "https://www.visualcomfort.com/us/p/media_1df8a819edd9e40a3bed210efb4ad3cb56b702782.avif?width=1200\u0026format=pjpg\u0026optimize=medium",
+      "description": "Order Charleston Medium Lantern (5291004) by Studio Collection for $721.65 in our collection of [categories] products at Visual Comfort. Get designer lighting at Visual Comfort \u0026 Co. today.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T22:30:52Z"
+}

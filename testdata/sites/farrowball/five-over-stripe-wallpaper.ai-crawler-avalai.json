@@ -1,0 +1,61 @@
+{
+  "status": "success",
+  "url": "https://www.farrow-ball.com/us/wallpaper/five-over-stripe",
+  "site_id": "farrowball",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 3377,
+      "output": 853
+    }
+  },
+  "completeness": "full",
+  "product": {
+    "title": "Five Over Stripe",
+    "url": "https://www.farrow-ball.com/us/wallpaper/five-over-stripe",
+    "image_url": "https://www.farrow-ball.com/media/catalog/product/f/i/five-over-stripe-612-wallpaper-base.png?width=265&height=265&canvas=265,265&optimize=low&fit=bounds&format=jpeg",
+    "description": "Our Five Over Stripe wallpaper is a classic print that balances crisp lines with inviting texture for a lived in feel. The expert craftsmen at our Dorset factory use a traditional dragging technique to apply stripes of our water based paint, giving each paper a subtle variance.\nFull roll width is 53cm/21\", roll length is 10m, stripe width is 5.6cm/2 1/4\".\nThe image above and the colours listed are only a guide. To know for sure if this is the perfect paper for your project, please order a sample.\nWe recommend ordering all the rolls you need in one go because using traditional techniques and real paint, like we do, means pattern and colour can vary very slightly between batches.\nGround Colour: Pointing 2003\nPrint Colour: Joa's White 226",
+    "price": {
+      "current": 27000,
+      "regular": null,
+      "currency": "USD",
+      "raw": "$270.00",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "Full roll width",
+        "value": "53cm/21\""
+      },
+      {
+        "name": "Roll length",
+        "value": "10m"
+      },
+      {
+        "name": "Stripe width",
+        "value": "5.6cm/2 1/4\""
+      },
+      {
+        "name": "Ground Colour",
+        "value": "Pointing 2003"
+      },
+      {
+        "name": "Print Colour",
+        "value": "Joa's White 226"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": []
+}

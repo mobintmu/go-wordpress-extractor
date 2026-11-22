@@ -1,0 +1,53 @@
+{
+  "$comment": "Innovations in Wallcovering runs its own Laravel-style PHP site (Bootstrap, Swiper; images on innovations.b-cdn.net). Product URLs are /item/<name> (from sitemap.xml; names may contain spaces or '+', and some listed names are gone and return 404); robots.txt allows /item/<name>/ and disallows deeper /item/ paths, which match does not accept either. Innovations sells to the trade: the cart and prices are behind sign-in, so price and availability are not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. Title is the h1 (product-title), image is the main product image in #detailSpecDiv, description is the short copy under the title. Specs are the Specifications accordion (ul.skuSpec: specTitle/specVal; names lose their trailing colon): composition, backing, weight, width, repeat, roll size, fire rating, seaming, sustainability. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image, description and 9 specs; browser: FETCH_TIMEOUT (headless Chrome, 95 s); duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: the same data at 3,885+594 tokens; ai-crawler-cloudflare: not configured. http is selected: the same data at no cost. Checked against saved (curl) Antwerp and Alentejo pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "innovationsusa",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "innovationsusa.com",
+    "www.innovationsusa.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/item/[^/]+/?$"
+      ],
+      "root": "div#itemcontainer:has(h1.product-title)",
+      "fields": {
+        "title": {
+          "selector": "div.discriptionContainer h1.product-title",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "#detailSpecDiv div.imgContainer img",
+          "attr": [
+            "src"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "div.discriptionContainer > div.content",
+          "pick": "first"
+        }
+      },
+      "specs": {
+        "row": "ul.skuSpec > li",
+        "name": "span.specTitle",
+        "value": "span.specVal"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

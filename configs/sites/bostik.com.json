@@ -1,0 +1,46 @@
+{
+  "$comment": "Bostik (adhesives and sealants, Bostik Academy product portfolio) runs its own CMS with server-rendered product pages under /global/en/bostik-academy/library/product-portfolio/<category>/<product>/ (from the global sitemap). The product name is the banner h1, the description is the meta description, and the image is og:image (product file in files/live). Bostik sells through distributors and the pages carry no price, so price is not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. The technical data (coverage, drying time, packaging) is in PDF data sheets and the tabbed body, which the selectors do not read, so there are no specs. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and description; browser: the same, slower; duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: the same fields plus 1 spec at 4,037+619 tokens; ai-crawler-cloudflare: not configured. http is selected: the same fields at no cost. Checked against saved (curl) BOSTIK A535 ACRYL PARQUET and BOSTIK R3BOND SYSTEM ADHESIVE pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "bostik",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "bostik.com",
+    "www.bostik.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/global/en/bostik-academy/library/product-portfolio/[a-z-]+/[a-z0-9-]+/?$"
+      ],
+      "root": "html:has(h1.banner-title)",
+      "fields": {
+        "title": {
+          "selector": "h1.banner-title",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  }
+}

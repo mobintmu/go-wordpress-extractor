@@ -1,0 +1,62 @@
+{
+  "$comment": "Shaw Floors runs its own ASP.NET storefront that server-renders a React product page (div#react_..., Tailwind classes) behind Cloudflare. Product URLs are /en-us/<category>/<style-slug>-<color-slug>/<style>-<color number> (for example /en-us/laminate/oak-grove-hazelwood/sl119-02039; a slug may end with a dash), taken from sitemap/sampletype/*.xml; the category landing pages (/en-us/laminate) and pages.xml paths have fewer segments and do not match. Shaw sells flooring through retailers: the only order button is 'Order Sample 4.99', so availability is not configured (the response lists it as NOT_CONFIGURED and completeness is partial). The price is the per-square-foot list price shown as '$4.99 SF' in p.product-gallery__info-price (it varies by product: $6.39 SF on Fresh Take vinyl); the JSON-LD offer price is always 4.99, the sample price, so it is not used. The page renders the name block twice (a mobile copy with the h1, and a desktop copy inside div.product-gallery whose name is a div), so the fields are read from the desktop copy and the title joins the style name and the active colour ('Oak Grove - HAZELWOOD'), because every colour of a style shares the same h1. The description is the style's feature copy, which some products (Fresh Take vinyl) do not have; the image is the first gallery slide, resized to 840 px by the widen.net CDN. Specs come from the Specifications panel: titled groups (Overview, Construction, ...) of label/value rows. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, price, image, description and 12 specs (availability not configured); browser: ACCESS_DENIED (headless Chrome, 31 s); duckduckgo: partial (title and snippet); mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: SUCCESS, the same price, image, description and specs plus 3 features and an assumed availability, but a title without the colour, at 4,278+1,559 tokens; ai-crawler-cloudflare: not configured. http is selected: the same product data as the AI engine at no cost. Checked against saved (curl) Oak Grove Hazelwood laminate and Fresh Take Wishbone White vinyl pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "shawfloors",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "shawfloors.com",
+    "www.shawfloors.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD",
+      "SF"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/en-us/[a-z0-9-]+/[a-z0-9-]+/[a-z0-9]+-[a-z0-9]+/?$"
+      ],
+      "root": "main#main-content:has(h1.product-gallery__info-name)",
+      "price_area": "div.product-gallery p.product-gallery__info-price",
+      "fields": {
+        "title": {
+          "selector": "div.product-gallery .product-gallery__info-name, div.product-gallery div.product-gallery__colors > div.product-gallery__colors__item.active p.product-gallery__colors__item__name",
+          "pick": "join",
+          "separator": " - "
+        },
+        "image_url": {
+          "selector": "div.product-gallery-active-image-slide picture img",
+          "attr": [
+            "src"
+          ],
+          "pick": "first"
+        },
+        "price_current": {
+          "selector": "div.product-gallery p.product-gallery__info-price",
+          "pick": "first"
+        },
+        "description": {
+          "selector": "div.product-gallery__features__description",
+          "pick": "first"
+        }
+      },
+      "specs": {
+        "group": ".specifications__content__item",
+        "title": ".specifications__content__item__label",
+        "row": ".specifications__content__item__details__detail",
+        "name": ".specifications__content__item__details__detail__label",
+        "value": ".specifications__content__item__details__detail__value"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

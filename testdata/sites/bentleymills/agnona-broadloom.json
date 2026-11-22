@@ -1,0 +1,125 @@
+{
+  "url": "https://www.bentleymills.com/product/4-agnona/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Agnona",
+      "url": "https://www.bentleymills.com/product/4-agnona/",
+      "image_url": "https://d1wl48l6kne4tq.cloudfront.net/product_detail_images/8UA38/891115/Broadloom/8UA38-891115-Broadloom-Broadloom-Lobby1.jpg",
+      "description": null,
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "name": "Product Type",
+          "value": "Carpet Broadloom"
+        },
+        {
+          "name": "Collection",
+          "value": "Moda Venezia Collection"
+        },
+        {
+          "name": "Dye Method",
+          "value": "COLORCAST™"
+        },
+        {
+          "name": "Construction",
+          "value": "Tufted Tip-Sheared"
+        },
+        {
+          "name": "Machine Gauge",
+          "value": "1/12 in (47.2 ends/10 cm)"
+        },
+        {
+          "name": "Fiber",
+          "value": "Bentley Premium™ Type 6,6 Nylon"
+        },
+        {
+          "name": "Pile Density",
+          "value": "7,871 oz/yd³"
+        },
+        {
+          "name": "Pile Height (High)",
+          "value": "0.205 in"
+        },
+        {
+          "name": "Pile Height (Medium)",
+          "value": "0.155 in"
+        },
+        {
+          "name": "Pile Height (Low)",
+          "value": "0.05 in"
+        },
+        {
+          "name": "Stitches",
+          "value": "14.6 /in - 57.4 ends/10cm"
+        },
+        {
+          "name": "Total Thickness",
+          "value": "0.320 in - 8.1 mm"
+        },
+        {
+          "name": "Yarn Weight",
+          "value": "35 oz/yd²"
+        },
+        {
+          "name": "Total Weight",
+          "value": "68 oz/yd² - 2,306 g/m²"
+        },
+        {
+          "name": "Radiant Panel",
+          "value": "Passes Class 1, ≥ 0.45 W/cm² (ASTM-E648)"
+        },
+        {
+          "name": "Smoke Density",
+          "value": "≤ 450 Dm corr (ASTM-E662), Flaming"
+        },
+        {
+          "name": "Flammability",
+          "value": "Passes Methenamine Pill Test (CPSC-FF1-70)"
+        },
+        {
+          "name": "Static",
+          "value": "≤ 3.5 kV (AATCC-134), Step"
+        },
+        {
+          "name": "TARR",
+          "value": "3.0 Heavy Traffic"
+        },
+        {
+          "name": "Indoor Air Quality",
+          "value": "CRI Green Label Plus"
+        },
+        {
+          "name": "Post Consumer Recycled Content",
+          "value": "2.96%"
+        },
+        {
+          "name": "Pre Consumer Recycled Content",
+          "value": "7.27%"
+        },
+        {
+          "name": "Total Recycled Content",
+          "value": "10.23%"
+        },
+        {
+          "name": "Pattern Repeat",
+          "value": "18 in W x 43-13/64 in L 45.72 cm W x 109.73 cm L"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T17:02:33Z"
+}

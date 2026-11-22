@@ -1,0 +1,78 @@
+{
+  "url": "https://www.havwoods.com/us/products/hw3699/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Amazon 13 Prime 260mm 1-Strip",
+      "url": "https://www.havwoods.com/us/products/hw3699/",
+      "image_url": "https://res.cloudinary.com/havwoods-global/image/upload/c_lfill,dpr_auto,f_auto,g_auto,q_auto/v1669979042/product_%7C_hw3699_%7C_photo_%7C_panel.jpg",
+      "description": "Glue down installation\nLifetime structural warranty\nSuitable for underfloor heating\nSuitable for cladding\nAvailable in other formats\nCradle-to-Cradle Certified® BRONZE\nHavSeal Green\nSuitable for floating over underlay\nIn Stock",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "Order sample Request pricing View in showroom",
+        "state": "call_for_price"
+      },
+      "specs": [
+        {
+          "name": "Construction",
+          "value": "Engineered"
+        },
+        {
+          "name": "Species",
+          "value": "European Oak"
+        },
+        {
+          "name": "Product Type",
+          "value": "Wood Flooring"
+        },
+        {
+          "name": "Wear Layer",
+          "value": "4mm"
+        },
+        {
+          "name": "Process",
+          "value": "Brushed"
+        },
+        {
+          "name": "Pattern",
+          "value": "Plank"
+        },
+        {
+          "name": "Finish",
+          "value": "White UV Oiled"
+        },
+        {
+          "name": "Profile",
+          "value": "Tongue \u0026 Groove"
+        },
+        {
+          "name": "Edge Profile",
+          "value": "2-Sided Bevelled"
+        },
+        {
+          "name": "Thickness",
+          "value": "1/2\" (13mm)"
+        },
+        {
+          "name": "Width",
+          "value": "10 1/4\" (260mm)"
+        },
+        {
+          "name": "Length",
+          "value": "76 3/4\" - 94 1/2\" (1950-2400mm)"
+        },
+        {
+          "name": "Grade",
+          "value": "Prime"
+        },
+        {
+          "name": "Color Group",
+          "value": "Blonde"
+        }
+      ]
+    }
+  },
+  "saved_at": "2026-11-19T16:54:39Z"
+}

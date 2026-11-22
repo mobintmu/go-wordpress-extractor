@@ -1,0 +1,54 @@
+{
+  "$comment": "Walker Zanger runs WooCommerce with its own 'walkerzanger' theme and a custom product layout (no WooCommerce gallery, price block, attributes table or cart button). Product URLs are /product/<slug>/ from product-sitemap.xml and product-sitemap2.xml. Walker Zanger sells through its showrooms and dealers: the theme's 'Pricing information' block is empty for an anonymous visitor and there is no cart, so price and availability are not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. The title is h1.product-detail-name; the image is the first gallery thumbnail's full-size data-url (the large display image is filled in by JavaScript; it may be a room scene rather than the product photo). The description is the Product Details tab's overview text, which is generic copy for the product's category (for example the same 'Tile brings texture, scale, and design freedom...' paragraph on every tile), not product-specific. Specs are the Product Details tab's detail boxes (Material, Shape, Color, Finish, Size, Thickness: 5 on the sample). Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image, description and 5 specs; browser: same data, slower; duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: the same fields with 6 specs at 6,450+440 tokens; ai-crawler-cloudflare: not configured. http is selected: the same data at no cost. Checked against saved (curl) Adirondack Grey Coping and In-side Pietra Piasentina slab pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "walkerzanger",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "walkerzanger.com",
+    "www.walkerzanger.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/product/[a-z0-9][a-z0-9-]*/?$"
+      ],
+      "root": "body.single-product:has(div.product-detail-box h1.product-detail-name)",
+      "fields": {
+        "title": {
+          "selector": "div.product-detail-box h1.product-detail-name",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "div.product-thumbs div.product-image-thumb",
+          "attr": [
+            "data-url"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "#product-details div.detail-overview p",
+          "pick": "join",
+          "separator": "\n"
+        }
+      },
+      "specs": {
+        "row": "#product-details div.detail-box",
+        "name": "p.detail-title",
+        "value": "p.detail-specs"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "url": "https://www.fleetwoodusa.com/products/3-series/series-3070/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Series 3070",
+      "url": "https://www.fleetwoodusa.com/en-us/products/series-3070",
+      "image_url": null,
+      "description": "With high-performance options and custom components, every transition becomes fluid with this pocketing multi-slide, so indoor-outdoor life moves in harmon",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "name": "Finish",
+          "value": "Anodized Finish: Black (Class 1), Clear (Class 1), or Medium Bronze (Class 1)"
+        },
+        {
+          "name": "Glass",
+          "value": "1″ Insulated Glass with Dark Bronze Spacer"
+        },
+        {
+          "name": "Frame",
+          "value": "6063 T-6 Extruded Aluminum 1-15/16″ (per track) Deep Equal Leg (Block) Perimeter Frame"
+        },
+        {
+          "name": "Glass Size Options",
+          "value": "Equal Sized Glass"
+        },
+        {
+          "name": "Hardware",
+          "value": "Stainless Steel Assembly Screws Jamb Filler(s) Head Filler(s) Sill Filler(s) 3/4″ Height Threshold (No Riser) with Stainless Steel Track Archetype Stainless Steel Hardware Archetype 2nd Stainless Steel Multi-Point Latch (96″ Height +) Actuator Height 46″"
+        },
+        {
+          "name": "Accessories",
+          "value": "Aluminum Sill Pan Authentic Precision Bearing Stainless Steel Tandem Archetype Rollers (1-7/8″ Diameter) Adjustable Stainless Steel Strike Stainless Steel Dust Box Wrap Around Glazing"
+        },
+        {
+          "name": "OPTIONAL FEATURES",
+          "value": "OPTIONAL FEATURES"
+        },
+        {
+          "name": "Finish",
+          "value": "Kynar 70% Paint (50% for dark colors, ex. Black) Class 1 Custom Anodize (Light Bronze)"
+        },
+        {
+          "name": "Glazing",
+          "value": "1/4″ \u0026 9/16″"
+        },
+        {
+          "name": "Glass Size Options",
+          "value": "Unequal Sized Glass (Flush Stack)"
+        },
+        {
+          "name": "Hardware",
+          "value": "Wide or Archetype Fixed Stile Black Painted Archetype Hardware"
+        },
+        {
+          "name": "Accessories",
+          "value": "High-Performance Interlockers High-Performance Meeting Stiles Arche-Duct (Sub Floor Draining System) Heavy Duty Screen Door with UltraVue Mesh (Phifer.com) Sightline Extenders: 2.5″ \u0026 3.5″ Archetype Actuator Only Archetype Lever Exterior or Interior Keyed Lock Bottom Rail Used as Top Rail Actuator Height: 54″, 36″ \u0026 24″ Steel Look SDL"
+        },
+        {
+          "name": "CONFIGURATIONS",
+          "value": "Unlimited Multi-Slide, Pocket \u0026 Corners"
+        },
+        {
+          "name": "Maximum Panel Width",
+          "value": "120″"
+        },
+        {
+          "name": "Maximum Frame Height",
+          "value": "216″"
+        },
+        {
+          "name": "(Max width \u0026 height are not necessarily available in combination)",
+          "value": "(Max width \u0026 height are not necessarily available in combination)"
+        },
+        {
+          "name": "Series 3070 Sliding Glass Door",
+          "value": "SHGC No Dividers"
+        },
+        {
+          "name": "Description/ Code",
+          "value": "Air/ Argon"
+        },
+        {
+          "name": "Cardinal 366 6mm",
+          "value": "/.23"
+        },
+        {
+          "name": "Cardinal 366/ i89 6mm",
+          "value": "/.22"
+        },
+        {
+          "name": "Cardinal 272 6mm",
+          "value": "/.33"
+        },
+        {
+          "name": "Cardinal 272/ i89 6mm",
+          "value": "/.32"
+        },
+        {
+          "name": "Guardian SN68 6mm",
+          "value": ".31/.31"
+        },
+        {
+          "name": "Guardian SNX62 6mm",
+          "value": ".23/.22"
+        },
+        {
+          "name": "Guardian SNX62/ IS20 6mm",
+          "value": "/.22"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T21:19:06Z"
+}

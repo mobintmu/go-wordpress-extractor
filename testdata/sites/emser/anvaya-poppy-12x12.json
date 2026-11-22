@@ -1,0 +1,234 @@
+{
+  "url": "https://www.emser.com/product/anvaya-f44anvapo1212m",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "ANVAYA - 12X12, POPPY, MATTE",
+      "url": "https://www.emser.com/product/anvaya-f44anvapo1212m",
+      "image_url": "https://d3bauow4e98jr8.cloudfront.net/userfiles/product/images/an/va/ya/anvaya_poppy_f44anvapo1212m_scan_f1_medium.jpg",
+      "description": "Anvaya™ brings the timeless charm of aged concrete and terrazzo into the modern space. This collection captures the beauty of colored concrete surfaces, enhanced by the natural patina of time – where subtle wear has softened textures and deepened hues. Anvaya effortlessly blends heritage and contemporary design, delivering a unique enduring elegance to any setting.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "group": "Product Specifications",
+          "name": "Grout Joint Width (Inches)",
+          "value": "1/8\""
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Color",
+          "value": "GRAY"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Material",
+          "value": "PORCELAIN"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Edge Treatment",
+          "value": "RECTIFIED"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Finish",
+          "value": "MATTE"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Tile Shape",
+          "value": "Square"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Item Thickness (mm)",
+          "value": "9"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Nominal Size",
+          "value": "12X12"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Brand",
+          "value": "EMSER"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Format Type",
+          "value": "FIELD TILE"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Grout Color Recommendation",
+          "value": "542 Graystone"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Major Category/IC3",
+          "value": "MANUFACTURED TILE"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Pattern Repeat (Faces)",
+          "value": "120"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Product Line",
+          "value": "ANV"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Shade Variation",
+          "value": "3"
+        },
+        {
+          "group": "Technical Specifications",
+          "name": "Trim",
+          "value": "FLOOR, STANDARD SIZE"
+        },
+        {
+          "group": "Testing Results",
+          "name": "Abrasion Resistance",
+          "value": "MIN CLASS III"
+        },
+        {
+          "group": "Testing Results",
+          "name": "Breaking Strength",
+          "value": "\u003e275 LBF"
+        },
+        {
+          "group": "Testing Results",
+          "name": "Chemical Resistance (C650)",
+          "value": "RESISTANT"
+        },
+        {
+          "group": "Testing Results",
+          "name": "DCOF",
+          "value": "\u003e0.42"
+        },
+        {
+          "group": "Testing Results",
+          "name": "Flame Spread / Fire Rating",
+          "value": "NOT APPLICABLE"
+        },
+        {
+          "group": "Testing Results",
+          "name": "Scratch Hardness (MOHS)",
+          "value": "MIN 5"
+        },
+        {
+          "group": "Testing Results",
+          "name": "Stain Resistance",
+          "value": "RESISTANT"
+        },
+        {
+          "group": "Testing Results",
+          "name": "Water Absorption (C373) (%)",
+          "value": "\u003c0.50%"
+        },
+        {
+          "group": "Usage",
+          "name": "Commercial Floor Dry",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Commercial Floor Wet",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Exterior Floor (Not Pool)",
+          "value": "NO"
+        },
+        {
+          "group": "Usage",
+          "name": "Exterior Wall",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Fireplace Façade",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Fully Submersible",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Kitchen Counter",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Pool Deck",
+          "value": "NO"
+        },
+        {
+          "group": "Usage",
+          "name": "Pool Waterline",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Residential And Commercial Wall",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Residential Floor",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Shower Floor Commercial",
+          "value": "NO"
+        },
+        {
+          "group": "Usage",
+          "name": "Shower Floor Residential",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Shower Wall",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "Steam Shower",
+          "value": "NO"
+        },
+        {
+          "group": "Usage",
+          "name": "Stove Area",
+          "value": "YES"
+        },
+        {
+          "group": "Usage",
+          "name": "UV Stable",
+          "value": "YES"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T17:25:51Z"
+}

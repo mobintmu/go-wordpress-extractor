@@ -1,0 +1,91 @@
+{
+  "status": "success",
+  "url": "https://www.deckorators.com/products/voyage-decking",
+  "site_id": "ai_deckorators_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.deckorators.com/products/voyage-decking",
+      "https://www.deckorators.com/products/voyage-decking?variant=47057403117890"
+    ],
+    "tokens": {
+      "input": 560,
+      "output": 378
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Voyage Decking",
+    "url": "https://www.deckorators.com/products/voyage-decking",
+    "image_url": null,
+    "description": "Deckorators® Voyage decking is made with our patented Surestone® technology to deliver a comfortable, safe, and lightweight surface for your outdoor space. Voyage mineral-based composite decking boards, available in a variety of color options, allow you to recreate a wood-floor look or create a totally custom design for your raised deck, in-ground patio, or boat dock.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "name": "Available sizes",
+        "value": "7/8\" x 3-1/2\" x 20'; 7/8\" x 5-1/2\" x 12'; 7/8\" x 5-1/2\" x 16'; 7/8\" x 5-1/2\" x 20'; 7/8\" x 7-1/4\" x 20'"
+      },
+      {
+        "name": "Grooved edge board size",
+        "value": "7/16\" x 11-1/4\" x 12'"
+      },
+      {
+        "name": "Technology",
+        "value": "Surestone®"
+      }
+    ],
+    "features": [
+      "35% lighter than other traditional composite deck boards",
+      "Won't splinter, sag, chalk, or crack",
+      "Stain- and fade-resistant cap stock",
+      "Varied-width decking is available in four different widths to create that custom, wood floor look",
+      "Can be used as residential cladding",
+      "Fully submersible and warranted for installation in the ground or water with virtually no moisture absorption",
+      "50-year Structural, 25-year Stain & Fade, and 25-year Removal & Replacement warranty"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the stock status."
+    }
+  ]
+}

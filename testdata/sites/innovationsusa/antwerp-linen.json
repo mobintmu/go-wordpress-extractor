@@ -1,0 +1,65 @@
+{
+  "url": "https://www.innovationsusa.com/item/antwerp",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Antwerp",
+      "url": "https://www.innovationsusa.com/item/antwerp",
+      "image_url": "https://innovations.b-cdn.net/storage/product-list/October2025/68e820f2ecd62_1760043250.webp?v=2.62",
+      "description": "Made almost entirely of linen, and named for a region known for the same, Antwerp fills a wall with free-flowing vertical pleats.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      },
+      "specs": [
+        {
+          "name": "Composition",
+          "value": "97% Linen/3% Polyester"
+        },
+        {
+          "name": "Backing",
+          "value": "Non-Woven"
+        },
+        {
+          "name": "Total Weight",
+          "value": "13 oz/lineal yd (369 gsm)"
+        },
+        {
+          "name": "Width",
+          "value": "43\" (109 cm)"
+        },
+        {
+          "name": "Repeat",
+          "value": "Non-Match"
+        },
+        {
+          "name": "Full Roll",
+          "value": "30 YDs"
+        },
+        {
+          "name": "Fire Rating",
+          "value": "ASTM E84 - Class A"
+        },
+        {
+          "name": "Seaming",
+          "value": "Seamless"
+        },
+        {
+          "name": "Environmental Impact and Sustainability",
+          "value": "Rapidly Renewable"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T18:02:42Z"
+}

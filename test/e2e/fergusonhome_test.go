@@ -20,11 +20,11 @@ const fergusonPath = "/duravit-030549-0hole/s1666394"
 // fergusonSite loads the real fergusonhome.com config and points it at the
 // fake shop. The real domains stay, so the page's canonical link
 // (https://www.fergusonhome.com/...) is honoured exactly as in production.
-// The live site uses ai-crawler-avalai in Chrome (behind Akamai), which does
-// not use the selectors; the saved page is static, so the suite fetches it
-// with the default http engine to keep checking them. It sends a browser
-// user agent, so the request also carries the client hints and Sec-Fetch
-// headers the http engine adds for one.
+// The live site uses the default AI engine with `ai_fetch: web_search`
+// (behind Akamai), which does not use the selectors; the saved page is
+// static, so the suite fetches it with the default http engine to keep
+// checking them. It sends a browser user agent, so the request also carries
+// the client hints and Sec-Fetch headers the http engine adds for one.
 func fergusonSite(t *testing.T) map[string]any {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(repoRoot, "configs", "sites", "fergusonhome.com.json"))

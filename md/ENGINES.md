@@ -1,9 +1,9 @@
 # Rules and fetch engines
 
-This page is the reference for how the product extractor decides **which rule** serves a URL and **which engine** fetches it, with every setting each engine reads. It reflects the code and the site configs as of 2026-11-19.
+This page is the reference for how the product extractor decides **which rule** serves a URL and **which engine** fetches it, with every setting each engine reads. It reflects the code and the site configs as of 2026-11-22.
 
 - A **rule** says how to read one host: a site config in `configs/sites/`, a learned config in `configs/learned/`, or the built-in default rule.
-- An **engine** gets the product data for a rule: it fetches the page (`http`, `browser`), asks a search engine (`duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`), or asks an LLM (`ai-crawler-avalai`, `ai-crawler-cloudflare`).
+- An **engine** gets the product data for a rule: it fetches the page (`http`, `browser`), asks a search engine (`duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`), or asks an LLM (`ai-crawler-avalai`, `ai-crawler-cloudflare`). A site config can also set `fetch.engine` to `default`, which follows `APP_DEFAULT_ENGINE` (one of the two AI engines).
 
 Settings come from two places:
 
@@ -44,7 +44,7 @@ For each request, the host of the URL (`www.` included or not, as listed in `dom
 
 | # | Rule | Where | `config_origin` | Engine |
 |---|---|---|---|---|
-| 1 | **Site config** | `configs/sites/<domain>.json`, written by a person | `config` | `fetch.engine` (default `http`) |
+| 1 | **Site config** | `configs/sites/<domain>.json`, written by a person | `config` | `fetch.engine` (default `http`; `default` = `APP_DEFAULT_ENGINE`) |
 | 2 | **Active learned config** | `configs/learned/<domain>.json`, written by the AI crawler, with `learned.status: "active"` | `learned` | `http` or `browser`, with learned selectors |
 | 3 | **Default rule** `ai-crawler-default` | Built in | `default` | `APP_DEFAULT_ENGINE` |
 | — | Nothing | — | — | Fails with `SITE_NOT_CONFIGURED` (`APP_DEFAULT_ENGINE=none`) |
@@ -123,7 +123,7 @@ Each key applies to some engines only. A key that does not apply to the selected
 
 | Key | Default | Applies to | Meaning |
 |---|---|---|---|
-| `engine` | `http` | All | `http`, `browser`, `duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`, `ai-crawler-avalai`, `ai-crawler-cloudflare` |
+| `engine` | `http` | All | `http`, `browser`, `duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`, `ai-crawler-avalai`, `ai-crawler-cloudflare`, or `default` (follows `APP_DEFAULT_ENGINE`) |
 | `alternate_engines` | — | Search engines only | Other search engines, used in order **only when `engine` is not enabled on the instance**. Not a retry |
 | `search` | see 3.5 | Search engines only | `region`, `queries`, `title_strip`, `ignore_params` |
 | `ai_fetch` | `http` | AI engines only | How the AI engine gets the page: `http`, `browser` or `web_search` (section 3.7) |
@@ -133,6 +133,8 @@ Each key applies to some engines only. A key that does not apply to the selected
 | `timeout_seconds` | `30` | All | Time limit for one fetch (1–120) |
 | `retries` | `2` | `http`, `browser` | Retries of a failed fetch, with backoff and `Retry-After` (0–5) |
 | `respect_robots_txt` | `true` | `http`, `browser`, AI engines when they fetch | Follow the site's `robots.txt`. Set `false` only with the site owner's permission. The default rule and learned configs always follow it |
+
+`engine: "default"` makes a site config follow `APP_DEFAULT_ENGINE`, the same AI engine the built-in rule uses for hosts without a config. The registry replaces it with `ai-crawler-avalai` or `ai-crawler-cloudflare` when it loads the site, so changing the instance's default engine changes every such site too. Only AI engines are allowed, so `ai_fetch` and `price_unit: auto` work as they do for the resolved engine. With `APP_DEFAULT_ENGINE=none` (or the AI crawler off) the site keeps `default`, and a request for it fails with `ENGINE_UNAVAILABLE`.
 
 Examples:
 
@@ -354,7 +356,7 @@ Both engines run the same pipeline. The only difference is where the LLM call go
 **Where an AI engine is used:**
 
 - As the default rule, for hosts without a config (`APP_DEFAULT_ENGINE`, section 2.5).
-- Per site, with `"fetch": {"engine": "ai-crawler-avalai"}` or `"ai-crawler-cloudflare"`. The config needs only `domains` and `pages.product.match`, and no selectors. `"locale": {"price_unit": "auto"}` reads the currency from each page.
+- Per site, with `"fetch": {"engine": "ai-crawler-avalai"}`, `"ai-crawler-cloudflare"`, or `"default"` (which follows `APP_DEFAULT_ENGINE`). The config needs only `domains` and `pages.product.match`, and no selectors. `"locale": {"price_unit": "auto"}` reads the currency from each page.
 - As the fallback for a learned config whose selectors fail (section 2.4).
 
 #### `fetch.ai_fetch`: how the AI engine gets the page
@@ -456,14 +458,14 @@ Each failure has `evidence.ai`: model, provider, provider request id, HTTP statu
 
 ---
 
-## 4. Engine per site (`configs/sites/`, 2026-11-19)
+## 4. Engine per site (`configs/sites/`, 2026-11-22)
 
 | Site | `fetch.engine` | Details |
 |---|---|---|
 | 3-form.com | `http` (default) | — |
 | badomjip.com | `http` (default) | Template `woodmart` |
 | emtek.com | `http` (default) | — |
-| fergusonhome.com | `ai-crawler-avalai` | `ai_fetch: "web_search"`. Akamai answers 403 to plain HTTP and to Chrome, so the site is never contacted (`duckduckgo` / `brave` until 2026-11-19) |
+| fergusonhome.com | `default` | `ai_fetch: "web_search"`, resolved from `APP_DEFAULT_ENGINE` (`ai-crawler-avalai` on this instance). Akamai answers 403 to plain HTTP and to Chrome, so the site is never contacted (`duckduckgo` / `brave` until 2026-11-19) |
 | flooranddecor.com | `browser` | — |
 | hafele.com.de | `browser` | — |
 | hmland.ir | `http` (default) | Template `woodmart` |

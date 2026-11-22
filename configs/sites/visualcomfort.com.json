@@ -1,0 +1,50 @@
+{
+  "$comment": "Visual Comfort & Co. (decorative lighting, Visual Comfort Group) runs a custom storefront with product pages under /us/p/<product-slug>-<model> (for example Charleston Medium Lantern, 5291004). The product name is the h1, the description is the meta description and the price is in the page's JSON-LD and the rendered price block ($721.65 on the sample). The specifications are rendered by the page's scripts, so they are not in the server HTML: fetch.engine is default (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance) with ai_fetch browser (Chrome renders the page first), and the LLM returns the price (72165 cents, available), the image and 29 specs, each checked against the page, at about 9,109+1,575 tokens per request. The direct AI page fetch returns malformed output (AI_BAD_OUTPUT), so the browser fetch is used. Engines tried on the sample on 2026-11-19: http: SUCCESS with title and description, no price; browser: the same; ai-crawler-avalai (AI page fetch over http): AI_BAD_OUTPUT; ai-crawler-avalai with ai_fetch browser: SUCCESS with price, image and 29 specs; web_search: success but unverified (2 specs). Needs APP_AI_CRAWLER_ENABLED and APP_BROWSER_ENABLED on the instance, with an AvalAI key. Checked against the saved (curl) Charleston Medium Lantern page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "visualcomfort",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "visualcomfort.com",
+    "www.visualcomfort.com"
+  ],
+  "fetch": {
+    "engine": "default",
+    "ai_fetch": "browser"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/us/p/[a-z0-9-]+$"
+      ],
+      "root": "html:has(h1)",
+      "fields": {
+        "title": {
+          "selector": "h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  }
+}

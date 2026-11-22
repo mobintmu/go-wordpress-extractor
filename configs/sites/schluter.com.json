@@ -1,0 +1,51 @@
+{
+  "$comment": "Schluter (tile underlayment, membranes and trim, Schluter Systems) runs a server-rendered Hybris-style US store under /schluter-us/en_US/<category>/<product>/p/<code>. The product name is the h1, the description is the meta description and the image is og:image. Schluter sells through distributors, so there is no price on the page: price is not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. Technical data (thickness, coverage, warranty) is in the tabs and PDF sheets, which the selectors do not read, so there are no specs. Engines tried on the sample on 2026-11-19: http: SUCCESS with title, image and description; browser: ACCESS_DENIED; ai-crawler-avalai: the same fields at 5,850+946 tokens. http is selected: the same data at no cost. Checked against the saved (curl) Schluter-DITRA-PS page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "schluter",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "schluter.com",
+    "www.schluter.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/schluter-us/en_US/[^?]+/p/[A-Za-z0-9_-]+$"
+      ],
+      "root": "html:has(h1)",
+      "fields": {
+        "title": {
+          "selector": "h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "meta[property='og:image']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

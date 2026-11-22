@@ -1,0 +1,35 @@
+{
+  "$comment": "FLOR (modular nylon carpet tiles, Interface's residential brand) is behind a Cloudflare 'Attention Required' page for every page fetch from this network: plain HTTP, headless Chrome, and the AI engine's page fetch all fail (BOT_PROTECTION). So this site uses the default engine (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance) with ai_fetch web_search: the service sends only the product URL to the search model (APP_AI_CRAWLER_SEARCH_MODEL, sonar), which answers with the title, price (US dollars per tile), and specs, and cites its sources. The shop is never contacted (source.site_contacted false). The values are not checked against a page, so the response carries AI_UNVERIFIED and the price may be out of date. There is no config selector set, so there is no fixture page; the end-to-end test replays the recorded search answer. Engines tried on the sample on 2026-11-19: http and browser: BOT_PROTECTION; ai_fetch http and browser: BOT_PROTECTION; web_search: SUCCESS, unverified, $20.00 price, 5 specs, 4 features at 574+296 tokens; duckduckgo: SEARCH_NO_RESULT; mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key on the instance. Checked against the Made You Look (Pearl) 21-1361 product URL on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "flor",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "flor.com",
+    "www.flor.com"
+  ],
+  "fetch": {
+    "engine": "default",
+    "ai_fetch": "web_search",
+    "timeout_seconds": 60
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/area-rugs_carpet-tiles/(?:[a-z0-9-]+/)+[A-Za-z0-9._-]+$"
+      ]
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

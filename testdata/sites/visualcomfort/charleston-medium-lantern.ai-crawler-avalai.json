@@ -1,0 +1,165 @@
+{
+  "status": "success",
+  "url": "https://www.visualcomfort.com/us/p/charleston-medium-lantern-5291004",
+  "site_id": "ai_visualcomfort_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "browser",
+    "tokens": {
+      "input": 9109,
+      "output": 1575
+    }
+  },
+  "completeness": "full",
+  "product": {
+    "title": "Charleston Medium Lantern",
+    "url": "https://www.visualcomfort.com/us/p/charleston-medium-lantern-5291004",
+    "image_url": "https://www.visualcomfort.com/us/p/media_1df8a819edd9e40a3bed210efb4ad3cb56b702782.avif?width=1200&format=pjpg&optimize=medium",
+    "description": "The Charleston four light indoor pendant in satin brass provides abundant light to your home, while adding style and interest. A lantern-like design with curved arms connecting to a cube-shaped frame",
+    "price": {
+      "current": 72165,
+      "regular": 84900,
+      "currency": "USD",
+      "raw": "849 USD 721.65 USD",
+      "state": "available"
+    },
+    "specs": [
+      {
+        "name": "ADA Compliant",
+        "value": "no"
+      },
+      {
+        "name": "Collection",
+        "value": "Studio Collection"
+      },
+      {
+        "name": "Bulb Qty",
+        "value": "4"
+      },
+      {
+        "name": "Category",
+        "value": "Ceiling - Lantern"
+      },
+      {
+        "name": "Designer",
+        "value": "Chapman & Myers"
+      },
+      {
+        "name": "energy_star",
+        "value": "no"
+      },
+      {
+        "name": "function",
+        "value": "Lantern"
+      },
+      {
+        "name": "Height",
+        "value": "29.875\""
+      },
+      {
+        "name": "mounting",
+        "value": "Chain"
+      },
+      {
+        "name": "Rating",
+        "value": "Damp"
+      },
+      {
+        "name": "recommended_room",
+        "value": "Dining Room|Entry Room-Hallway|Kitchen"
+      },
+      {
+        "name": "Series",
+        "value": "Charleston"
+      },
+      {
+        "name": "Style",
+        "value": "Traditional"
+      },
+      {
+        "name": "title24",
+        "value": "no"
+      },
+      {
+        "name": "Width Filter",
+        "value": "21\""
+      },
+      {
+        "name": "Dark Sky",
+        "value": "no"
+      },
+      {
+        "name": "Turtle Friendly",
+        "value": "no"
+      },
+      {
+        "name": "Remote Included",
+        "value": "no"
+      },
+      {
+        "name": "Final Sale",
+        "value": "no"
+      },
+      {
+        "name": "Open Box",
+        "value": "no"
+      },
+      {
+        "name": "Sale",
+        "value": "no"
+      },
+      {
+        "group": "Details",
+        "name": "Width",
+        "value": "21\""
+      },
+      {
+        "group": "Details",
+        "name": "Overall Height",
+        "value": "104.375\""
+      },
+      {
+        "group": "Details",
+        "name": "Height",
+        "value": "29.875\""
+      },
+      {
+        "group": "Details",
+        "name": "Canopy",
+        "value": "D:6\" H:1\" Round"
+      },
+      {
+        "group": "Details",
+        "name": "Socket",
+        "value": "4 - Candelabra - Torpedo"
+      },
+      {
+        "group": "Details",
+        "name": "Shade Details",
+        "value": "Glass Clear"
+      },
+      {
+        "group": "Details",
+        "name": "Chain Length",
+        "value": "72\""
+      },
+      {
+        "group": "Details",
+        "name": "Rating",
+        "value": "Damp Rated"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    }
+  ],
+  "unavailable_fields": []
+}

@@ -103,6 +103,12 @@ const (
 	// EngineAICloudflare does the same as EngineAICrawler, with the LLM
 	// call going through Cloudflare AI Gateway.
 	EngineAICloudflare = "ai-crawler-cloudflare"
+	// EngineDefault makes a site config follow APP_DEFAULT_ENGINE, the same
+	// engine the built-in rule uses for hosts without a config. The
+	// registry replaces it with the configured AI engine when it loads the
+	// site. When APP_DEFAULT_ENGINE is none the site keeps "default" and a
+	// request for it fails with ENGINE_UNAVAILABLE.
+	EngineDefault = "default"
 )
 
 // AIFetchWebSearch is the fetch.ai_fetch value that never contacts the
@@ -160,8 +166,10 @@ const (
 
 // Fetch controls how a site's pages are retrieved.
 type Fetch struct {
-	// Engine selects the fetch strategy: "http" (default), "browser", or a
-	// search engine ("duckduckgo", "brave", "mojeek", "yahoo", "yandex").
+	// Engine selects the fetch strategy: "http" (default), "browser", a
+	// search engine ("duckduckgo", "brave", "mojeek", "yahoo", "yandex"), an
+	// AI engine ("ai-crawler-avalai" or "ai-crawler-cloudflare"), or
+	// "default" (the AI engine APP_DEFAULT_ENGINE names).
 	Engine string `json:"engine"`
 	// AlternateEngines are used, in order, when Engine is not enabled on
 	// the instance. The choice is made once per request; a failed fetch is
@@ -319,9 +327,10 @@ func (a *AttrList) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// IsAI reports whether the site uses an AI engine (ai-crawler-avalai or
-// ai-crawler-cloudflare).
-func (s *Site) IsAI() bool { return IsAIEngine(s.Fetch.Engine) }
+// IsAI reports whether the site uses an AI engine: ai-crawler-avalai,
+// ai-crawler-cloudflare, or "default", which APP_DEFAULT_ENGINE resolves to
+// one of those two (it accepts no other engine).
+func (s *Site) IsAI() bool { return IsAIEngine(s.Fetch.Engine) || s.Fetch.Engine == EngineDefault }
 
 // LimitKey is the key for throttling, cookies and the per-site limiter:
 // the site_id, or for the default AI rule "ai:<host>".
@@ -330,6 +339,16 @@ func (s *Site) LimitKey() string {
 		return s.limitKey
 	}
 	return s.SiteID
+}
+
+// NeedsFixture reports whether the site has a saved page to test against.
+// A search engine, or an AI engine with ai_fetch "web_search", never
+// contacts the site, so there is no page to save as a fixture.
+func (s *Site) NeedsFixture() bool {
+	if IsSearchEngine(s.Fetch.Engine) {
+		return false
+	}
+	return !(s.IsAI() && s.Fetch.AIFetch == AIFetchWebSearch)
 }
 
 // IsEnabled reports whether the site accepts requests.

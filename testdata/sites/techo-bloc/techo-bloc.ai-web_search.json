@@ -1,0 +1,113 @@
+{
+  "status": "success",
+  "url": "https://www.techo-bloc.com/shop/walls/borealis",
+  "site_id": "ai_techo_bloc_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.techo-bloc.com/shop/walls/borealis"
+    ],
+    "tokens": {
+      "input": 560,
+      "output": 565
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Borealis Wall",
+    "url": "https://www.techo-bloc.com/shop/walls/borealis",
+    "image_url": null,
+    "description": "Borealis Wall is a concrete wall block that replicates the look of rustic wood without the maintenance. With its realistic wood-grain texture and warm tones, it’s ideal for creating garden walls, outdoor kitchens, edging, flowerbeds, firepits, benches, and water features.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "name": "Wall Type",
+        "value": "Freestanding / Decorative"
+      },
+      {
+        "name": "Maximum Height",
+        "value": "Up to 4 ft"
+      },
+      {
+        "name": "Alignment",
+        "value": "Straight walls"
+      },
+      {
+        "name": "Profile",
+        "value": "Five-sided, fully finished on visible surfaces (3 sides and 2 edges)"
+      },
+      {
+        "name": "Available Lengths",
+        "value": "48-inch block units"
+      },
+      {
+        "name": "Weather Resistant",
+        "value": "Designed to endure freeze-thaw cycles and seasonal changes"
+      },
+      {
+        "name": "Maintenance",
+        "value": "Minimal – no sealing or staining required (high gloss sealer can be applied to match the Borealis slabs if desired)"
+      },
+      {
+        "name": "Size",
+        "value": "6 x 8 x 48"
+      },
+      {
+        "name": "Color Options",
+        "value": "Hazelnut Brandy and Smoked Pine"
+      }
+    ],
+    "features": [
+      "Rustic wood look with authentic grain texture inspired by natural timber",
+      "Strong concrete construction that resists fading, warping, and deterioration over time",
+      "One authentic wood-grain finish for a natural aesthetic",
+      "Suitable for garden walls, outdoor kitchens, edging, flowerbeds, firepits, benches, and water features",
+      "Low-maintenance alternative to wood with long-lasting performance in all climates",
+      "Covered by Techo-Bloc’s limited lifetime warranty on structural integrity"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the stock status."
+    }
+  ]
+}

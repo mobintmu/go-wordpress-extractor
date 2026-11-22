@@ -1,0 +1,20 @@
+{
+  "url": "https://www.farrow-ball.com/us/wallpaper/five-over-stripe",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Five Over Stripe",
+      "url": "https://www.farrow-ball.com/us/wallpaper/five-over-stripe",
+      "image_url": "https://www.farrow-ball.com/media/catalog/product/f/i/five-over-stripe-612-wallpaper-base.png?optimize=low\u0026fit=bounds\u0026height=621\u0026width=414\u0026canvas=414:621\u0026format=jpeg",
+      "description": "Our Five Over Stripe wallpaper is a classic print that balances crisp lines with inviting texture for a lived in feel. The expert craftsmen at our Dorset factory use a traditional dragging technique to apply stripes of our water based paint, giving each paper a subtle variance.\nFull roll width is 53cm/21\", roll length is 10m, stripe width is 5.6cm/2 1/4\".\nThe image above and the colours listed are only a guide. To know for sure if this is the perfect paper for your project, please order a sample.\nWe recommend ordering all the rolls you need in one go because using traditional techniques and real paint, like we do, means pattern and colour can vary very slightly between batches.",
+      "price": {
+        "current": 27000,
+        "regular": null,
+        "currency": "USD",
+        "raw": "$270.00",
+        "state": "available"
+      }
+    }
+  },
+  "saved_at": "2026-11-19T18:07:04Z"
+}

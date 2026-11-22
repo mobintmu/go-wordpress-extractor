@@ -1,0 +1,27 @@
+{
+  "url": "https://www.phillipjeffries.com/shop/CARD-464/46400",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Meta Metallic in Gold Wallcovering - 46400",
+      "url": "https://www.phillipjeffries.com/shop/CARD-464/46400",
+      "image_url": "https://phillipjeffries.bynder.com/transform/a11d9e2b-0bdf-4c2a-b9c2-785a9b696ca3/46400_Meta-Metallic_SKU-jpg?io=transform:fit%2Cwidth:1200%2Cheight:1200",
+      "description": "Capturing the fluid movement of abstract art, this authentic metallic leaf wallcovering is meticulously handcrafted into lustrous forms with expressive texture. Our unique and sophisticated specialty wallcoverings include luxurious artisanal details.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T17:57:50Z"
+}

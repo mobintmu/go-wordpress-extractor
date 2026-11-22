@@ -11,8 +11,9 @@ import (
 
 // Ferguson answers plain automated requests with HTTP 403. From 2026-11-13
 // to 2026-11-19 the live config used a search engine, which never fetches
-// the site; it now uses ai-crawler-avalai in Chrome. These tests keep the
-// search route working: they send the client's sample request through every
+// the site; it now uses the default AI engine with `ai_fetch: web_search`.
+// These tests keep the search route working: they send the client's sample
+// request through every
 // search engine with the real config and its former search settings, and the fake shop replays what each engine really
 // answered for it (testdata/search/, saved 2026-11-13 for DuckDuckGo and
 // 2026-11-15 for the others):
@@ -49,8 +50,9 @@ func searchFixture(t *testing.T, engine, name string) string {
 
 // fergusonSearchSettings is the fetch.search block fergusonhome.com used
 // while it was served by duckduckgo (2026-11-13 to 2026-11-19). The live
-// config now uses ai-crawler-avalai; these settings are kept here, and in
-// the config's $comment, so the site can be switched back.
+// config now uses fetch.engine default (APP_DEFAULT_ENGINE, ai-crawler-avalai
+// on this instance); these settings are kept here, and in the config's
+// $comment, so the site can be switched back.
 func fergusonSearchSettings() map[string]any {
 	return map[string]any{
 		"region":        "us-en",

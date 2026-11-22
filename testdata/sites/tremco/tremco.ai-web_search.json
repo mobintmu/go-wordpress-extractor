@@ -1,0 +1,102 @@
+{
+  "status": "success",
+  "url": "https://www.tremcosealants.com/products/tremsil-200",
+  "site_id": "ai_tremcosealants_com",
+  "config_version": "2026-11-19.1",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": false,
+    "model": "sonar",
+    "prompt_version": "web-1",
+    "fetched_with": "web_search",
+    "sources": [
+      "https://www.tremcosealants.com/products/tremsil-200"
+    ],
+    "tokens": {
+      "input": 563,
+      "output": 330
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Tremsil® 200",
+    "url": "https://www.tremcosealants.com/products/tremsil-200",
+    "image_url": null,
+    "description": "A single-component acetoxy silicone sealant that cures to a flexible rubber when exposed to moisture present in the air, creating a weathertight seal.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "name": "Application Temperature",
+        "value": "41 to 104 °F (5 to 40 °C)"
+      },
+      {
+        "name": "Coverage Rate",
+        "value": "12 ft @ .5\" x .25\" (10.1 oz)"
+      },
+      {
+        "name": "Drying/Cure Time",
+        "value": "14 to 21 days"
+      },
+      {
+        "name": "Chemistry",
+        "value": "Silicone"
+      },
+      {
+        "name": "Movement Capability",
+        "value": "+/- 25%"
+      },
+      {
+        "name": "Skin Time @ 75 °F & 50% RH",
+        "value": "20 min"
+      }
+    ],
+    "features": [
+      "Mold/Mildew Protection through integral fungicide",
+      "Sensitive Environment Use through GREENGUARD Gold Certification, including kitchen, spa, and bathroom applications",
+      "Cures to a flexible, weathertight rubber seal",
+      "Easy Application with conventional caulking equipment with no mixing requirement",
+      "Flexible; offers ± 25% movement capability",
+      "Multi-Use through adhesion to glass, metal, porcelain, ceramic and most painted surfaces",
+      "Faster Installation with a skin time of only 20 minutes"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were found by an LLM with web search (sonar); the site was not contacted."
+    },
+    {
+      "code": "AI_UNVERIFIED",
+      "message": "The values come from the AI provider's web search and were not checked against the product page, which the service did not fetch. Price and stock may be out of date; see source.sources."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "image_url",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the product image."
+    },
+    {
+      "field": "price",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the price."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_IN_SEARCH_RESULTS",
+      "message": "The search result does not include the stock status."
+    }
+  ]
+}

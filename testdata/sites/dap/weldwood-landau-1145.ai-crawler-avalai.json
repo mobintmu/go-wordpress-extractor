@@ -1,0 +1,108 @@
+{
+  "status": "success",
+  "url": "https://www.dap.com/products/adhesives/weldwood-landau-top-and-trim-1145-high-heat-resistant-contact-cement",
+  "site_id": "dap",
+  "config_version": "2026-11-19.8",
+  "config_origin": "config",
+  "source": {
+    "engine": "ai-crawler-avalai",
+    "site_contacted": true,
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "1",
+    "fetched_with": "http",
+    "tokens": {
+      "input": 1789,
+      "output": 1577
+    }
+  },
+  "completeness": "partial",
+  "product": {
+    "title": "Weldwood Landau Top & Trim 1145 High Heat Resistant Contact Cement",
+    "url": "https://www.dap.com/products/adhesives/weldwood-landau-top-and-trim-1145-high-heat-resistant-contact-cement",
+    "image_url": "https://images.dap.com/Weldwood_ContactAdhesive_LandauTopTrim_5G_00250_6x6.jpg",
+    "description": "Weldwood 1145 High Solids HHR Contact adhesive is a sprayable contact adhesive specially developed to meet the reduced volatile and high coverage requirements of high volume plastic laminate fabricators. 1145 has excellent application properties and forms a high strength, high heat resistant bond that is resistant to water, many households chemicals and the effects of aging.",
+    "price": {
+      "current": null,
+      "regular": null,
+      "currency": "USD",
+      "raw": "",
+      "state": "unknown"
+    },
+    "specs": [
+      {
+        "group": "7079800250",
+        "name": "SKU",
+        "value": "7079800250"
+      },
+      {
+        "group": "7079800250",
+        "name": "Code",
+        "value": "00250"
+      },
+      {
+        "group": "7079800250",
+        "name": "Unit Size",
+        "value": "5 GAL"
+      },
+      {
+        "group": "7079800250",
+        "name": "Color",
+        "value": "NATURAL"
+      },
+      {
+        "group": "7079800252",
+        "name": "SKU",
+        "value": "7079800252"
+      },
+      {
+        "group": "7079800252",
+        "name": "Code",
+        "value": "00252"
+      },
+      {
+        "group": "7079800252",
+        "name": "Unit Size",
+        "value": "1 GAL"
+      },
+      {
+        "group": "7079800252",
+        "name": "Color",
+        "value": "NATURAL"
+      }
+    ],
+    "features": [
+      "BEST FOR: Laminate Applications",
+      "Creates a strong durable bond",
+      "Water-resistant formula offering reliable protection against moisture and humidity",
+      "Ideal for automotive upholstery, foam and vinyl material.",
+      "High heat resistant once cured",
+      "Wide coverage with even spray application",
+      "Provides a strong and permanent bond on contact",
+      "Suitable for both indoor and outdoor applications, making it a versatile choice for all projects.",
+      "Is VOC-Compliant and is designed for interior applications."
+    ]
+  },
+  "warnings": [
+    {
+      "code": "AI_EXTRACTED",
+      "message": "Values were extracted by an LLM (deepseek-v4.1-flash) and checked against the page."
+    },
+    {
+      "code": "PRICE_MISSING",
+      "field": "price",
+      "message": "No price, call-for-price text, or stock signal was found on this product page."
+    }
+  ],
+  "unavailable_fields": [
+    {
+      "field": "price",
+      "reason": "NOT_ON_PAGE",
+      "message": "The price was not found on this product page."
+    },
+    {
+      "field": "availability",
+      "reason": "NOT_ON_PAGE",
+      "message": "The stock status was not found on this product page."
+    }
+  ]
+}

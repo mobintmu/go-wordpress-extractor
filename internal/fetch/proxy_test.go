@@ -63,22 +63,56 @@ func TestFetchThroughProxy(t *testing.T) {
 	}
 }
 
-func TestProxyStillBlocksPrivateDestinations(t *testing.T) {
+// Through a configured proxy the proxy resolves hostnames: a name whose
+// local resolution is poisoned to a private address is still sent to the
+// proxy, and the local resolver is never asked.
+func TestProxyResolvesHostnames(t *testing.T) {
+	var seen atomic.Value
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen.Store(r.URL.String())
+		w.Write([]byte("<html><body>ok</body></html>"))
+	}))
+	defer proxy.Close()
+	pu, _ := url.Parse(proxy.URL)
+
+	var resolved atomic.Int32
+	poisoned := func(context.Context, string) ([]net.IP, error) {
+		resolved.Add(1)
+		return []net.IP{net.ParseIP("10.10.34.36")}, nil
+	}
+	target, _ := url.Parse("http://shop.example/product/1")
+	page, fail := testFetcher(pu, poisoned).Fetch(context.Background(), testSite(), target)
+	if fail != nil || page.Status != 200 {
+		t.Fatalf("want the proxy to serve the page, got %+v", fail)
+	}
+	if resolved.Load() != 0 {
+		t.Fatalf("local resolver was asked %d times; the proxy must resolve", resolved.Load())
+	}
+}
+
+// Private, loopback and metadata destinations stay refused even through a
+// proxy: as IP literals and as loopback or metadata names. None reaches it.
+func TestProxyStillBlocksPrivateLiteralsAndLoopbackNames(t *testing.T) {
 	var hits atomic.Int32
 	proxy := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { hits.Add(1) }))
 	defer proxy.Close()
 	pu, _ := url.Parse(proxy.URL)
 
-	private := func(context.Context, string) ([]net.IP, error) {
-		return []net.IP{net.ParseIP("169.254.169.254")}, nil
-	}
-	target, _ := url.Parse("http://shop.example/product/1")
-	_, fail := testFetcher(pu, private).Fetch(context.Background(), testSite(), target)
-	if fail == nil || fail.Code != diagnose.URLNotAllowed {
-		t.Fatalf("want URL_NOT_ALLOWED, got %+v", fail)
+	for _, raw := range []string{
+		"http://169.254.169.254/latest/meta-data",
+		"http://10.0.0.5/admin",
+		"http://127.0.0.1/admin",
+		"http://localhost/admin",
+		"http://metadata.google.internal/computeMetadata",
+	} {
+		target, _ := url.Parse(raw)
+		_, fail := testFetcher(pu, publicResolver).Fetch(context.Background(), testSite(), target)
+		if fail == nil || fail.Code != diagnose.URLNotAllowed {
+			t.Errorf("%s: want URL_NOT_ALLOWED, got %+v", raw, fail)
+		}
 	}
 	if hits.Load() != 0 {
-		t.Fatal("request reached the proxy")
+		t.Fatalf("%d request(s) reached the proxy", hits.Load())
 	}
 }
 
@@ -93,16 +127,21 @@ func TestProxyUnreachable(t *testing.T) {
 	}
 }
 
-func TestCheckDestination(t *testing.T) {
-	d := NewSafeDialer(publicResolver, nil)
-	if err := d.CheckDestination(context.Background(), "shop.example", 443); err != nil {
-		t.Fatalf("public: %v", err)
-	}
+func TestCheckProxiedDestination(t *testing.T) {
+	d := NewSafeDialer(nil, nil)
 	var na *NotAllowedError
-	if err := d.CheckDestination(context.Background(), "shop.example", 22); !errors.As(err, &na) {
+	if err := d.CheckProxiedDestination("shop.example", 443); err != nil {
+		t.Fatalf("hostname: %v", err)
+	}
+	if err := d.CheckProxiedDestination("www.homedepot.com", 443); err != nil {
+		t.Fatalf("hostname that the local resolver would not see: %v", err)
+	}
+	if err := d.CheckProxiedDestination("shop.example", 22); !errors.As(err, &na) {
 		t.Fatalf("blocked port: %v", err)
 	}
-	if err := d.CheckDestination(context.Background(), "127.0.0.1", 80); !errors.As(err, &na) {
-		t.Fatalf("loopback: %v", err)
+	for _, h := range []string{"127.0.0.1", "10.10.34.36", "169.254.169.254", "localhost", "api.localhost", "metadata.google.internal", "box.local"} {
+		if err := d.CheckProxiedDestination(h, 443); !errors.As(err, &na) {
+			t.Errorf("%s: want refused, got %v", h, err)
+		}
 	}
 }

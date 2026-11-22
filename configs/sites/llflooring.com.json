@@ -1,0 +1,65 @@
+{
+  "$comment": "LL Flooring runs Salesforce Commerce Cloud (SFRA, Sites-llflooring-Site) behind Cloudflare; the product page is server-rendered, although many links and image paths are written relative ('/../../media-sub/...', which resolves and serves the image). Product URLs are /p/<slug>-<item number>/ (slugs may contain dots, for example 6.81-in.-wide). Prices are in US dollars and returned in cents with currency USD. The page shows two prices in one block: the per-square-foot price ($2.19 / Sq Ft, also the JSON-LD offer price) and the per-box price ($51.75 / box, covers 23.63 Sq Ft) that the cart sells; no element holds the per-sq-ft figure alone, so price_current reads the hidden div#product-content, which carries only the box price, and price_area keeps both figures in price.raw. No sale or out-of-stock page was found to base price_regular or availability.out_of_stock on, so an unorderable product is detected only by the missing Add to Cart button. The description is the paragraphs of the first product-copy block (the bullet list and the buying-guide link are left out). Specs come from the Specifications tab: titled spec-section groups (Details, Dimensions, ..., Warranties & Certifications) of li rows; the hidden 'What is ...?' tooltip in each name is excluded. Engines tried on the sample on 2026-11-19: http: SUCCESS with every field and 40 specs; browser: same data, slower; duckduckgo: partial (title and snippet); mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: BOT_PROTECTION (no tokens); ai-crawler-cloudflare: not configured. http is selected: full data at the lowest cost. Checked against a saved (curl) CoreLuxe 5mm w/pad Daydream Meadow Oak page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "llflooring",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "llflooring.com",
+    "www.llflooring.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/p/[a-z0-9][a-z0-9.-]*-[0-9]{6,}/?$"
+      ],
+      "root": "div#maincontent:has(div.product-info h1)",
+      "price_area": "div.product-info div.price-and-callout div.price",
+      "fields": {
+        "title": {
+          "selector": "div.product-info h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "div.product-images img.product-tile-img-lazy",
+          "attr": [
+            "data-imgurl"
+          ],
+          "pick": "first"
+        },
+        "price_current": {
+          "selector": "div.product-info div.price-and-callout #product-content",
+          "pick": "first"
+        },
+        "description": {
+          "selector": "div.description-and-detail > div.product-copy:not(:has(.content-asset)) > p",
+          "pick": "join",
+          "separator": "\n"
+        }
+      },
+      "availability": {
+        "order_button": "div.product-info .product-add-to-cart button.add-to-cart"
+      },
+      "specs": {
+        "group": "div.product-specifications div.spec-section",
+        "title": "p.spec-head",
+        "row": "ul.spec-container > li",
+        "name": ".spec-name",
+        "value": ".spec-details",
+        "exclude": ".spec-definition"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

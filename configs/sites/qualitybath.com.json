@@ -1,0 +1,35 @@
+{
+  "$comment": "qualitybath.com (Bot-protected retailer): Quality Bath product pages are protected by bot protection (403) for every page fetch from this network. The site is never contacted; the search model answers from the web and the values are unverified (AI_UNVERIFIED). Engines tried on 2026-11-19: direct page fetch, browser and AvalAI page fetch were denied, timed out or blocked (see the trial log); web_search returned data. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key.",
+  "schema_version": 1,
+  "site_id": "qualitybath",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "qualitybath.com",
+    "www.qualitybath.com"
+  ],
+  "fetch": {
+    "engine": "default",
+    "ai_fetch": "web_search",
+    "timeout_seconds": 60
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/[^/]+$"
+      ]
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

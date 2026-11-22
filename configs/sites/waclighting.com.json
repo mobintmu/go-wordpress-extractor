@@ -1,0 +1,47 @@
+{
+  "$comment": "WAC Lighting (architectural and landscape lighting, WAC Lighting Co.) runs a WordPress site with product pages under /product/<name>/ (for example Axel Wall Light 3000K, with SKUs WS-W44011-BK and WS-W44014-BK). The product name is the h1 (class bt) and the description is the meta description. WAC sells through showrooms and distributors and the SKU and dimension tables are rendered in a form the selectors cannot read, so fetch.engine is default (APP_DEFAULT_ENGINE, ai-crawler-avalai on this instance): the LLM returns 12 specs (SKU and dimension rows) with the image, each checked against the page, at about 2,288+1,647 tokens per request. There is no price on the page (the state the AI reads is call_for_price), so price is not configured and the product returns a PRICE_MISSING warning; price_unit usd only keeps currency USD. Engines tried on the sample on 2026-11-19: http: SUCCESS with title and description; browser: the same; ai-crawler-avalai: the same plus the image, 12 specs and call_for_price. ai-crawler-avalai is selected because it returns the SKU and dimension specs. Needs APP_AI_CRAWLER_ENABLED with an AvalAI key on the instance. Checked against the saved (curl) Axel Wall Light 3000K page on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "wac",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "waclighting.com",
+    "www.waclighting.com"
+  ],
+  "fetch": {
+    "engine": "default"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/product/[a-z0-9-]+/?$"
+      ],
+      "root": "html:has(h1.bt)",
+      "fields": {
+        "title": {
+          "selector": "h1.bt",
+          "pick": "first"
+        },
+        "description": {
+          "selector": "meta[name='description']",
+          "attr": [
+            "content"
+          ],
+          "pick": "first"
+        }
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

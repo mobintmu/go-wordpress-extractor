@@ -1,0 +1,27 @@
+{
+  "url": "https://arktura.com/vapor-exterior/",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Vapor® Exterior",
+      "url": "https://arktura.com/vapor-exterior/",
+      "image_url": "https://arktura.com/wp-content/uploads/2025/11/Arktura-Vapor-Custom-Exterior-Desert-Diamond-Casinos-White-Tank-Waddell-AZ_WEB_3-1600x1078.jpg",
+      "description": "The Vapor® Exterior panel system elevates modern aesthetics with a variety of artistic patterns designed for facades and exteriors. In addition to its interior applications, this existing system now offers new, standardized functionalities for outdoor use, enabling a seamless transition in design from indoor to outdoor environment while maintaining uninterrupted design continuity. Enhance your design with optional illumination features.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T18:10:41Z"
+}

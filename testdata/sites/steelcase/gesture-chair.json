@@ -1,0 +1,27 @@
+{
+  "url": "https://store.steelcase.com/seating/ergonomic-chairs/gesture",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Gesture",
+      "url": "https://store.steelcase.com/seating/ergonomic-chairs/gesture",
+      "image_url": "https://storemedia.steelcase.com/image/upload/v1770041562/B2CProducts/Gesture/26-0268837.jpg",
+      "description": "With 360-degree arms, a contoured back, and intuitive manual adjustments, the Steelcase Gesture ergonomic office chair adapts effortlessly to the way you sit and move throughout the day.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T22:00:10Z"
+}

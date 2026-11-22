@@ -1,0 +1,58 @@
+{
+  "$comment": "Emser Tile runs Optimizely (Insite) B2B Commerce with its React 'Mobius' storefront: the server HTML is a shell (div#react-app only, no title or product markup), so the page needs the browser engine. Selectors use the platform's stable data-test-selector attributes (class names are styled-components hashes). root waits for the product h1, because the browser engine snapshots the DOM as soon as root attaches. Product URLs are /product/<slug-with-item-code> (3,800 of them in sitemap1.xml). Emser sells through distributors: the only price on the page is the 'ORDER SAMPLE CHIP: $3.00/EA' button, so price and availability are not configured and every product returns price.state unknown with a PRICE_MISSING warning; price_unit usd only keeps currency USD. The title is the h1 (collection, size, colour, finish), the image is the main gallery image (CloudFront, medium size), and the description is the first product copy block. Specs are the four attribute groups (Product Specifications, Technical Specifications, Testing Results, Usage) with h3 titles and label/value rows: 41 pairs on the sample. Engines tried on the sample on 2026-11-19: http: REQUIRED_FIELD_MISSING (JavaScript shell); browser: SUCCESS with title, image, description and 41 specs in 8 s; duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: JS_RENDERED_PAGE (no tokens); ai-crawler-avalai web_search: 35 specs, unverified, no image (564+708 tokens); ai-crawler-cloudflare: not configured. browser is selected: the most data, free. Needs APP_BROWSER_ENABLED on the instance. Checked against the Anvaya 12x12 Poppy Matte page rendered by Chrome on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "emser",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "emser.com",
+    "www.emser.com"
+  ],
+  "fetch": {
+    "engine": "browser"
+  },
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD"
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/product/[a-z0-9][a-z0-9-]*/?$"
+      ],
+      "root": "[data-test-selector='page_ProductDetailsPage']:has(h1[data-test-selector='productDetails_productDescription'])",
+      "fields": {
+        "title": {
+          "selector": "h1[data-test-selector='productDetails_productDescription']",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "img[data-test-selector='productDetails_mainImage']",
+          "attr": [
+            "src"
+          ],
+          "pick": "first"
+        },
+        "description": {
+          "selector": "[data-test-selector='productDetails_htmlContent']",
+          "pick": "first"
+        }
+      },
+      "specs": {
+        "group": "[data-test-selector='attributesGroupWrapper']",
+        "title": "h3",
+        "row": "[data-test-selector='attributes_item']",
+        "name": "[data-test-selector='attributes_item_label']",
+        "value": "[data-test-selector='attributes_item_value']"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}

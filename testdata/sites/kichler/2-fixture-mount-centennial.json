@@ -1,0 +1,27 @@
+{
+  "url": "https://www.kichler.com/2-fixture-mount-in-centennial-brass-15515CBR",
+  "expect": {
+    "status": "success",
+    "product": {
+      "title": "Accessory 12V Landscape Accessories Size:2\" W x 1\" H x 2\" L Model:15515CBR",
+      "url": "https://www.kichler.com/2-fixture-mount-in-centennial-brass-15515CBR",
+      "image_url": "https://images.ctfassets.net/vpu87v9zuty9/57HXcBXDP4Jql4QoW08gBN/658fe5f0df7654af3e54f0e6a581d07e/15515cbr.jpg",
+      "description": "12V Brass Two Fixture Mount in Centennial Brass is ideal for creating clean, professional lighting installations that stand the test of time.",
+      "price": {
+        "current": null,
+        "regular": null,
+        "currency": "USD",
+        "raw": "",
+        "state": "unknown"
+      }
+    },
+    "warnings": [
+      {
+        "code": "PRICE_MISSING",
+        "field": "price",
+        "message": "No price, call-for-price text, or stock signal was found on this product page."
+      }
+    ]
+  },
+  "saved_at": "2026-11-19T21:20:43Z"
+}

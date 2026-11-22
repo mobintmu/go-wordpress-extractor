@@ -1,0 +1,62 @@
+{
+  "$comment": "1000Bulbs.com (US lighting retailer) runs its own platform (Foundation CSS, product pages /product/<id>/<SKU>.html; sitemap product.xml lists about 7,700 products). Prices are in US dollars and sold per unit ('$21.55 ea.'), so price.current is that per-unit price. The product page is server-rendered: title (h1), image (assets.1000bulbs.com), description (the Description block) and a canonical link are in the HTML, and the JSON-LD Product carries the same price. There is no sale price in the markup, so price_regular is not configured; the Add to Cart button is always shown, so availability is not configured. Specs are the two 'table tr' spec tables (Brand, MPN, Wattage, Lumens, Voltage, Base Type, ...), 16 to 21 pairs. Engines tried on the sample on 2026-11-19: http: SUCCESS with every field and 16 specs; browser: the same, slower; duckduckgo, mojeek, yandex: SEARCH_PROVIDER_BLOCKED; yahoo: SEARCH_PROVIDER_ERROR; brave: not tried, no key; ai-crawler-avalai: the same fields at 2,653+1,184 tokens; ai-crawler-cloudflare: not configured. http is selected: the same data at no cost. Checked against saved (curl) Stage and Studio T6 and Advance metal halide ballast pages on 2026-11-19.",
+  "schema_version": 1,
+  "site_id": "1000bulbs",
+  "version": "2026-11-19.1",
+  "enabled": true,
+  "domains": [
+    "1000bulbs.com",
+    "www.1000bulbs.com"
+  ],
+  "locale": {
+    "price_unit": "usd",
+    "currency_words": [
+      "$",
+      "USD",
+      "ea."
+    ]
+  },
+  "pages": {
+    "product": {
+      "match": [
+        "^/product/[0-9]+/[A-Za-z0-9-]+\\.html$"
+      ],
+      "root": "body:has(div.pdp-v3)",
+      "price_area": "div.pdp-v3__price-row",
+      "fields": {
+        "title": {
+          "selector": "h1",
+          "pick": "first"
+        },
+        "image_url": {
+          "selector": "img[src*='assets.1000bulbs.com']",
+          "attr": [
+            "src"
+          ],
+          "pick": "first"
+        },
+        "price_current": {
+          "selector": "div.pdp-v3__single-price",
+          "pick": "first"
+        },
+        "description": {
+          "selector": "div.description.tooltip-container",
+          "pick": "first"
+        }
+      },
+      "availability": {
+        "order_button": "div.pdp-v3 button.add-to-cart, div.pdp-v3 input[value='Add to Cart']"
+      },
+      "specs": {
+        "row": "table tr",
+        "name": "th, td:first-child",
+        "value": "td:last-child"
+      }
+    }
+  },
+  "validation": {
+    "required_fields": [
+      "title"
+    ]
+  }
+}
