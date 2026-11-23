@@ -13,6 +13,11 @@
 # Optional environment overrides:
 #   GO_VERSION=go1.27.4     install this Go version instead of the latest
 #   GOPROXY=...             module proxy used while building (passed to go)
+#   BUILD_JOBS=2            packages compiled in parallel (default: one per CPU).
+#                           Use this on a small server: one big package such as
+#                           github.com/openai/openai-go/v3 needs ~1.5-2 GB while
+#                           it compiles, and too many at once end in
+#                           "compile: signal: killed" (the kernel OOM killer).
 #   NODE_MAJOR=22           Node.js major version for the browser engine
 #   PLAYWRIGHT_VERSION=1.57.0  Playwright driver version (default: read from go.mod)
 #
@@ -197,8 +202,17 @@ build() {
   (
     cd "$APP_DIR"
     export CGO_ENABLED=0 PATH="$GO_ROOT/bin:$PATH"
+    # A single compile can take 1.5-2 GB (openai-go, sonic, ...); on a small
+    # server the kernel kills the compiler ("signal: killed") when several run
+    # at once. BUILD_JOBS caps how many run in parallel.
+    local jobs=()
+    if [ -n "${BUILD_JOBS:-}" ]; then
+      [[ "$BUILD_JOBS" =~ ^[1-9][0-9]*$ ]] || die "BUILD_JOBS must be a positive number, for example BUILD_JOBS=2"
+      jobs=(-p "$BUILD_JOBS")
+      info "compiling at most $BUILD_JOBS package(s) at a time"
+    fi
     for cmd in server apikey sitectl; do
-      "$GO_BIN" build -buildvcs=false -trimpath -ldflags="-s -w" -o "$BIN_DIR/$cmd" "./cmd/$cmd"
+      "$GO_BIN" build ${jobs[@]+"${jobs[@]}"} -buildvcs=false -trimpath -ldflags="-s -w" -o "$BIN_DIR/$cmd" "./cmd/$cmd"
     done
   )
   ok "binaries in $BIN_DIR"
