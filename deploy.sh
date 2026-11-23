@@ -18,6 +18,10 @@
 #                           github.com/openai/openai-go/v3 needs ~1.5-2 GB while
 #                           it compiles, and too many at once end in
 #                           "compile: signal: killed" (the kernel OOM killer).
+#   BUILD_GOGC=20           GOGC used while building (default 100, or 20 when the
+#                           server has less than 4 GB free). Lower keeps less
+#                           garbage: the same compile peaks at ~1.8 GB instead
+#                           of ~2.7 GB, and takes longer.
 #   NODE_MAJOR=22           Node.js major version for the browser engine
 #   PLAYWRIGHT_VERSION=1.57.0  Playwright driver version (default: read from go.mod)
 #
@@ -65,7 +69,7 @@ ok()    { printf '%s ok%s %s\n' "$C_GRN" "$C_OFF" "$*"; }
 warn()  { printf '%swarn%s %s\n' "$C_YLW" "$C_OFF" "$*" >&2; }
 die()   { printf '%serror%s %s\n' "$C_RED" "$C_OFF" "$*" >&2; exit 1; }
 title() { printf '\n%s%s%s\n' "$C_BLD" "$*" "$C_OFF"; }
-trap 'die "command failed at line $LINENO: $BASH_COMMAND"' ERR
+trap 'die "command failed at line $LINENO: $(printf "%s" "$BASH_COMMAND" | tr "\n" " " | cut -c1-200)"' ERR
 
 # ask "question" "default" -> echoes the answer
 ask() {
@@ -194,6 +198,10 @@ EOF
   ok "installed $("$GO_BIN" version)"
 }
 
+# Free RAM and swap in MB (0 when /proc/meminfo cannot be read).
+mem_available_mb() { awk '/^MemAvailable:/ {printf "%d", $2 / 1024}' /proc/meminfo 2>/dev/null || printf 0; }
+mem_swap_mb()      { awk '/^SwapTotal:/    {printf "%d", $2 / 1024}' /proc/meminfo 2>/dev/null || printf 0; }
+
 # ================================================================ 3. build
 build() {
   [ -x "$GO_BIN" ] || install_go
@@ -202,17 +210,43 @@ build() {
   (
     cd "$APP_DIR"
     export CGO_ENABLED=0 PATH="$GO_ROOT/bin:$PATH"
-    # A single compile can take 1.5-2 GB (openai-go, sonic, ...); on a small
-    # server the kernel kills the compiler ("signal: killed") when several run
-    # at once. BUILD_JOBS caps how many run in parallel.
-    local jobs=()
+    # github.com/openai/openai-go/v3 is one huge generated package (~140 files
+    # in one package). Compiling it alone peaks at ~2.7 GB with the default
+    # GOGC, and the compiler cannot go below ~1.7 GB however it is tuned: on a
+    # server without swap the kernel kills it ("compile: signal: killed").
+    local jobs=() avail
     if [ -n "${BUILD_JOBS:-}" ]; then
       [[ "$BUILD_JOBS" =~ ^[1-9][0-9]*$ ]] || die "BUILD_JOBS must be a positive number, for example BUILD_JOBS=2"
       jobs=(-p "$BUILD_JOBS")
       info "compiling at most $BUILD_JOBS package(s) at a time"
     fi
+    if [ -n "${BUILD_GOGC:-}" ]; then
+      [[ "$BUILD_GOGC" =~ ^([0-9]+(\.[0-9]+)?|off)$ ]] || die "BUILD_GOGC must be a number (for example 20) or 'off'"
+      export GOGC="$BUILD_GOGC"
+      info "building with GOGC=$GOGC"
+    else
+      avail="$(mem_available_mb)"; avail="${avail:-0}"
+      if [ "$avail" -gt 0 ] && [ "$avail" -lt 4096 ]; then
+        export GOGC=20
+        warn "only ${avail} MB free: building with GOGC=20 (slower, ~1.8 GB peak instead of ~2.7 GB)"
+      fi
+      if [ "$avail" -gt 0 ] && [ "$avail" -lt 2048 ] && [ "$(mem_swap_mb)" -lt 1024 ]; then
+        warn "the compiler needs about 1.8 GB for one package and this server has no swap."
+        warn "Add some first: fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile"
+        warn "then: echo '/swapfile none swap sw 0 0' >> /etc/fstab"
+      fi
+    fi
     for cmd in server apikey sitectl; do
-      "$GO_BIN" build ${jobs[@]+"${jobs[@]}"} -buildvcs=false -trimpath -ldflags="-s -w" -o "$BIN_DIR/$cmd" "./cmd/$cmd"
+      if ! "$GO_BIN" build ${jobs[@]+"${jobs[@]}"} -buildvcs=false -trimpath -ldflags="-s -w" -o "$BIN_DIR/$cmd" "./cmd/$cmd"; then
+        avail="$(mem_available_mb)"; avail="${avail:-0}"
+        if [ "$avail" -lt 4096 ]; then
+          warn "if the error above says 'compile: signal: killed', the kernel killed the"
+          warn "compiler for lack of memory. That message is not a Go or code error."
+          warn "Free memory, add swap, use BUILD_JOBS=1 BUILD_GOGC=20, or build on"
+          warn "another machine (CGO_ENABLED=0 binaries are portable) and copy bin/."
+        fi
+        die "build failed for ./cmd/$cmd"
+      fi
     done
   )
   ok "binaries in $BIN_DIR"
