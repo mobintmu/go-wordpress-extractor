@@ -1371,10 +1371,13 @@ install_service() {
       useradd -r -M -s /sbin/nologin "$SERVICE_USER"
     ok "created system user $SERVICE_USER"
   fi
+  if ! su -s /bin/sh -c 'test -x "$1"' "$SERVICE_USER" sh "$APP_DIR" </dev/null 2>/dev/null; then
+    die "user $SERVICE_USER cannot enter $APP_DIR. Move the checkout to a directory it can access, such as /opt/$SERVICE_NAME, then rerun $0 service there."
+  fi
   fix_perms
-  if ! su -s /bin/sh "$SERVICE_USER" -c "test -x '$BIN_DIR/server' && test -r '$ACTIVE_FILE' && test -r '$ENV_FILE'" 2>/dev/null; then
-    warn "user $SERVICE_USER cannot read $APP_DIR. Put the project in a readable place such as /opt/$SERVICE_NAME"
-    warn "(not under /root or a private home folder), or fix the folder permissions."
+  if ! su -s /bin/sh -c 'test -x "$1" && test -r "$2" && test -r "$3"' "$SERVICE_USER" \
+      sh "$BIN_DIR/server" "$ACTIVE_FILE" "$ENV_FILE" </dev/null 2>/dev/null; then
+    warn "before starting, make sure $SERVICE_USER can execute $BIN_DIR/server and read $ACTIVE_FILE and $ENV_FILE"
   fi
   local stop_timeout xvfb_unit="" xvfb_env=""
   stop_timeout="$(env_get APP_MAX_REQUEST_DURATION)"
@@ -1678,7 +1681,11 @@ main() {
         *)           swagger_status ;;
       esac ;;
     restart)  restart ;;
-    status)   systemctl status "$SERVICE_NAME" --no-pager; browser_headful && systemctl status "$XVFB_SERVICE" --no-pager || true ;;
+    status)
+      local status_code=0
+      systemctl status "$SERVICE_NAME" --no-pager || status_code=$?
+      browser_headful && systemctl status "$XVFB_SERVICE" --no-pager || true
+      exit "$status_code" ;;
     logs)     journalctl -u "$SERVICE_NAME" -f ;;
     run)      run_foreground ;;
     dev)      run_dev ;;

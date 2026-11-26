@@ -87,6 +87,29 @@ sudo ./deploy.sh status
 
 `service` enables startup at boot. `restart` starts the service and waits for `/ready`. Look for `service is up` and `active (running)`. Then run the API checks below using port `4000`. If startup fails, follow the logs with `sudo ./deploy.sh logs`.
 
+### Fix `200/CHDIR` for a checkout under `/root`
+
+The systemd service runs as `gwp` and needs to enter the checkout directory. If the logs show `200/CHDIR` for `/root/go-wordpress-extractor`, move the whole checkout, including the binaries, `.env.production`, and `secrets/`. The example assumes `/opt/go-wordpress-extractor` is available. Use a different destination if a checkout already exists there.
+
+```bash
+sudo test ! -e /opt/go-wordpress-extractor &&
+  sudo systemctl stop go-wordpress-extractor &&
+  sudo mv -T /root/go-wordpress-extractor /opt/go-wordpress-extractor
+```
+
+After the move succeeds, update the configuration and reinstall the unit from the new location.
+
+```bash
+cd /opt/go-wordpress-extractor
+sudo chmod 755 .
+sudo sed -i -E 's@^([A-Z_][A-Z0-9_]*=)/root/go-wordpress-extractor(/|$)@\1/opt/go-wordpress-extractor\2@' .env.production
+sudo ./deploy.sh service
+sudo ./deploy.sh restart
+sudo ./deploy.sh status
+```
+
+The `sed` command updates absolute paths written by `deploy.sh`, including the site config and API key paths. The existing pepper and key file are carried over. `service` rewrites `WorkingDirectory` and `ExecStart` for the new checkout location.
+
 ### Run the same setup in one command
 
 After putting the project under `/opt`, you can use the interactive installer in place of steps 2–7.
