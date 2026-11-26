@@ -89,26 +89,20 @@ sudo ./deploy.sh status
 
 ### Fix `200/CHDIR` for a checkout under `/root`
 
-The systemd service runs as `gwp` and needs to enter the checkout directory. If the logs show `200/CHDIR` for `/root/go-wordpress-extractor`, move the whole checkout, including the binaries, `.env.production`, and `secrets/`. The example assumes `/opt/go-wordpress-extractor` is available. Use a different destination if a checkout already exists there.
+The systemd service runs as `gwp` and needs to enter the checkout directory. If the logs show `200/CHDIR` for `/root/go-wordpress-extractor`, run `relocate` from that checkout.
 
 ```bash
-sudo test ! -e /opt/go-wordpress-extractor &&
-  sudo systemctl stop go-wordpress-extractor &&
-  sudo mv -T /root/go-wordpress-extractor /opt/go-wordpress-extractor
+sudo ./deploy.sh relocate
 ```
 
-After the move succeeds, update the configuration and reinstall the unit from the new location.
+The command stops the service, moves the checkout to `/opt/go-wordpress-extractor`, updates absolute paths in `.env.production`, and rewrites and starts the systemd unit. The binaries, pepper and API key file move with the checkout. If the destination already exists, the command stops before moving anything.
+
+Look for `service is up`. After the move, use the new path to check status. If setup was interrupted after the move, rerun `sudo ./deploy.sh relocate` from the new location.
 
 ```bash
 cd /opt/go-wordpress-extractor
-sudo chmod 755 .
-sudo sed -i -E 's@^([A-Z_][A-Z0-9_]*=)/root/go-wordpress-extractor(/|$)@\1/opt/go-wordpress-extractor\2@' .env.production
-sudo ./deploy.sh service
-sudo ./deploy.sh restart
 sudo ./deploy.sh status
 ```
-
-The `sed` command updates absolute paths written by `deploy.sh`, including the site config and API key paths. The existing pepper and key file are carried over. `service` rewrites `WorkingDirectory` and `ExecStart` for the new checkout location.
 
 ### Run the same setup in one command
 

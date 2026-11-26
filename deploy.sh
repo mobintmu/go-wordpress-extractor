@@ -1487,6 +1487,32 @@ restart() {
   die "service did not become ready; log above"
 }
 
+# Relocate the standard root checkout and resume from /opt if setup needs a retry.
+relocate() {
+  need_root "relocate"
+  local source_dir="/root/$SERVICE_NAME" target_dir="/opt/$SERVICE_NAME"
+  [ "$APP_DIR" = "$source_dir" ] || [ "$APP_DIR" = "$target_dir" ] ||
+    die "run this command from $source_dir or $target_dir"
+  command -v systemctl >/dev/null 2>&1 || die "relocate requires systemd"
+  [ -f "$ENV_FILE" ] || die "missing $ENV_FILE. Run: $0 env"
+  [ -x "$BIN_DIR/server" ] || die "server is not built yet. Run: $0 build"
+
+  if [ "$APP_DIR" = "$source_dir" ]; then
+    [ ! -e "$target_dir" ] && [ ! -L "$target_dir" ] || die "$target_dir already exists"
+    if [ -f "$SERVICE_FILE" ]; then systemctl stop "$SERVICE_NAME"; fi
+    info "moving $source_dir to $target_dir"
+    mv -nT -- "$source_dir" "$target_dir"
+    [ ! -e "$source_dir" ] || die "could not move $source_dir to $target_dir"
+    exec "$target_dir/deploy.sh" relocate
+  fi
+
+  cd "$target_dir"
+  chmod a+rx "$target_dir"
+  sed -i -E "s@^([A-Z_][A-Z0-9_]*=[\"']?)$source_dir(/|[\"']?$)@\1$target_dir\2@" "$ENV_FILE"
+  install_service
+  restart
+}
+
 # Chrome in a window always goes on a hidden Xvfb display, even on a
 # desktop (DISPLAY set), so no browser window opens on screen.
 XVFB_RUN_ARGS=(--auto-servernum --server-args="-screen 0 1920x1080x24")
@@ -1566,6 +1592,7 @@ Setup
   build                Build bin/server, bin/apikey, bin/sitectl
   env                  Create or edit $ENV_FILE
   service              Install the systemd service
+  relocate             Move /root/$SERVICE_NAME to /opt/$SERVICE_NAME and start the service
   update               Install latest Go, rebuild, update Playwright (if enabled), validate configs and restart
 
 Browser fetch engine (off by default; for sites with fetch.engine "browser")
@@ -1640,6 +1667,7 @@ main() {
     env)      setup_env ;;
     pepper)   setup_pepper ;;
     service)  install_service ;;
+    relocate) relocate ;;
     update)   need_root update; install_go; build; install_playwright; validate_sites; restart ;;
     browser|playwright)
       case "${1:-status}" in

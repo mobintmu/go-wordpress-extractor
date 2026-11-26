@@ -43,7 +43,34 @@ testdata/search/        Saved DuckDuckGo result pages (real); synthetic Brave, M
 test/e2e/               End-to-end tests against the real server, a fake shop, a fake LLM and a fake Cloudflare AI Gateway
 ```
 
-On a server the binaries are built and the service is installed with `./deploy.sh` (`build`, `env`, `pepper`, `service`, `restart`). A 1–2 GB VPS cannot compile this project without swap: the Go compiler needs about 1.8 GB for one package and the kernel kills it (`compile: signal: killed`). See [md/BUILD_SMALL_SERVERS.md](md/BUILD_SMALL_SERVERS.md) for the swap setup, `BUILD_JOBS`/`BUILD_GOGC` and how to build the binaries on another machine.
+## Deploy on a Linux server
+
+Put a fresh checkout in `/opt/go-wordpress-extractor`. The systemd service runs as `gwp` and needs access to the checkout. From that directory, run the interactive installer.
+
+```bash
+cd /opt/go-wordpress-extractor
+sudo ./deploy.sh install
+sudo ./deploy.sh status
+```
+
+The [server setup guide](md/SERVER_SETUP.md) walks through the individual deployment commands and the local `./menu.sh` workflow. For `compile: signal: killed` on a small VPS, see the [small-server build guide](md/BUILD_SMALL_SERVERS.md) for swap, build settings, and building on another machine.
+
+### Recover from `200/CHDIR` under `/root`
+
+If `gwp` cannot enter `/root/go-wordpress-extractor`, run this from the existing checkout with an up-to-date `deploy.sh`.
+
+```bash
+sudo ./deploy.sh relocate
+```
+
+`relocate` stops the service, moves the checkout to `/opt/go-wordpress-extractor`, updates absolute paths in `.env.production`, and reinstalls and starts the systemd service. It preserves the binaries, API keys, and pepper. If the destination already exists, it stops before moving anything.
+
+Once it prints `service is up`, use the new path to check status. If setup was interrupted after the move, rerun `sudo ./deploy.sh relocate` from `/opt/go-wordpress-extractor`.
+
+```bash
+cd /opt/go-wordpress-extractor
+sudo ./deploy.sh status
+```
 
 ## Run locally
 
