@@ -85,7 +85,16 @@ sudo ./deploy.sh restart
 sudo ./deploy.sh status
 ```
 
-`service` enables startup at boot. `restart` starts the service and waits for `/ready`. Look for `service is up` and `active (running)`. Then run the API checks below using port `4000`. If startup fails, follow the logs with `sudo ./deploy.sh logs`.
+`service` enables startup at boot. `restart` starts the service and waits for `/ready`. Look for `service is up` and `active (running)`. Then run the API checks below using port `4000`.
+
+### Watch the service logs live
+
+```bash
+cd /opt/go-wordpress-extractor
+sudo ./deploy.sh logs
+```
+
+The command shows recent service logs and streams new entries as they arrive. Press `Ctrl+C` to stop watching. The service keeps running.
 
 ### Fix `200/CHDIR` for a checkout under `/root`
 

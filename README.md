@@ -19,6 +19,29 @@ GET  /health, /ready   public
 GET  /swagger/index.html   operator credentials (HTTP Basic); off unless configured
 ```
 
+## Documentation
+
+| File | What it covers |
+| --- | --- |
+| [SERVER_SETUP.md](md/SERVER_SETUP.md) | Deploy with `deploy.sh`, run locally with `menu.sh`, and check service health and logs. |
+| [BUILD_SMALL_SERVERS.md](md/BUILD_SMALL_SERVERS.md) | Build on a low-memory VPS using swap, build settings, or binaries compiled on another machine. |
+| [SETUP_KEYS.md](md/SETUP_KEYS.md) | Create the server pepper, client API keys, operator credentials, and TLS certificates. |
+| [CURL_EXAMPLES.md](md/CURL_EXAMPLES.md) | Try example extraction requests for individual websites or run them in bulk. |
+| [websites.md](md/websites.md) | Look up supported websites, their platforms, currencies, and fetch engines. |
+| [add-site-engines.md](md/add-site-engines.md) | See which engine each site config selects and why it uses that engine. |
+| [ENGINES.md](md/ENGINES.md) | Compare fetch engines and see how per-site rules and default engine selection work. |
+| [browser-engine.md](md/browser-engine.md) | Install, configure, and troubleshoot the Playwright browser engine and Xvfb. |
+| [OUTBOUND_PROXY.md](md/OUTBOUND_PROXY.md) | Understand outbound HTTP proxy settings, DNS resolution, and SSRF checks. |
+| [SYNC_EXTRACTION_PROPOSAL.md](md/SYNC_EXTRACTION_PROPOSAL.md) | Read the design for stateless HTTP extraction, file-based configuration, and error reporting. |
+| <img src="md/SYNC_EXTRACTION_BIG_PICTURE.png" alt="Synchronous extraction service diagram" width="440"> | Overview of the synchronous extraction service. |
+| <img src="md/fetch-engine-strategy.svg" alt="Fetch engine selection diagram" width="440"> | How the fetch router selects an engine from each site config. |
+| [real-chrome-playwright.md](md/real-chrome-playwright.md) | Read the original proposal for rendering JavaScript pages with Playwright and Chrome. |
+| [SEARCH_ENGINE_PROPOSAL.md](md/SEARCH_ENGINE_PROPOSAL.md) | Read the design for DuckDuckGo and Brave search engines and per-site engine selection. |
+| [METAWEBSEARCH_ENGINE_PROPOSAL.md](md/METAWEBSEARCH_ENGINE_PROPOSAL.md) | Read the design for Mojeek, Yahoo, and Yandex search engines using `metawebsearch`. |
+| [AI_CRAWLER_AVALAI_PROPOSAL.md](md/AI_CRAWLER_AVALAI_PROPOSAL.md) | Read the original design for AvalAI-powered extraction and selector learning. |
+| [AI_CRAWLER_CLOUDFLARE_PROPOSAL.md](md/AI_CRAWLER_CLOUDFLARE_PROPOSAL.md) | Read the design for Cloudflare AI Gateway and configurable default AI engines. |
+| [IMPLEMENTATION.md](md/IMPLEMENTATION.md) | Review a historical implementation snapshot covering the original crawler, APIs, and storage. |
+
 ## Layout
 
 ```text
