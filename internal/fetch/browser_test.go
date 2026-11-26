@@ -26,7 +26,7 @@ import (
 // Playwright driver or a browser is not installed on this machine.
 // Install them with:
 //
-//	go run github.com/playwright-community/playwright-go/cmd/playwright install chromium
+//	go run github.com/mxschmitt/playwright-go/cmd/playwright install chromium
 func startBrowser(t *testing.T, resolve Resolver, allowed []*net.IPNet) *BrowserFetcher {
 	t.Helper()
 	if testing.Short() {

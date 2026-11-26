@@ -17,7 +17,7 @@ import (
 	"go-wordpress/internal/siteconfig"
 
 	"github.com/gocolly/colly/v2"
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 	"github.com/temoto/robotstxt"
 	"go.uber.org/zap"
 )

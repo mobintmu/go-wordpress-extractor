@@ -74,7 +74,7 @@ The window never needs to appear on screen. **Xvfb** is a virtual display that e
 
 ## Installing
 
-The engine needs Node.js, the Playwright driver version that matches `go.mod` (Playwright 1.57.0), a browser, and Xvfb for window mode. The README section "Installing Playwright (browser engine)" has the full manual steps. With `deploy.sh`:
+The engine needs Node.js, the Playwright driver that matches `go.mod` (Playwright 1.64.1), a browser, and Xvfb for window mode. See the [manual install steps](../README.md#installing-playwright-browser-engine).
 
 ```bash
 # Behind a proxy, export it first and keep it through sudo with -E
@@ -84,8 +84,6 @@ sudo -E ./deploy.sh browser enable   # installs Node.js, driver, browser, Xvfb; 
 sudo ./deploy.sh xvfb                # only Xvfb (same as: sudo apt-get install -y xvfb)
 sudo ./deploy.sh browser             # status
 ```
-
-Do not use `go run github.com/playwright-community/playwright-go/cmd/playwright install`: the driver it downloads is no longer hosted. See the README for the npm-based install.
 
 ## Start and stop
 
@@ -175,7 +173,7 @@ go test ./internal/fetch/ ./test/e2e/ -run 'Browser|Gate|Router|Engine' -v   # s
 |---|---|---|
 | `ENGINE_UNAVAILABLE`, "not enabled on this instance (enabled: [http])" | `APP_BROWSER_ENABLED` is not `true` in the env file the server actually reads | Set it in `.env.development` (local) or `.env.production`, then restart |
 | `BOT_PROTECTION` after ~60 s, page title "Nur einen Moment…" / "Just a moment..." | Cloudflare did not let headless Chrome through, or scores the server's IP address | Use `APP_BROWSER_CHANNEL=chrome` and `APP_BROWSER_HEADLESS=false`; test from the server itself, since data-center IPs are challenged harder |
-| Server does not start: "please install the driver (v1.57.0) first" | Playwright driver missing | `sudo -E ./deploy.sh browser install`, or the npm steps in the README |
+| Server reports `please install the driver (v1.64.1) first` | The matching driver is missing | `sudo -E ./deploy.sh browser install`, or the npm steps in the README |
 | Server does not start: "Executable doesn't exist at ..." | Browser build missing for the driver version | Install it with the driver (`cli.js install chromium chromium-headless-shell`), or use `APP_BROWSER_CHANNEL=chrome` |
 | "Missing X server or $DISPLAY" | Window mode without a display | Start with `xvfb-run -a` / `./deploy.sh dev`, or `sudo ./deploy.sh xvfb` on a server |
 | A Chrome window pops up on the desktop | Server started with plain `go run` while `DISPLAY` is set | Start with `./deploy.sh dev` instead |

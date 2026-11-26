@@ -43,6 +43,8 @@ testdata/search/        Saved DuckDuckGo result pages (real); synthetic Brave, M
 test/e2e/               End-to-end tests against the real server, a fake shop, a fake LLM and a fake Cloudflare AI Gateway
 ```
 
+On a server the binaries are built and the service is installed with `./deploy.sh` (`build`, `env`, `pepper`, `service`, `restart`). A 1–2 GB VPS cannot compile this project without swap: the Go compiler needs about 1.8 GB for one package and the kernel kills it (`compile: signal: killed`). See [md/BUILD_SMALL_SERVERS.md](md/BUILD_SMALL_SERVERS.md) for the swap setup, `BUILD_JOBS`/`BUILD_GOGC` and how to build the binaries on another machine.
+
 ## Run locally
 
 ```bash
@@ -379,7 +381,7 @@ func pick(nodes []Node, site string) *Node {
 | `APP_BROWSER_CHANNEL` | `chromium` | `chromium` (Playwright's bundled build) or `chrome` (installed Google Chrome). `sitectl` reads it too |
 | `APP_BROWSER_HEADLESS` | `true` | Run Chrome without a window; `false` needs a display (or Xvfb) |
 | `APP_BROWSER_MAX_PAGES` | `3` | Browser pages open at once per instance (each uses 100-300 MB) |
-| `PLAYWRIGHT_DRIVER_PATH` | user cache | Where the Playwright driver (node + `playwright-core` 1.57.0) is installed |
+| `PLAYWRIGHT_DRIVER_PATH` | user cache | Where the Playwright driver (Node.js and `playwright-core`) is installed |
 | `APP_SEARCH_USER_AGENT` | `go-wordpress-extractor/1.0` | Honest client name sent to the search providers. Do not put personal contact details in it unless you mean to share them |
 | `APP_SEARCH_CACHE_TTL` | `6h` | How long a matched search result is kept in memory. `0` turns the cache off |
 | `APP_SEARCH_NO_RESULT_CACHE_TTL` | `1h` | How long a `SEARCH_NO_RESULT` answer is kept, so repeated requests for an unindexed product do not query the provider again |
@@ -570,9 +572,7 @@ For every engine, the response returns whatever product data was found and lists
 
 ### Installing Playwright (browser engine)
 
-The browser engine needs three things on the machine that runs the server: Node.js (it runs the Playwright driver), the Playwright driver at the version `go.mod` pins (`playwright-go v0.5700.1` = Playwright **1.57.0**), and a browser build that matches that driver. Servers without a site that sets `"engine": "browser"` need none of this.
-
-Do not use `go run github.com/playwright-community/playwright-go/cmd/playwright install`: the driver zip it downloads is no longer hosted (HTTP 404), and newer playwright-go releases (`@latest`) cannot be used because their `go.mod` declares a different module path. Install the driver from npm instead, as below.
+The browser engine requires Node.js, the driver pinned by `go.mod` (`playwright-go v0.6401.0` uses Playwright **1.64.1**), and the matching browser build. Playwright added Ubuntu 26.04 support in 1.61.0. [Playwright release notes](https://github.com/microsoft/playwright/releases/tag/v1.61.0)
 
 If the machine reaches the internet through a proxy, export it first. Node.js, npm, Go and the browser download all use it:
 
@@ -608,16 +608,16 @@ sudo ./deploy.sh browser              # shows "window: Chrome runs in a window o
 
 `sudo -E ./deploy.sh update` also updates the driver when `go.mod` moves to a new playwright-go version. Use `APP_BROWSER_CHANNEL=chrome` (asked by `browser enable`) to install and use Google Chrome instead of Playwright's Chromium (x86_64 only).
 
-**On a development machine, by hand.** Needs Node.js 18 or newer (`node --version`). This puts the driver where playwright-go looks by default, so tests and `go run ./cmd/server` find it without extra variables:
+**On a development machine, by hand.** Use Node.js 22 or newer (`node --version`). This puts the driver where playwright-go looks by default, so tests and `go run ./cmd/server` find it without extra variables.
 
 ```bash
-PW_VERSION=1.57.0
+PW_VERSION=1.64.1
 D=~/.cache/ms-playwright-go/$PW_VERSION
 mkdir -p "$D" && cd "$(mktemp -d)"
 npm pack "playwright-core@$PW_VERSION" --silent
 tar -xzf "playwright-core-$PW_VERSION.tgz" -C "$D"
 ln -sf "$(command -v node)" "$D/node"
-"$D/node" "$D/package/cli.js" --version                          # Version 1.57.0
+"$D/node" "$D/package/cli.js" --version                          # Version 1.64.1
 "$D/node" "$D/package/cli.js" install chromium chromium-headless-shell
 sudo "$D/node" "$D/package/cli.js" install-deps chromium         # system libraries, Debian/Ubuntu
 cd -

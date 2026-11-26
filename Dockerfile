@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
 
+ARG PLAYWRIGHT_VERSION=1.64.1
+
 # ---- build ----
 FROM golang:1.27.4-alpine AS build
 WORKDIR /src
@@ -20,11 +22,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server 
 # this image (~1.5 GB, plus ~150 MB RAM for Chrome and 100-300 MB per open
 # page). The Playwright image ships Chromium and its system libraries; the
 # Go driver is node + playwright-core of the same version as playwright-go.
-FROM mcr.microsoft.com/playwright:v1.57.0-noble AS runtime-browser
+FROM mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble AS runtime-browser
+ARG PLAYWRIGHT_VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends wget tzdata && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /opt/playwright-driver && cd /tmp && \
-    npm pack playwright-core@1.57.0 --silent && \
-    tar -xzf playwright-core-1.57.0.tgz -C /opt/playwright-driver && rm playwright-core-1.57.0.tgz && \
+    npm pack "playwright-core@$PLAYWRIGHT_VERSION" --silent && \
+    tar -xzf "playwright-core-$PLAYWRIGHT_VERSION.tgz" -C /opt/playwright-driver && rm "playwright-core-$PLAYWRIGHT_VERSION.tgz" && \
     ln -s "$(command -v node)" /opt/playwright-driver/node && \
     useradd -u 10001 -m appuser
 WORKDIR /app

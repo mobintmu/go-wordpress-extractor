@@ -23,7 +23,7 @@
 #                           garbage: the same compile peaks at ~1.8 GB instead
 #                           of ~2.7 GB, and takes longer.
 #   NODE_MAJOR=22           Node.js major version for the browser engine
-#   PLAYWRIGHT_VERSION=1.57.0  Playwright driver version (default: read from go.mod)
+#   PLAYWRIGHT_VERSION=1.64.1  Playwright driver version (default: read from go.mod)
 #
 # Behind an HTTP proxy, export it and keep it through sudo; Go, Node, npm and
 # the Chromium download all use it:
@@ -261,11 +261,11 @@ browser_channel() { local c; c="$(env_get APP_BROWSER_CHANNEL)"; printf '%s' "${
 # from the module source (run.go: playwrightCliVersion).
 playwright_version() {
   if [ -n "${PLAYWRIGHT_VERSION:-}" ]; then printf '%s' "$PLAYWRIGHT_VERSION"; return; fi
-  local dir v=""
-  dir="$(cd "$APP_DIR" && PATH="$GO_ROOT/bin:$PATH" "$GO_BIN" mod download github.com/playwright-community/playwright-go >/dev/null 2>&1 &&
-    PATH="$GO_ROOT/bin:$PATH" "$GO_BIN" list -m -f '{{.Dir}}' github.com/playwright-community/playwright-go 2>/dev/null || true)"
+  local module=github.com/mxschmitt/playwright-go dir v=""
+  dir="$(cd "$APP_DIR" && PATH="$GO_ROOT/bin:$PATH" "$GO_BIN" mod download "$module" >/dev/null 2>&1 &&
+    PATH="$GO_ROOT/bin:$PATH" "$GO_BIN" list -m -f '{{.Dir}}' "$module" 2>/dev/null || true)"
   if [ -n "$dir" ] && [ -f "$dir/run.go" ]; then
-    v="$(grep -oE 'playwrightCliVersion = "[0-9]+\.[0-9]+\.[0-9]+"' "$dir/run.go" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)"
+    v="$(sed -nE 's/^[[:space:]]*(const[[:space:]]+)?playwrightCliVersion[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*/\2/p' "$dir/run.go")"
   fi
   [ -n "$v" ] || die "could not read the Playwright version from go.mod. Set PLAYWRIGHT_VERSION=1.x.y"
   printf '%s' "$v"
@@ -309,8 +309,7 @@ install_node() {
   ok "installed Node.js $("$PW_NODE_DIR/bin/node" --version)"
 }
 
-# The driver is node + the playwright-core package. "playwright install"
-# from playwright-go cannot be used: its driver download is no longer hosted.
+# Use the deployment's shared Node.js to run the pinned playwright-core package.
 install_playwright_driver() {
   local version="$1" tmp
   if [ -x "$PW_DRIVER_DIR/node" ] && [ -f "$PW_DRIVER_DIR/package/cli.js" ] &&
