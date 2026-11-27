@@ -665,6 +665,7 @@ CF_TOKEN_FILE="$SECRETS_DIR/cloudflare_api_token"
 CF_DEFAULT_MODEL="@cf/deepseek-ai/deepseek-v4.1-flash-1017"
 GAPGPT_DEFAULT_ENDPOINT="https://api.gapgpt.ir/v1"
 GAPGPT_DEFAULT_MODEL="gapgpt-deepseek-v4.1-flash"
+AI_DEFAULT_MAX_OUTPUT_TOKENS=40000
 LEARNED_DIR="$CONFIG_DIR/learned"
 
 ai_enabled() { [ "$(env_get APP_AI_CRAWLER_ENABLED)" = "true" ]; }
@@ -721,6 +722,7 @@ ai_status() {
   ai_migrate_default_rule
   local state="off"; ai_enabled && state="ENABLED"
   echo "AI crawler (APP_AI_CRAWLER_ENABLED): $state"
+  echo "  max output tokens     : $(v=$(env_get APP_AI_CRAWLER_MAX_OUTPUT_TOKENS); echo "${v:-$AI_DEFAULT_MAX_OUTPUT_TOKENS}")"
   local a="not configured" c="not configured" g="not configured"
   ai_enabled && avalai_configured && a="ON"
   ai_enabled && cloudflare_configured && c="ON"
@@ -754,6 +756,9 @@ ai_status() {
 # ai_common turns the AI crawler on and asks about learning.
 ai_common() {
   env_set APP_AI_CRAWLER_ENABLED true
+  if [ -z "$(env_get APP_AI_CRAWLER_MAX_OUTPUT_TOKENS)" ]; then
+    env_set APP_AI_CRAWLER_MAX_OUTPUT_TOKENS "$AI_DEFAULT_MAX_OUTPUT_TOKENS"
+  fi
   local learn_def=y
   [ "$(env_get APP_AI_CRAWLER_LEARN_SELECTORS)" = "false" ] && learn_def=n
   if confirm "Learn CSS selectors from AI results, so proven hosts need no LLM calls?" "$learn_def"; then
@@ -1178,6 +1183,7 @@ APP_AI_CRAWLER_BASE_URL=https://api.avalai.ir/v1
 APP_AI_CRAWLER_MODEL=deepseek-v4.1-flash
 APP_AI_CRAWLER_API_KEY=
 APP_AI_CRAWLER_API_KEY_FILE=$AI_KEY_FILE
+APP_AI_CRAWLER_MAX_OUTPUT_TOKENS=$AI_DEFAULT_MAX_OUTPUT_TOKENS
 APP_AI_CRAWLER_CACHE_TTL=6h
 APP_AI_CRAWLER_MIN_INTERVAL_MS=500
 APP_AI_CRAWLER_LEARN_SELECTORS=true
