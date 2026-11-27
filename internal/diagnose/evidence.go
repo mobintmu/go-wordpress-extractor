@@ -29,16 +29,15 @@ type Evidence struct {
 	FieldSamples map[string]string `json:"field_samples,omitempty"`
 	// What a search engine searched for. Set only for the search engines (duckduckgo, brave, mojeek, yahoo, yandex).
 	Search *SearchEvidence `json:"search,omitempty"`
-	// What the AI crawler sent to and got back from the LLM. Set only for the AI engines (ai-crawler-avalai, ai-crawler-cloudflare). Never holds the API key, the token or the prompt.
+	// What the AI crawler sent to and got back from the LLM. Set only for the AI engines (AvalAI, Cloudflare or GapGPT). Never holds the API key, the token or the prompt.
 	AI *AIEvidence `json:"ai,omitempty"`
 } //@name Evidence
 
-// AIEvidence describes one call to the LLM by an AI engine
-// (ai-crawler-avalai or ai-crawler-cloudflare).
+// AIEvidence describes one call to the LLM by an AI engine.
 type AIEvidence struct {
 	Model string `json:"model" binding:"required" example:"deepseek-v4.1-flash"`
-	// Who answered: avalai or cloudflare.
-	Provider string `json:"provider,omitempty" enums:"avalai,cloudflare" example:"avalai"`
+	// Who answered: avalai, cloudflare, or gapgpt.
+	Provider string `json:"provider,omitempty" enums:"avalai,cloudflare,gapgpt" example:"avalai"`
 	// The provider's request id, for support tickets: avalai-request-id (AvalAI), or cf-aig-log-id, the id to search for in the Cloudflare dashboard.
 	ProviderRequestID string `json:"provider_request_id,omitempty" example:"req_0123456789"`
 	// HTTP status of the provider's last answer; 0 when no answer came.

@@ -50,7 +50,7 @@ func (m *Metrics) aiHost(h string) string {
 }
 
 // ObserveAICall records one call to the AI provider behind engine
-// (ai-crawler-avalai or ai-crawler-cloudflare). outcome is "ok" or the
+// (AvalAI, Cloudflare or GapGPT). outcome is "ok" or the
 // failure code.
 func (m *Metrics) ObserveAICall(engine, model, purpose, host, outcome string, inputTokens, outputTokens int64, d time.Duration) {
 	m.mu.Lock()
@@ -94,7 +94,7 @@ type AIReport struct {
 // AICallCount is one extract_ai_calls_total series with its tokens.
 type AICallCount struct {
 	// Engine is the AI engine that made the call.
-	Engine  string `json:"engine" binding:"required" enums:"ai-crawler-avalai,ai-crawler-cloudflare" example:"ai-crawler-avalai"`
+	Engine  string `json:"engine" binding:"required" enums:"ai-crawler-avalai,ai-crawler-cloudflare,ai-crawler-gapgpt" example:"ai-crawler-avalai"`
 	Model   string `json:"model" binding:"required" example:"deepseek-v4.1-flash"`
 	Purpose string `json:"purpose" binding:"required" enums:"extract,repair,learn" example:"extract"`
 	// Host is the shop's host, "other" once 200 hosts are tracked.

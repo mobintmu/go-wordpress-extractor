@@ -279,11 +279,12 @@ const docTemplate = `{
                     "example": 512
                 },
                 "provider": {
-                    "description": "Who answered: avalai or cloudflare.",
+                    "description": "Who answered: avalai, cloudflare, or gapgpt.",
                     "type": "string",
                     "enum": [
                         "avalai",
-                        "cloudflare"
+                        "cloudflare",
+                        "gapgpt"
                     ],
                     "example": "avalai"
                 },
@@ -332,7 +333,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "ai": {
-                    "description": "What the AI crawler sent to and got back from the LLM. Set only for the AI engines (ai-crawler-avalai, ai-crawler-cloudflare). Never holds the API key, the token or the prompt.",
+                    "description": "What the AI crawler sent to and got back from the LLM. Set only for the AI engines (AvalAI, Cloudflare or GapGPT). Never holds the API key, the token or the prompt.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/AIEvidence"
@@ -682,7 +683,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "ai-crawler-avalai",
-                        "ai-crawler-cloudflare"
+                        "ai-crawler-cloudflare",
+                        "ai-crawler-gapgpt"
                     ],
                     "example": "ai-crawler-avalai"
                 },
@@ -1182,7 +1184,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "ai-crawler-avalai",
-                        "ai-crawler-cloudflare"
+                        "ai-crawler-cloudflare",
+                        "ai-crawler-gapgpt"
                     ],
                     "example": "ai-crawler-avalai"
                 },
@@ -1238,7 +1241,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "ai-crawler-avalai",
-                        "ai-crawler-cloudflare"
+                        "ai-crawler-cloudflare",
+                        "ai-crawler-gapgpt"
                     ],
                     "example": "ai-crawler-avalai"
                 },
@@ -1277,7 +1281,8 @@ const docTemplate = `{
                         "yahoo",
                         "yandex",
                         "ai-crawler-avalai",
-                        "ai-crawler-cloudflare"
+                        "ai-crawler-cloudflare",
+                        "ai-crawler-gapgpt"
                     ],
                     "example": "duckduckgo"
                 },

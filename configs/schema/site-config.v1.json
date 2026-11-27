@@ -24,7 +24,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "engine": { "enum": ["http", "browser", "duckduckgo", "brave", "mojeek", "yahoo", "yandex", "ai-crawler-avalai", "ai-crawler-cloudflare", "default"], "default": "http", "description": "Fetch strategy: http fetches with Colly over Go's HTTP client; browser loads the page in real Chrome through Playwright (needs APP_BROWSER_ENABLED on the instance); ai-crawler-avalai and ai-crawler-cloudflare fetch the page and extract the product with an LLM (through AvalAI, or through Cloudflare AI Gateway), so root and fields are not required (need APP_AI_CRAWLER_ENABLED on the instance plus the engine's own settings); default follows APP_DEFAULT_ENGINE, the same AI engine the built-in rule uses for hosts without a config, so switching the instance's default engine switches this site too (with APP_DEFAULT_ENGINE=none the site fails with ENGINE_UNAVAILABLE); the search engines duckduckgo, brave, mojeek, yahoo and yandex never contact the site and build the product from search results (each needs its APP_<ENGINE>_ENABLED switch on the instance; brave also needs a Brave API key)." },
+        "engine": { "enum": ["http", "browser", "duckduckgo", "brave", "mojeek", "yahoo", "yandex", "ai-crawler-avalai", "ai-crawler-cloudflare", "ai-crawler-gapgpt", "default"], "default": "http", "description": "Fetch strategy: http fetches with Colly over Go's HTTP client; browser loads the page in real Chrome through Playwright (needs APP_BROWSER_ENABLED on the instance); ai-crawler-avalai, ai-crawler-cloudflare and ai-crawler-gapgpt fetch the page and extract the product with an LLM (through AvalAI, Cloudflare AI Gateway or GapGPT), so root and fields are not required (need APP_AI_CRAWLER_ENABLED on the instance plus the engine's own settings); default follows APP_DEFAULT_ENGINE, the same AI engine the built-in rule uses for hosts without a config, so switching the instance's default engine switches this site too (with APP_DEFAULT_ENGINE=none the site fails with ENGINE_UNAVAILABLE); the search engines duckduckgo, brave, mojeek, yahoo and yandex never contact the site and build the product from search results (each needs its APP_<ENGINE>_ENABLED switch on the instance; brave also needs a Brave API key)." },
         "alternate_engines": { "type": "array", "uniqueItems": true, "maxItems": 1, "items": { "enum": ["duckduckgo", "brave", "mojeek", "yahoo", "yandex"] }, "description": "Search engines used, in order, when engine is not enabled on the instance. Chosen once per request; a failed fetch is never retried on another engine. Only allowed when engine is a search engine." },
         "search": {
           "type": "object",
@@ -43,14 +43,14 @@
         "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 120, "default": 30 },
         "retries": { "type": "integer", "minimum": 0, "maximum": 5, "default": 2 },
         "respect_robots_txt": { "type": "boolean", "default": true },
-        "ai_fetch": { "enum": ["http", "browser", "web_search"], "default": "http", "description": "How an AI engine gets the page: http (a JavaScript-only page is rendered once in Chrome when APP_BROWSER_ENABLED is on), browser (always Chrome), or web_search (the site is never contacted: only the URL goes to the provider's search model, APP_AI_CRAWLER_SEARCH_MODEL, and the values come back unverified with the warning AI_UNVERIFIED). Only allowed when engine is ai-crawler-avalai, ai-crawler-cloudflare or default." }
+        "ai_fetch": { "enum": ["http", "browser", "web_search"], "default": "http", "description": "How an AI engine gets the page: http (a JavaScript-only page is rendered once in Chrome when APP_BROWSER_ENABLED is on), browser (always Chrome), or web_search (the site is never contacted: only the URL goes to the provider's search model, APP_AI_CRAWLER_SEARCH_MODEL, and the values come back unverified with the warning AI_UNVERIFIED). Only allowed when engine is ai-crawler-avalai, ai-crawler-cloudflare, ai-crawler-gapgpt or default. The web_search mode requires an engine with a search model." }
       }
     },
     "locale": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "price_unit": { "enum": ["toman", "rial", "usd", "eur", "auto"], "default": "toman", "description": "toman and rial sites return toman (currency IRT; rial is divided by 10). usd and eur sites return cents (currency USD or EUR). auto reads the currency from each page and is only allowed with engine ai-crawler-avalai or ai-crawler-cloudflare." },
+        "price_unit": { "enum": ["toman", "rial", "usd", "eur", "auto"], "default": "toman", "description": "toman and rial sites return toman (currency IRT; rial is divided by 10). usd and eur sites return cents (currency USD or EUR). auto reads the currency from each page and is only allowed with an AI engine or default." },
         "currency_words": { "type": "array", "items": { "type": "string" } },
         "call_for_price_words": { "type": "array", "items": { "type": "string" } }
       }
@@ -124,7 +124,7 @@
       "description": "Only in configs written by the AI crawler's selector learning (configs/learned/), never in configs/sites/.",
       "properties": {
         "status": { "enum": ["candidate", "active", "demoted", "rejected"], "description": "candidate runs in shadow next to the AI crawler; active serves its host; demoted failed too often and is relearned; rejected is never relearned" },
-        "engine": { "enum": ["ai-crawler-avalai", "ai-crawler-cloudflare"], "description": "The AI engine that learned the selectors (the default engine at the time). Absent in files learned before ai-crawler-cloudflare existed, which means ai-crawler-avalai" },
+        "engine": { "enum": ["ai-crawler-avalai", "ai-crawler-cloudflare", "ai-crawler-gapgpt"], "description": "The AI engine that learned the selectors (the default engine at the time). Absent in files learned before ai-crawler-cloudflare existed, which means ai-crawler-avalai" },
         "model": { "type": "string" },
         "prompt_version": { "type": "string" },
         "learned_from": { "type": "string" },

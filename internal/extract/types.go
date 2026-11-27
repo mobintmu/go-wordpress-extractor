@@ -66,7 +66,7 @@ const (
 	ReasonNotInSearchResults = "NOT_IN_SEARCH_RESULTS"
 	// The site config does not extract the field for this site.
 	ReasonNotConfigured = "NOT_CONFIGURED"
-	// The AI crawler returned a value that is not on the page, so it was dropped (ai-crawler-avalai, ai-crawler-cloudflare).
+	// The AI crawler returned a value that is not on the page, so it was dropped.
 	ReasonAINotGrounded = "AI_NOT_GROUNDED"
 )
 
@@ -150,7 +150,7 @@ func (r Response) MarshalJSON() ([]byte, error) {
 
 // Source says which fetch engine produced the data.
 type Source struct {
-	Engine string `json:"engine" binding:"required" enums:"http,browser,duckduckgo,brave,mojeek,yahoo,yandex,ai-crawler-avalai,ai-crawler-cloudflare" example:"duckduckgo"`
+	Engine string `json:"engine" binding:"required" enums:"http,browser,duckduckgo,brave,mojeek,yahoo,yandex,ai-crawler-avalai,ai-crawler-cloudflare,ai-crawler-gapgpt" example:"duckduckgo"`
 	// False for the search engines, which never contact the product's site.
 	SiteContacted bool `json:"site_contacted" binding:"required" example:"false"`
 	// The search query whose results held the product. Search engines only.

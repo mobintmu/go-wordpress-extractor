@@ -33,10 +33,11 @@ definitions:
         example: 512
         type: integer
       provider:
-        description: 'Who answered: avalai or cloudflare.'
+        description: 'Who answered: avalai, cloudflare, or gapgpt.'
         enum:
         - avalai
         - cloudflare
+        - gapgpt
         example: avalai
         type: string
       provider_code:
@@ -78,8 +79,8 @@ definitions:
         allOf:
         - $ref: '#/definitions/AIEvidence'
         description: What the AI crawler sent to and got back from the LLM. Set only
-          for the AI engines (ai-crawler-avalai, ai-crawler-cloudflare). Never holds
-          the API key, the token or the prompt.
+          for the AI engines (AvalAI, Cloudflare or GapGPT). Never holds the API key,
+          the token or the prompt.
       attempts:
         example: 1
         type: integer
@@ -333,6 +334,7 @@ definitions:
         enum:
         - ai-crawler-avalai
         - ai-crawler-cloudflare
+        - ai-crawler-gapgpt
         example: ai-crawler-avalai
         type: string
       host:
@@ -729,6 +731,7 @@ definitions:
         enum:
         - ai-crawler-avalai
         - ai-crawler-cloudflare
+        - ai-crawler-gapgpt
         example: ai-crawler-avalai
         type: string
       model:
@@ -780,6 +783,7 @@ definitions:
         enum:
         - ai-crawler-avalai
         - ai-crawler-cloudflare
+        - ai-crawler-gapgpt
         example: ai-crawler-avalai
         type: string
       loaded_at:
@@ -812,6 +816,7 @@ definitions:
         - yandex
         - ai-crawler-avalai
         - ai-crawler-cloudflare
+        - ai-crawler-gapgpt
         example: duckduckgo
         type: string
       fetched_with:

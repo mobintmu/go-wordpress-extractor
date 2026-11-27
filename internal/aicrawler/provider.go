@@ -15,12 +15,14 @@ import (
 const (
 	EngineAvalAI     = "ai-crawler-avalai"
 	EngineCloudflare = "ai-crawler-cloudflare"
+	EngineGapGPT     = "ai-crawler-gapgpt"
 )
 
 // Provider names, for logs, metrics and evidence.
 const (
 	ProviderAvalAI     = "avalai"
 	ProviderCloudflare = "cloudflare"
+	ProviderGapGPT     = "gapgpt"
 )
 
 // Cloudflare AI Gateway endpoints (APP_AI_CRAWLER_CLOUDFLARE_ENDPOINT).
@@ -29,15 +31,14 @@ const (
 	CloudflareCompat = "compat"
 )
 
-// Provider is everything that differs between two OpenAI-compatible
+// Provider is everything that differs between OpenAI-compatible
 // providers: where the call goes, how it is authenticated, which headers
 // are added, and how errors are mapped. Prompts, grounding, the cache and
 // learning are shared.
 type Provider struct {
-	// Engine is the fetch engine this provider serves: ai-crawler-avalai or
-	// ai-crawler-cloudflare.
+	// Engine is the fetch engine this provider serves.
 	Engine string
-	// Name is "avalai" or "cloudflare".
+	// Name identifies the provider in diagnostic evidence.
 	Name    string
 	BaseURL string
 	Model   string
@@ -97,6 +98,18 @@ func AvalAI(baseURL, model, apiKey, searchModel string) Provider {
 		Model:            model,
 		APIKey:           apiKey,
 		RequestIDHeaders: []string{"avalai-request-id", "x-request-id"},
+	}
+}
+
+// GapGPT is the profile of the ai-crawler-gapgpt engine.
+func GapGPT(baseURL, model, apiKey string) Provider {
+	return Provider{
+		Engine:           EngineGapGPT,
+		Name:             ProviderGapGPT,
+		BaseURL:          baseURL,
+		Model:            model,
+		APIKey:           apiKey,
+		RequestIDHeaders: []string{"x-request-id"},
 	}
 }
 

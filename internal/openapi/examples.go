@@ -407,7 +407,7 @@ var ExtractExamples = []Example{
 	{
 		Key: "wayfair-ai", Summary: "wayfair.com (AI crawler, no site config)",
 		Description: "No file in configs/sites/ claims wayfair.com, so the default rule serves it with APP_DEFAULT_ENGINE: the page is fetched and an LLM " +
-			"(ai-crawler-avalai: APP_AI_CRAWLER_MODEL, deepseek-v4.1-flash on AvalAI; ai-crawler-cloudflare: APP_AI_CRAWLER_CLOUDFLARE_MODEL, @cf/deepseek-ai/deepseek-v4.1-flash-1017 through Cloudflare AI Gateway) " +
+			"(ai-crawler-avalai: APP_AI_CRAWLER_MODEL, deepseek-v4.1-flash on AvalAI; ai-crawler-cloudflare: APP_AI_CRAWLER_CLOUDFLARE_MODEL, @cf/deepseek-ai/deepseek-v4.1-flash-1017 through Cloudflare AI Gateway; ai-crawler-gapgpt: APP_AI_CRAWLER_GAPGPT_MODEL, gapgpt-deepseek-v4.1-flash on GapGPT) " +
 			"reads name, price, image, description, specs and features, each checked against the page. Expect site_id ai-crawler-default, config_origin default, source.engine set to the default engine and an AI_EXTRACTED warning. " +
 			"Needs APP_AI_CRAWLER_ENABLED=true with that engine configured; with APP_DEFAULT_ENGINE=none, SITE_NOT_CONFIGURED. Wayfair uses bot protection, so the call may fail with BOT_PROTECTION from the server's IP. " +
 			"After 3 product pages match in shadow, the host is served by learned selectors (config_origin learned).",

@@ -95,7 +95,7 @@ type Config struct {
 
 	// DefaultEngine is the engine for any website without a rule of its
 	// own (no site config and no active learned config):
-	// ai-crawler-avalai, ai-crawler-cloudflare, or none (SITE_NOT_CONFIGURED).
+	// An AI engine or none (SITE_NOT_CONFIGURED).
 	// Read from APP_DEFAULT_ENGINE; when that is empty it is
 	// ai-crawler-avalai with the AI crawler on and none with it off.
 	DefaultEngine string
@@ -104,13 +104,11 @@ type Config struct {
 	legacyDefaultRule string
 
 	// AI crawler: the AI engines extract products with an LLM over an
-	// OpenAI-compatible API. "ai-crawler-avalai" calls AvalAI and
-	// "ai-crawler-cloudflare" calls Cloudflare AI Gateway; the limits, cache,
-	// format and learning settings below are shared.
+	// OpenAI-compatible API. The limits, cache, format and learning settings
+	// below are shared.
 
 	// AICrawlerEnabled turns the AI engines on. Each engine is on when its
-	// own settings are complete: AvalAI needs a key, Cloudflare an account
-	// id and a token.
+	// own settings are complete.
 	AICrawlerEnabled bool
 	// AICrawlerBaseURL is AvalAI's OpenAI-compatible API base, ending in /v1.
 	AICrawlerBaseURL string
@@ -134,7 +132,7 @@ type Config struct {
 	AICrawlerTemperature float64
 	// AICrawlerRetries is how often a 408, 409, 429 or 5xx answer is retried.
 	AICrawlerRetries int
-	// AICrawlerMinIntervalMS is the minimum gap between two AvalAI calls.
+	// AICrawlerMinIntervalMS is the minimum gap between calls to AvalAI or GapGPT, per provider.
 	AICrawlerMinIntervalMS int
 	// AICrawlerCacheTTL keeps an extraction for the same page and model.
 	AICrawlerCacheTTL time.Duration
@@ -190,9 +188,16 @@ type Config struct {
 	// CloudflareMinIntervalMS is the minimum gap between two Cloudflare calls.
 	CloudflareMinIntervalMS int
 
+	// GapGPTEndpoint is the OpenAI-compatible API base URL.
+	GapGPTEndpoint string
+	GapGPTModel    string
+	// GapGPTAPIKey is secret and must not be logged.
+	GapGPTAPIKey string
+
 	// Set by ValidateAICrawler: which AI engines have complete settings.
 	avalaiConfigured     bool
 	cloudflareConfigured bool
+	gapgptConfigured     bool
 }
 
 // Engine names accepted by APP_DEFAULT_ENGINE. They match siteconfig's
@@ -201,6 +206,7 @@ const (
 	EngineNone         = "none"
 	EngineAvalAI       = "ai-crawler-avalai"
 	EngineAICloudflare = "ai-crawler-cloudflare"
+	EngineGapGPT       = "ai-crawler-gapgpt"
 )
 
 // AvalAIConfigured reports whether the ai-crawler-avalai engine is on.
@@ -210,6 +216,9 @@ func (cfg *Config) AvalAIConfigured() bool { return cfg.AICrawlerEnabled && cfg.
 func (cfg *Config) CloudflareConfigured() bool {
 	return cfg.AICrawlerEnabled && cfg.cloudflareConfigured
 }
+
+// GapGPTConfigured reports whether the ai-crawler-gapgpt engine is on.
+func (cfg *Config) GapGPTConfigured() bool { return cfg.AICrawlerEnabled && cfg.gapgptConfigured }
 
 // DefaultAIEngine is the engine of the default rule, or "" when websites
 // without a rule are not served (APP_DEFAULT_ENGINE=none).
@@ -227,6 +236,8 @@ func (cfg *Config) AIModel(engine string) string {
 		return cfg.AICrawlerModel
 	case engine == EngineAICloudflare && cfg.CloudflareConfigured():
 		return cfg.CloudflareModel
+	case engine == EngineGapGPT && cfg.GapGPTConfigured():
+		return cfg.GapGPTModel
 	}
 	return ""
 }
@@ -272,6 +283,8 @@ const (
 	DefaultCloudflareModel           = "@cf/deepseek-ai/deepseek-v4.1-flash-1017"
 	DefaultCloudflareReasoningEffort = "none"
 	DefaultCloudflareIntervalMS      = 500
+	DefaultGapGPTEndpoint            = "https://api.gapgpt.ir/v1"
+	DefaultGapGPTModel               = "gapgpt-deepseek-v4.1-flash"
 )
 
 func newViper() *viper.Viper {
@@ -300,6 +313,7 @@ func NewConfig() (*Config, error) {
 		zap.Bool("ai_crawler", cfg.AICrawlerEnabled),
 		zap.Bool("ai_avalai", cfg.AvalAIConfigured()), zap.String("ai_avalai_model", cfg.AIModel(EngineAvalAI)),
 		zap.Bool("ai_cloudflare", cfg.CloudflareConfigured()), zap.String("ai_cloudflare_model", cfg.AIModel(EngineAICloudflare)),
+		zap.Bool("ai_gapgpt", cfg.GapGPTConfigured()), zap.String("ai_gapgpt_model", cfg.AIModel(EngineGapGPT)),
 		zap.String("ai_cloudflare_endpoint", cfg.CloudflareEndpoint),
 		zap.String("default_engine", cfg.DefaultEngine), zap.Bool("ai_learn", cfg.AICrawlerEnabled && cfg.AICrawlerLearnSelectors))
 
@@ -355,6 +369,8 @@ func buildConfig(v *viper.Viper) *Config {
 	v.SetDefault("AI_CRAWLER_CLOUDFLARE_NO_UNIFIED_BILLING", true)
 	v.SetDefault("AI_CRAWLER_CLOUDFLARE_COLLECT_LOG", false)
 	v.SetDefault("AI_CRAWLER_CLOUDFLARE_MIN_INTERVAL_MS", DefaultCloudflareIntervalMS)
+	v.SetDefault("AI_CRAWLER_GAPGPT_ENDPOINT", DefaultGapGPTEndpoint)
+	v.SetDefault("AI_CRAWLER_GAPGPT_MODEL", DefaultGapGPTModel)
 
 	cfg := &Config{
 		ENV:                   v.GetString("ENV"),
@@ -432,6 +448,10 @@ func buildConfig(v *viper.Viper) *Config {
 		CloudflareNoUnifiedBilling:   v.GetBool("AI_CRAWLER_CLOUDFLARE_NO_UNIFIED_BILLING"),
 		CloudflareCollectLog:         v.GetBool("AI_CRAWLER_CLOUDFLARE_COLLECT_LOG"),
 		CloudflareMinIntervalMS:      v.GetInt("AI_CRAWLER_CLOUDFLARE_MIN_INTERVAL_MS"),
+
+		GapGPTEndpoint: v.GetString("AI_CRAWLER_GAPGPT_ENDPOINT"),
+		GapGPTModel:    v.GetString("AI_CRAWLER_GAPGPT_MODEL"),
+		GapGPTAPIKey:   v.GetString("AI_CRAWLER_GAPGPT_API_KEY"),
 	}
 	if cfg.APIKeysFile == "" {
 		cfg.APIKeysFile = DefaultAPIKeysFile(cfg.ENV)

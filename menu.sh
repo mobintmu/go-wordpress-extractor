@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Menu for the API key pepper, operator login, client API keys, the AI
-# crawler (AvalAI, Cloudflare AI Gateway), and the server. Installs nothing; uses only bash and
+# crawler (AvalAI, Cloudflare AI Gateway, GapGPT), and the server. Installs nothing; uses only bash and
 # `go run`.
 #
-#   ./setup-keys.sh                    # uses .env
-#   ./setup-keys.sh .env.development   # or another env file
+#   ./menu.sh                         # uses .env
+#   ./menu.sh .env.development        # or another env file
 set -uo pipefail
 
 cd "$(dirname "$0")"
@@ -35,7 +35,10 @@ set_var() {
     index($0, k "=") == 1 { print k "=" v; done = 1; next }
     { print }
     END { if (!done) print k "=" v }
-  ' "$ENV_FILE" >"$tmp" && cat "$tmp" >"$ENV_FILE"   # cat keeps the file's permissions
+  ' "$ENV_FILE" >"$tmp" && cat "$tmp" >"$ENV_FILE" || {
+    rm -f "$tmp"
+    return 1
+  }
   rm -f "$tmp"
 }
 
@@ -249,6 +252,8 @@ set_proxy() {
 AI_KEY_FILE="secrets/avalai_api_key"
 CF_TOKEN_FILE="secrets/cloudflare_api_token"
 CF_DEFAULT_MODEL="@cf/deepseek-ai/deepseek-v4.1-flash-1017"
+GAPGPT_DEFAULT_ENDPOINT="https://api.gapgpt.ir/v1"
+GAPGPT_DEFAULT_MODEL="gapgpt-deepseek-v4.1-flash"
 
 # secret_source VAR FILE_VAR -> where a secret comes from, never the secret.
 secret_source() {
@@ -291,6 +296,10 @@ ai_status() {
   echo "    endpoint         : $(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_ENDPOINT); echo "${v:-rest}")"
   echo "    model            : $(v=$(get_var APP_AI_CRAWLER_CLOUDFLARE_MODEL); echo "${v:-$CF_DEFAULT_MODEL}")"
   echo "    API token        : $(secret_source APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE)"
+  echo "  ai-crawler-gapgpt"
+  echo "    endpoint         : $(v=$(get_var APP_AI_CRAWLER_GAPGPT_ENDPOINT); echo "${v:-$GAPGPT_DEFAULT_ENDPOINT}")"
+  echo "    model            : $(v=$(get_var APP_AI_CRAWLER_GAPGPT_MODEL); echo "${v:-$GAPGPT_DEFAULT_MODEL}")"
+  echo "    API key          : $(gapgpt_ok && echo 'set (hidden)' || echo 'not set')"
   echo "  default engine     : $(default_engine)  (APP_DEFAULT_ENGINE: hosts without a rule)"
 }
 
@@ -402,8 +411,62 @@ setup_cloudflare() {
   [[ -n "$(get_var APP_DEFAULT_ENGINE)" ]] || set_var APP_DEFAULT_ENGINE none
 }
 
-# avalai_ok / cloudflare_ok: the engine's own settings are complete (the
-# server's rule; APP_AI_CRAWLER_ENABLED must also be true for it to run).
+setup_gapgpt() {
+  echo "ai-crawler-gapgpt sends each product page's URL and cleaned content to GapGPT."
+  ask_yes "Set up and turn on ai-crawler-gapgpt?" y || return 0
+
+  case "${ENV_FILE##*/}" in
+    .env.example|.env.development|.env.test)
+      echo "Run ./menu.sh with a private env file such as .env to store the GapGPT key."
+      return 1 ;;
+  esac
+  if git ls-files --error-unmatch -- "$ENV_FILE" >/dev/null 2>&1; then
+    echo "$ENV_FILE is tracked by Git. Run ./menu.sh with a private env file such as .env."
+    return 1
+  fi
+
+  local endpoint model key="" prior_default input
+  local endpoint_pattern='^https://([a-zA-Z0-9.-]+|\[[a-fA-F0-9:]+\])(:[0-9]+)?(/[a-zA-Z0-9._~%+/-]*)?$'
+  endpoint="$(get_var APP_AI_CRAWLER_GAPGPT_ENDPOINT)"
+  endpoint="${endpoint:-$GAPGPT_DEFAULT_ENDPOINT}"
+  read -r -p "OpenAI-compatible base URL [$endpoint]: " input || return 1
+  endpoint="${input:-$endpoint}"
+  if [[ ! "$endpoint" =~ $endpoint_pattern ]]; then
+    echo "Enter an HTTPS base URL such as $GAPGPT_DEFAULT_ENDPOINT."
+    return 1
+  fi
+  model="$(get_var APP_AI_CRAWLER_GAPGPT_MODEL)"
+  model="${model:-$GAPGPT_DEFAULT_MODEL}"
+  read -r -p "Model [$model]: " input || return 1
+  model="${input:-$model}"
+  if [[ ! "$model" =~ ^[a-zA-Z0-9_.@:/+-]+$ ]]; then
+    echo "Enter a model ID from the GapGPT catalog."
+    return 1
+  fi
+  if ! gapgpt_ok || ! ask_yes "Keep the existing GapGPT API key?" y; then
+    read -r -s -p "GapGPT API key (input hidden): " key || return 1
+    echo
+    if [[ ! "$key" =~ ^[a-zA-Z0-9._~+/-]+=*$ ]]; then
+      echo "Enter a valid GapGPT API key without whitespace."
+      return 1
+    fi
+  fi
+  chmod go-rwx "$ENV_FILE" || return 1
+  if [[ -n "$key" ]]; then
+    set_var APP_AI_CRAWLER_GAPGPT_API_KEY "$key" || return 1
+  fi
+  prior_default="$(default_engine)"
+  set_var APP_AI_CRAWLER_GAPGPT_ENDPOINT "$endpoint"
+  set_var APP_AI_CRAWLER_GAPGPT_MODEL "$model"
+  ai_turn_on
+  if [[ "${1:-}" != default ]] && ask_yes "Serve every host without a rule with ai-crawler-gapgpt (APP_DEFAULT_ENGINE)?" n; then
+    set_var APP_DEFAULT_ENGINE ai-crawler-gapgpt
+  elif [[ -z "$(get_var APP_DEFAULT_ENGINE)" ]]; then
+    set_var APP_DEFAULT_ENGINE "$prior_default"
+  fi
+}
+
+# These checks report whether each engine has credentials.
 avalai_ok() {
   [[ -n "$(get_var APP_AI_CRAWLER_API_KEY)" || -s "$(get_var APP_AI_CRAWLER_API_KEY_FILE)" ]]
 }
@@ -411,13 +474,15 @@ cloudflare_ok() {
   [[ -n "$(get_var APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID)" ]] &&
     [[ -n "$(get_var APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN)" || -s "$(get_var APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN_FILE)" ]]
 }
+gapgpt_ok() {
+  [[ -n "$(get_var APP_AI_CRAWLER_GAPGPT_API_KEY)" ]]
+}
 
-# recommended_engine: the configured AvalAI engine first (the existing
-# default; Cloudflare's live check, proposal step 1, is still open), then
-# Cloudflare, then none.
+# Prefer configured engines in order AvalAI, Cloudflare, GapGPT.
 recommended_engine() {
   if avalai_ok; then echo ai-crawler-avalai
   elif cloudflare_ok; then echo ai-crawler-cloudflare
+  elif gapgpt_ok; then echo ai-crawler-gapgpt
   else echo none; fi
 }
 
@@ -427,11 +492,12 @@ recommended_engine() {
 # offers to set up an engine that is not configured yet.
 setup_default_engine() {
   migrate_default_rule
-  local cur rec av cf choice engine
+  local cur rec av cf gap choice engine
   cur="$(default_engine)"
   rec="$(recommended_engine)"
   av="not configured"; avalai_ok && av="configured"
   cf="not configured"; cloudflare_ok && cf="configured"
+  gap="not configured"; gapgpt_ok && gap="configured"
   mark() { # mark engine -> " (recommended, current)" ...
     local m=()
     [[ "$1" == "$rec" ]] && m+=("recommended")
@@ -453,15 +519,19 @@ no active learned config. Engines, in recommended order:
        Unknown websites fail with SITE_NOT_CONFIGURED. No page is sent to an
        LLM and nothing is learned. Configured sites still work.
 
+  4) ai-crawler-gapgpt$(mark ai-crawler-gapgpt)
+       [$gap] LLM through GapGPT ($(v=$(get_var APP_AI_CRAWLER_GAPGPT_MODEL); echo "${v:-$GAPGPT_DEFAULT_MODEL}")).
+
   Not offered: http, browser and the search engines need a site config's
   selectors, so they cannot serve a website without one.
 
 MENU
-  read -r -p "Choose 1-3 [Enter keeps $cur]: " choice
+  read -r -p "Choose 1-4 [Enter keeps $cur]: " choice
   case "$choice" in
     1|ai-crawler-avalai) engine=ai-crawler-avalai ;;
     2|ai-crawler-cloudflare) engine=ai-crawler-cloudflare ;;
     3|none) engine=none ;;
+    4|ai-crawler-gapgpt) engine=ai-crawler-gapgpt ;;
     "") echo "Kept APP_DEFAULT_ENGINE=$cur."; return 0 ;;
     *) echo "Unknown choice: $choice"; return 1 ;;
   esac
@@ -473,6 +543,10 @@ MENU
   if [[ "$engine" == ai-crawler-cloudflare ]] && ! cloudflare_ok; then
     ask_yes "ai-crawler-cloudflare is not configured. Set it up now?" y && setup_cloudflare
     cloudflare_ok || { echo "ai-crawler-cloudflare is still not configured; APP_DEFAULT_ENGINE stays $cur."; return 1; }
+  fi
+  if [[ "$engine" == ai-crawler-gapgpt ]] && ! gapgpt_ok; then
+    ask_yes "ai-crawler-gapgpt is not configured. Set it up now?" y && setup_gapgpt default
+    gapgpt_ok || { echo "ai-crawler-gapgpt is still not configured; APP_DEFAULT_ENGINE stays $cur."; return 1; }
   fi
   if [[ "$engine" != none && "$(get_var APP_AI_CRAWLER_ENABLED)" != true ]]; then
     if ask_yes "The AI crawler is off (APP_AI_CRAWLER_ENABLED). Turn it on?" y; then
@@ -487,22 +561,24 @@ MENU
   echo "APP_DEFAULT_ENGINE=$engine. Restart a running server to apply."
 }
 
-# ai_off_engine avalai|cloudflare clears one engine's credentials; the
-# default engine moves to the other one, or to none.
+# ai_off_engine clears one engine's credentials and updates the default if needed.
 ai_off_engine() {
   local engine="$1"
-  if [[ "$engine" == ai-crawler-avalai ]]; then
-    set_var APP_AI_CRAWLER_API_KEY ""
-    set_var APP_AI_CRAWLER_API_KEY_FILE ""
-  else
-    set_var APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID ""
-    set_var APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN ""
-  fi
+  case "$engine" in
+    ai-crawler-avalai)
+      set_var APP_AI_CRAWLER_API_KEY ""
+      set_var APP_AI_CRAWLER_API_KEY_FILE "" ;;
+    ai-crawler-cloudflare)
+      set_var APP_AI_CRAWLER_CLOUDFLARE_ACCOUNT_ID ""
+      set_var APP_AI_CRAWLER_CLOUDFLARE_API_TOKEN "" ;;
+    ai-crawler-gapgpt)
+      set_var APP_AI_CRAWLER_GAPGPT_API_KEY "" || return 1 ;;
+  esac
   if [[ "$(default_engine)" == "$engine" ]]; then
     set_var APP_DEFAULT_ENGINE "$(recommended_engine)"
     echo "APP_DEFAULT_ENGINE was $engine; it is now $(get_var APP_DEFAULT_ENGINE)."
   fi
-  if ! avalai_ok && ! cloudflare_ok; then
+  if ! avalai_ok && ! cloudflare_ok && ! gapgpt_ok; then
     set_var APP_AI_CRAWLER_ENABLED false
     set_var APP_DEFAULT_ENGINE none
     echo "No AI engine is left; the AI crawler is off."
@@ -517,12 +593,13 @@ preflight_default_engine() {
     none) return 0 ;;
     ai-crawler-avalai) avalai_ok || { echo "APP_DEFAULT_ENGINE is ai-crawler-avalai, but no AvalAI key is set (menu 9)."; return 1; } ;;
     ai-crawler-cloudflare) cloudflare_ok || { echo "APP_DEFAULT_ENGINE is ai-crawler-cloudflare, but the account id or token is missing (menu 9)."; return 1; } ;;
+    ai-crawler-gapgpt) gapgpt_ok || { echo "APP_DEFAULT_ENGINE is ai-crawler-gapgpt, but no API key is set (menu 7)."; return 1; } ;;
     *) echo "APP_DEFAULT_ENGINE \"$d\" is not valid (menu 9)."; return 1 ;;
   esac
   [[ "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]] || { echo "APP_DEFAULT_ENGINE is $d, but APP_AI_CRAWLER_ENABLED is not true (menu 9)."; return 1; }
 }
 
-# AI crawler submenu: AvalAI, Cloudflare, default engine, off.
+# AI crawler submenu for providers and default engine.
 setup_ai() {
   migrate_default_rule
   local c
@@ -532,18 +609,22 @@ setup_ai() {
     echo
     echo "  a) AvalAI (ai-crawler-avalai): set up and turn on"
     echo "  c) Cloudflare AI Gateway (ai-crawler-cloudflare): set up and turn on"
+    echo "  g) GapGPT (ai-crawler-gapgpt): set up and turn on"
     echo "  d) Set up the default engine (APP_DEFAULT_ENGINE), with the recommended list"
     echo "  x) Turn AvalAI off (clears its key setting)"
     echo "  y) Turn Cloudflare off (clears its account id)"
+    echo "  z) Turn GapGPT off (clears its key setting)"
     echo "  o) Turn the whole AI crawler off"
     echo "  Enter) Back"
     read -r -p "Choose: " c || return 0
     case "$c" in
       a|A) setup_avalai ;;
       c|C) setup_cloudflare ;;
+      g|G) setup_gapgpt ;;
       d|D) setup_default_engine ;;
       x|X) ai_off_engine ai-crawler-avalai ;;
       y|Y) ai_off_engine ai-crawler-cloudflare ;;
+      z|Z) ai_off_engine ai-crawler-gapgpt ;;
       o|O)
         set_var APP_AI_CRAWLER_ENABLED false
         set_var APP_DEFAULT_ENGINE none
@@ -597,7 +678,7 @@ while true; do
   4) Set up all keys (pepper, operator login, client key)
   5) Create a client key
   6) Set proxy (host and port)
-  7) AI crawler: AvalAI, Cloudflare, default engine
+  7) AI crawler: AvalAI, Cloudflare, GapGPT, default engine
   8) Learned configs (list, show, activate, reject, adopt)
   9) Default engine for websites without a rule (recommended list)
   0) Exit

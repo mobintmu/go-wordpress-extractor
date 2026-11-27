@@ -79,7 +79,7 @@ func validateLearned(s *Site, add func(string, ...any)) {
 		add("learned.status must be %q, %q, %q or %q", LearnedCandidate, LearnedActive, LearnedDemoted, LearnedRejected)
 	}
 	if e := s.Learned.Engine; e != "" && !IsAIEngine(e) {
-		add("learned.engine %q must be %q or %q", e, EngineAICrawler, EngineAICloudflare)
+		add("learned.engine %q must be an AI engine (%s)", e, strings.Join(AIEngines, ", "))
 	}
 	if s.Fetch.Engine != EngineHTTP && s.Fetch.Engine != EngineBrowser {
 		add("a learned config may only use fetch.engine %q or %q", EngineHTTP, EngineBrowser)

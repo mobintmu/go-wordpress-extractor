@@ -236,11 +236,11 @@ func ValidateAICrawler(cfg *Config) error {
 	cfg.AICrawlerAPIKey = strings.TrimSpace(cfg.AICrawlerAPIKey)
 	cfg.CloudflareAPIToken = strings.TrimSpace(cfg.CloudflareAPIToken)
 	cfg.CloudflareProviderAPIKey = strings.TrimSpace(cfg.CloudflareProviderAPIKey)
-	cfg.avalaiConfigured, cfg.cloudflareConfigured = false, false
+	cfg.avalaiConfigured, cfg.cloudflareConfigured, cfg.gapgptConfigured = false, false, false
 
 	if strings.TrimSpace(cfg.legacyDefaultRule) != "" {
 		return fmt.Errorf("APP_AI_CRAWLER_DEFAULT_RULE was replaced by APP_DEFAULT_ENGINE: remove it and set " +
-			"APP_DEFAULT_ENGINE=ai-crawler-avalai (was true), ai-crawler-cloudflare, or none (was false)")
+			"APP_DEFAULT_ENGINE=ai-crawler-avalai (was true), ai-crawler-cloudflare, ai-crawler-gapgpt, or none (was false)")
 	}
 	explicit := strings.ToLower(strings.TrimSpace(cfg.DefaultEngine))
 	cfg.DefaultEngine = explicit
@@ -251,12 +251,12 @@ func ValidateAICrawler(cfg *Config) error {
 		}
 	}
 	switch cfg.DefaultEngine {
-	case EngineNone, EngineAvalAI, EngineAICloudflare:
+	case EngineNone, EngineAvalAI, EngineAICloudflare, EngineGapGPT:
 	case "http", "browser", "duckduckgo", "brave", "mojeek", "yahoo", "yandex":
 		return fmt.Errorf("APP_DEFAULT_ENGINE %q cannot serve websites without a rule: that engine needs a site config. "+
-			"Expected ai-crawler-avalai, ai-crawler-cloudflare or none", cfg.DefaultEngine)
+			"Expected ai-crawler-avalai, ai-crawler-cloudflare, ai-crawler-gapgpt or none", cfg.DefaultEngine)
 	default:
-		return fmt.Errorf("invalid APP_DEFAULT_ENGINE: %q. Expected ai-crawler-avalai, ai-crawler-cloudflare or none", cfg.DefaultEngine)
+		return fmt.Errorf("invalid APP_DEFAULT_ENGINE: %q. Expected ai-crawler-avalai, ai-crawler-cloudflare, ai-crawler-gapgpt or none", cfg.DefaultEngine)
 	}
 
 	if !cfg.AICrawlerEnabled {
@@ -277,19 +277,25 @@ func ValidateAICrawler(cfg *Config) error {
 	if err != nil {
 		return err
 	}
+	gapgptMissing, err := validateGapGPT(cfg)
+	if err != nil {
+		return err
+	}
 
 	switch {
 	case cfg.DefaultEngine == EngineAvalAI && !cfg.avalaiConfigured:
 		return fmt.Errorf("APP_DEFAULT_ENGINE is ai-crawler-avalai, but that engine is not configured: %s", avalaiMissing)
 	case cfg.DefaultEngine == EngineAICloudflare && !cfg.cloudflareConfigured:
 		return fmt.Errorf("APP_DEFAULT_ENGINE is ai-crawler-cloudflare, but that engine is not configured: %s", cfMissing)
-	case !cfg.avalaiConfigured && !cfg.cloudflareConfigured:
-		return fmt.Errorf("APP_AI_CRAWLER_ENABLED is true, but no AI engine is configured. AvalAI: %s. Cloudflare: %s", avalaiMissing, cfMissing)
+	case cfg.DefaultEngine == EngineGapGPT && !cfg.gapgptConfigured:
+		return fmt.Errorf("APP_DEFAULT_ENGINE is ai-crawler-gapgpt, but that engine is not configured: %s", gapgptMissing)
+	case !cfg.avalaiConfigured && !cfg.cloudflareConfigured && !cfg.gapgptConfigured:
+		return fmt.Errorf("APP_AI_CRAWLER_ENABLED is true, but no AI engine is configured. AvalAI: %s. Cloudflare: %s. GapGPT: %s", avalaiMissing, cfMissing, gapgptMissing)
 	}
 	return nil
 }
 
-// validateAIShared checks the settings both AI engines use.
+// validateAIShared checks the settings the AI engines share.
 func validateAIShared(cfg *Config) error {
 	checks := []struct {
 		name      string
@@ -375,6 +381,27 @@ func validateAvalAI(cfg *Config) (missing string, err error) {
 		return missing, fmt.Errorf("invalid AI_CRAWLER_SEARCH_MODEL: %q. Expected a model id without white space, for example %s, or none to turn ai_fetch web_search off", cfg.AICrawlerSearchModel, DefaultAICrawlerSearchModel)
 	}
 	cfg.avalaiConfigured = true
+	return "", nil
+}
+
+func validateGapGPT(cfg *Config) (missing string, err error) {
+	missing = "set APP_AI_CRAWLER_GAPGPT_API_KEY"
+	cfg.GapGPTAPIKey = strings.TrimSpace(cfg.GapGPTAPIKey)
+	if cfg.GapGPTAPIKey == "" {
+		return missing, nil
+	}
+	if strings.ContainsAny(cfg.GapGPTAPIKey, " \t\r\n") {
+		return missing, fmt.Errorf("APP_AI_CRAWLER_GAPGPT_API_KEY contains white space")
+	}
+	cfg.GapGPTEndpoint = strings.TrimSpace(cfg.GapGPTEndpoint)
+	if err := checkBaseURL("AI_CRAWLER_GAPGPT_ENDPOINT", cfg.GapGPTEndpoint, DefaultGapGPTEndpoint); err != nil {
+		return missing, err
+	}
+	cfg.GapGPTModel = strings.TrimSpace(cfg.GapGPTModel)
+	if cfg.GapGPTModel == "" || strings.ContainsAny(cfg.GapGPTModel, " \t\r\n") {
+		return missing, fmt.Errorf("invalid AI_CRAWLER_GAPGPT_MODEL: %q. Expected a model id without white space, for example %s", cfg.GapGPTModel, DefaultGapGPTModel)
+	}
+	cfg.gapgptConfigured = true
 	return "", nil
 }
 

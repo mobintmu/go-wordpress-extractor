@@ -3,7 +3,7 @@
 This page is the reference for how the product extractor decides **which rule** serves a URL and **which engine** fetches it, with every setting each engine reads. It reflects the code and the site configs as of 2026-11-22.
 
 - A **rule** says how to read one host: a site config in `configs/sites/`, a learned config in `configs/learned/`, or the built-in default rule.
-- An **engine** gets the product data for a rule: it fetches the page (`http`, `browser`), asks a search engine (`duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`), or asks an LLM (`ai-crawler-avalai`, `ai-crawler-cloudflare`). A site config can also set `fetch.engine` to `default`, which follows `APP_DEFAULT_ENGINE` (one of the two AI engines).
+- An **engine** gets the product data for a rule: it fetches the page (`http`, `browser`), asks a search engine (`duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`), or asks an LLM (`ai-crawler-avalai`, `ai-crawler-cloudflare`, `ai-crawler-gapgpt`). A site config can also set `fetch.engine` to `default`, which follows `APP_DEFAULT_ENGINE` (one of the two AI engines).
 
 Settings come from two places:
 
@@ -21,6 +21,7 @@ History: `mojeek`, `yahoo` and `yandex` were added on 2026-11-14 ([METAWEBSEARCH
 | `http` (default) | Page fetch + selectors | Yes | Full | No | Under 1 s | Always on |
 | `browser` | Page fetch in Chrome + selectors | Yes | Full, including JavaScript pages | No | 3–10 s | `APP_BROWSER_ENABLED` |
 | `ai-crawler-avalai` | Page fetch + LLM (AvalAI) | Yes, except with `ai_fetch: "web_search"` | Full, every value checked against the page (unverified with `web_search`) | AvalAI key | 3–15 s, tokens | `APP_AI_CRAWLER_ENABLED` + key |
+| `ai-crawler-gapgpt` | Page fetch + LLM (GapGPT) | Yes | Full, every value checked against the page | GapGPT key | Billed by tokens | [Setup guide](AI_CRAWLER_GAPGPT.md) |
 | `ai-crawler-cloudflare` | Page fetch + LLM (Cloudflare AI Gateway) | Yes | Full, every value checked against the page | Cloudflare account id + token | 3–15 s, tokens | `APP_AI_CRAWLER_ENABLED` + account id + token |
 | `duckduckgo` | Search results page | **No** | Partial: title, URL, snippet | No | About 1 s | `APP_DUCKDUCKGO_ENABLED` |
 | `brave` | Brave Search API | **No** | Partial | Brave API key | About 1 s | `APP_BRAVE_ENABLED` + key |
@@ -56,7 +57,7 @@ flowchart TD
     R -->|2. active learned config| L[configs/learned/domain.json]
     R -->|3. none| N{APP_DEFAULT_ENGINE}
     N -->|none| S[SITE_NOT_CONFIGURED]
-    N -->|ai-crawler-avalai or<br/>ai-crawler-cloudflare| D[Built-in rule ai-crawler-default]
+    N -->|Configured AI engine| D[Built-in rule ai-crawler-default]
     B --> M{pages.product.match<br/>matches the path?}
     L --> M
     M -->|no| NP[NOT_PRODUCT_URL]
@@ -123,7 +124,7 @@ Each key applies to some engines only. A key that does not apply to the selected
 
 | Key | Default | Applies to | Meaning |
 |---|---|---|---|
-| `engine` | `http` | All | `http`, `browser`, `duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`, `ai-crawler-avalai`, `ai-crawler-cloudflare`, or `default` (follows `APP_DEFAULT_ENGINE`) |
+| `engine` | `http` | All | `http`, `browser`, `duckduckgo`, `brave`, `mojeek`, `yahoo`, `yandex`, `ai-crawler-avalai`, `ai-crawler-cloudflare`, `ai-crawler-gapgpt`, or `default` (follows `APP_DEFAULT_ENGINE`) |
 | `alternate_engines` | — | Search engines only | Other search engines, used in order **only when `engine` is not enabled on the instance**. Not a retry |
 | `search` | see 3.5 | Search engines only | `region`, `queries`, `title_strip`, `ignore_params` |
 | `ai_fetch` | `http` | AI engines only | How the AI engine gets the page: `http`, `browser` or `web_search` (section 3.7) |
@@ -134,7 +135,7 @@ Each key applies to some engines only. A key that does not apply to the selected
 | `retries` | `2` | `http`, `browser` | Retries of a failed fetch, with backoff and `Retry-After` (0–5) |
 | `respect_robots_txt` | `true` | `http`, `browser`, AI engines when they fetch | Follow the site's `robots.txt`. Set `false` only with the site owner's permission. The default rule and learned configs always follow it |
 
-`engine: "default"` makes a site config follow `APP_DEFAULT_ENGINE`, the same AI engine the built-in rule uses for hosts without a config. The registry replaces it with `ai-crawler-avalai` or `ai-crawler-cloudflare` when it loads the site, so changing the instance's default engine changes every such site too. Only AI engines are allowed, so `ai_fetch` and `price_unit: auto` work as they do for the resolved engine. With `APP_DEFAULT_ENGINE=none` (or the AI crawler off) the site keeps `default`, and a request for it fails with `ENGINE_UNAVAILABLE`.
+`engine: "default"` makes a site config follow `APP_DEFAULT_ENGINE`, the same AI engine the built-in rule uses for hosts without a config. The registry replaces it with the selected AI engine when it loads the site, so changing the instance's default engine changes every such site too. Only AI engines are allowed, so `ai_fetch` and `price_unit: auto` work as they do for the resolved engine. With `APP_DEFAULT_ENGINE=none` (or the AI crawler off) the site keeps `default`, and a request for it fails with `ENGINE_UNAVAILABLE`.
 
 Examples:
 
@@ -200,11 +201,11 @@ A host with no site config and no active learned config is served by the built-i
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `APP_DEFAULT_ENGINE` | `ai-crawler-avalai` when `APP_AI_CRAWLER_ENABLED=true`, otherwise `none` | `ai-crawler-avalai`, `ai-crawler-cloudflare`, or `none` (unknown hosts fail with `SITE_NOT_CONFIGURED`) |
+| `APP_DEFAULT_ENGINE` | `ai-crawler-avalai` when `APP_AI_CRAWLER_ENABLED=true`, otherwise `none` | `ai-crawler-avalai`, `ai-crawler-cloudflare`, `ai-crawler-gapgpt`, or `none` (unknown hosts fail with `SITE_NOT_CONFIGURED`) |
 | `APP_AI_CRAWLER_DEFAULT_DELAY_MS` | `2000` | Gap between two fetches of the same host under the default rule |
 
 - Only AI engines are allowed: every other engine needs a site's selectors or search settings.
-- The rule has `site_id: ai-crawler-default` and `config_origin: default`. Its `config_version` is `builtin-1` with `ai-crawler-avalai` and `builtin-1+cloudflare` with `ai-crawler-cloudflare`.
+- The rule has `site_id: ai-crawler-default` and `config_origin: default`. Its `config_version` is `builtin-1` with `ai-crawler-avalai` `builtin-1+cloudflare` with `ai-crawler-cloudflare`, and `builtin-1+gapgpt` with `ai-crawler-gapgpt`.
 - It matches every path, requires only `title`, reads the currency from each page (`price_unit: auto`), always follows `robots.txt`, and throttles each host separately.
 - `GET /api/v1/sites` lists it last with `domains: ["*"]`, the engine and its model. It also sets `accepts_any_domain: true` and `default_ai_engine`.
 - **The server does not start** when `APP_DEFAULT_ENGINE` names an unknown engine, an engine that needs selectors, or an AI engine that is not configured. It also does not start while the replaced variable `APP_AI_CRAWLER_DEFAULT_RULE` is still set (`true` became `ai-crawler-avalai`, `false` became `none`). `deploy.sh` and `menu.sh` rewrite that variable automatically.
@@ -347,16 +348,16 @@ Turn one on with `sudo ./deploy.sh search enable <engine>`, which shows the prov
 
 - **Live result (2026-11-15, Ferguson sample product):** `yahoo` found it at rank 1 of the first query, like `duckduckgo`. `mojeek` and `yandex` answered the honest client with a CAPTCHA page (`SEARCH_PROVIDER_BLOCKED`). Check again before giving a site one of them. `SEARCH_LIVE_TEST=1 go test ./internal/fetch/search/ -run Live -v` queries the real engines and ranks them.
 
-### 3.7 AI engines: `ai-crawler-avalai` and `ai-crawler-cloudflare`
+### 3.7 AI engines
 
-Both engines run the same pipeline. The only difference is where the LLM call goes: AvalAI, or Cloudflare AI Gateway. The provider-specific parts (base URL, auth headers, extra headers, error mapping, request-id header) are a profile in [internal/aicrawler/provider.go](../internal/aicrawler/provider.go). Design: [AI_CRAWLER_AVALAI_PROPOSAL.md](AI_CRAWLER_AVALAI_PROPOSAL.md) and [AI_CRAWLER_CLOUDFLARE_PROPOSAL.md](AI_CRAWLER_CLOUDFLARE_PROPOSAL.md).
+The AI engines share an extraction pipeline and send the LLM call to AvalAI, Cloudflare AI Gateway or GapGPT. The provider-specific parts (base URL, auth headers, extra headers, error mapping, request-id header) are a profile in [internal/aicrawler/provider.go](../internal/aicrawler/provider.go). Design: [AI_CRAWLER_AVALAI_PROPOSAL.md](AI_CRAWLER_AVALAI_PROPOSAL.md) and [AI_CRAWLER_CLOUDFLARE_PROPOSAL.md](AI_CRAWLER_CLOUDFLARE_PROPOSAL.md).
 
-**When an AI engine is on:** `APP_AI_CRAWLER_ENABLED=true` and its own settings are complete. AvalAI needs a key; Cloudflare needs an account id and a token. A site config that names an engine that is not on gets `ENGINE_UNAVAILABLE`. There is no fallback from one AI engine to the other.
+**When an AI engine is on:** `APP_AI_CRAWLER_ENABLED=true` and its own settings are complete. AvalAI and GapGPT need their own API keys. Cloudflare needs an account ID and a token. A site config that names an engine that is not on gets `ENGINE_UNAVAILABLE`. There is no fallback from one AI engine to the other.
 
 **Where an AI engine is used:**
 
 - As the default rule, for hosts without a config (`APP_DEFAULT_ENGINE`, section 2.5).
-- Per site, with `"fetch": {"engine": "ai-crawler-avalai"}`, `"ai-crawler-cloudflare"`, or `"default"` (which follows `APP_DEFAULT_ENGINE`). The config needs only `domains` and `pages.product.match`, and no selectors. `"locale": {"price_unit": "auto"}` reads the currency from each page.
+- Per site, with `"fetch": {"engine": "ai-crawler-avalai"}`, `"ai-crawler-cloudflare"`, `"ai-crawler-gapgpt"`, or `"default"` (which follows `APP_DEFAULT_ENGINE`). The config needs only `domains` and `pages.product.match`, and no selectors. `"locale": {"price_unit": "auto"}` reads the currency from each page.
 - As the fallback for a learned config whose selectors fail (section 2.4).
 
 #### `fetch.ai_fetch`: how the AI engine gets the page
@@ -440,6 +441,10 @@ Every call also sends `cf-aig-skip-cache: true` (this service caches answers its
 
 Turn it on with `sudo ./deploy.sh ai enable cloudflare`, or `./menu.sh`, item 7.
 
+#### GapGPT
+
+Use `sudo ./deploy.sh ai enable gapgpt` or `./menu.sh` item 7, then `g`. GapGPT uses `APP_AI_CRAWLER_GAPGPT_API_KEY` and sends Chat Completions to the configured base URL. When GapGPT supplies an `x-request-id` header, extraction failures include it in `evidence.ai.provider_request_id`. [GapGPT setup and tests](AI_CRAWLER_GAPGPT.md)
+
 #### AI failure codes
 
 | Code | Meaning | Cloudflare mapping |
@@ -483,7 +488,7 @@ Each failure has `evidence.ai`: model, provider, provider request id, HTTP statu
 
 1. **Start with `http`.** If the page returns product HTML, write selectors and you're done.
 2. **The page needs JavaScript** (`JS_RENDERED_PAGE`, or no product markup in the HTML): use `browser`, and enable it on the instance.
-3. **No time for selectors, or the layout changes often:** use an AI engine (`ai-crawler-avalai` or `ai-crawler-cloudflare`), or leave the site without a config and let the default rule serve it. You get full data, checked against the page, at the cost of tokens, and the host learns its own selectors.
+3. **No time for selectors, or the layout changes often:** use an AI engine (`ai-crawler-avalai`, `ai-crawler-cloudflare`, or `ai-crawler-gapgpt`), or leave the site without a config and let the default rule serve it. You get full data, checked against the page, at the cost of tokens, and the host learns its own selectors.
 4. **The site blocks every fetch** (403 or a challenge page, even in Chrome). Two options:
    - **Full data, unverified:** `ai-crawler-avalai` with `ai_fetch: "web_search"`. The provider's search model returns title, price, description and specs, but they are not checked against the page and may be out of date.
    - **Partial data from a search index:** a search engine. Use `duckduckgo`, `mojeek`, `yahoo` or `yandex` for no key, or `brave` for a stable API with a key. Set another one as `alternate_engines`, and pick an engine and alternate with **different indexes**: DuckDuckGo and Yahoo both rely largely on Bing, while Mojeek, Brave and Yandex have their own.
@@ -495,7 +500,7 @@ Every engine except `http` is off by default on an instance. To turn one on:
 |---|---|
 | `browser` | `sudo ./deploy.sh browser enable` |
 | A search engine | `sudo ./deploy.sh search enable <engine>` |
-| An AI engine | `sudo ./deploy.sh ai enable avalai\|cloudflare` |
+| An AI engine | `sudo ./deploy.sh ai enable avalai\|cloudflare\|gapgpt` |
 | Default engine | `sudo ./deploy.sh default-engine` |
 
 Locally, `./menu.sh` items 7 and 9 do the same for the AI engines and the default engine.

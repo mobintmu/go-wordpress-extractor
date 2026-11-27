@@ -103,6 +103,8 @@ const (
 	// EngineAICloudflare does the same as EngineAICrawler, with the LLM
 	// call going through Cloudflare AI Gateway.
 	EngineAICloudflare = "ai-crawler-cloudflare"
+	// EngineAIGapGPT uses the same extraction pipeline with GapGPT's API.
+	EngineAIGapGPT = "ai-crawler-gapgpt"
 	// EngineDefault makes a site config follow APP_DEFAULT_ENGINE, the same
 	// engine the built-in rule uses for hosts without a config. The
 	// registry replaces it with the configured AI engine when it loads the
@@ -118,7 +120,7 @@ const AIFetchWebSearch = "web_search"
 
 // AIEngines lists the engines that extract with an LLM. Each can read any
 // page, so each can be the default engine (APP_DEFAULT_ENGINE).
-var AIEngines = []string{EngineAICrawler, EngineAICloudflare}
+var AIEngines = []string{EngineAICrawler, EngineAICloudflare, EngineAIGapGPT}
 
 // IsAIEngine reports whether name is an AI engine.
 func IsAIEngine(name string) bool {
@@ -327,9 +329,7 @@ func (a *AttrList) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// IsAI reports whether the site uses an AI engine: ai-crawler-avalai,
-// ai-crawler-cloudflare, or "default", which APP_DEFAULT_ENGINE resolves to
-// one of those two (it accepts no other engine).
+// IsAI reports whether the site uses an AI engine or follows the instance default.
 func (s *Site) IsAI() bool { return IsAIEngine(s.Fetch.Engine) || s.Fetch.Engine == EngineDefault }
 
 // LimitKey is the key for throttling, cookies and the per-site limiter:

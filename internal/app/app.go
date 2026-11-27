@@ -117,6 +117,7 @@ func newFetchRouter(cfg *config.Config, opts fetch.Options, httpEngine *fetch.Fe
 type aiClients struct {
 	avalai     *aicrawler.Client
 	cloudflare *aicrawler.Client
+	gapgpt     *aicrawler.Client
 }
 
 // forEngine returns the client of engine, or nil.
@@ -126,6 +127,8 @@ func (c aiClients) forEngine(engine string) *aicrawler.Client {
 		return c.avalai
 	case aicrawler.EngineCloudflare:
 		return c.cloudflare
+	case aicrawler.EngineGapGPT:
+		return c.gapgpt
 	}
 	return nil
 }
@@ -135,8 +138,7 @@ type aiEngines []*fetch.AIEngine
 
 // newAIClients builds the OpenAI-compatible clients of the AI engines whose
 // settings are complete (APP_AI_CRAWLER_ENABLED plus the engine's own
-// settings): "ai-crawler-avalai" calls AvalAI, "ai-crawler-cloudflare"
-// calls Cloudflare AI Gateway. Both share the limits and the metrics.
+// settings). They share the limits and metrics.
 func newAIClients(cfg *config.Config, m *metrics.Metrics) aiClients {
 	shared := func(minIntervalMS int) aicrawler.Settings {
 		return aicrawler.Settings{
@@ -173,6 +175,9 @@ func newAIClients(cfg *config.Config, m *metrics.Metrics) aiClients {
 			CollectLog:       cfg.CloudflareCollectLog,
 		}), shared(cfg.CloudflareMinIntervalMS))
 	}
+	if cfg.GapGPTConfigured() {
+		out.gapgpt = aicrawler.New(aicrawler.GapGPT(cfg.GapGPTEndpoint, cfg.GapGPTModel, cfg.GapGPTAPIKey), shared(cfg.AICrawlerMinIntervalMS))
+	}
 	return out
 }
 
@@ -182,7 +187,7 @@ func newAIClients(cfg *config.Config, m *metrics.Metrics) aiClients {
 func newAIEngines(cfg *config.Config, httpEngine *fetch.Fetcher, browser *fetch.BrowserFetcher, clients aiClients, log *zap.Logger) aiEngines {
 	cache := aicrawler.NewCache(cfg.AICrawlerCacheTTL)
 	var out aiEngines
-	for _, c := range []*aicrawler.Client{clients.avalai, clients.cloudflare} {
+	for _, c := range []*aicrawler.Client{clients.avalai, clients.cloudflare, clients.gapgpt} {
 		if e := fetch.NewAIEngine(httpEngine, browser, c, cache, cfg.AICrawlerMaxInputChars, log); e != nil {
 			out = append(out, e)
 		}

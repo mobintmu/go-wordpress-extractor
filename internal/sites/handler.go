@@ -23,7 +23,7 @@ type Site struct {
 	// config: a file in configs/sites/. learned: selectors the AI crawler learned and proved on several pages. default: the built-in AI rule, which accepts any domain (domains is ["*"]).
 	Origin string `json:"origin" binding:"required" enums:"config,learned,default" example:"config"`
 	// Fetch engine. Set for the default rule and for sites that use an AI engine.
-	Engine string `json:"engine,omitempty" enums:"ai-crawler-avalai,ai-crawler-cloudflare" example:"ai-crawler-avalai"`
+	Engine string `json:"engine,omitempty" enums:"ai-crawler-avalai,ai-crawler-cloudflare,ai-crawler-gapgpt" example:"ai-crawler-avalai"`
 	// LLM model the AI engine uses. Set for the default rule and for sites that use an AI engine; empty when that engine is not configured on this instance.
 	Model string `json:"model,omitempty" example:"deepseek-v4.1-flash"`
 } //@name Site
@@ -36,7 +36,7 @@ type ListResponse struct {
 	// True when APP_DEFAULT_ENGINE names an AI engine: a URL on any domain is accepted, not only the listed ones.
 	AcceptsAnyDomain bool `json:"accepts_any_domain" binding:"required" example:"false"`
 	// The engine serving websites without a rule (APP_DEFAULT_ENGINE). Absent when it is none.
-	DefaultAIEngine string `json:"default_ai_engine,omitempty" enums:"ai-crawler-avalai,ai-crawler-cloudflare" example:"ai-crawler-avalai"`
+	DefaultAIEngine string `json:"default_ai_engine,omitempty" enums:"ai-crawler-avalai,ai-crawler-cloudflare,ai-crawler-gapgpt" example:"ai-crawler-avalai"`
 } //@name SiteList
 
 // Handler serves GET /api/v1/sites.
