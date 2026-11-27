@@ -603,9 +603,9 @@ diagnose_gapgpt() {
   local url go_cmd
   gapgpt_ok || { echo "Configure the GapGPT API key first (option g)."; return 1; }
   local -a command
-  # Check for the diagnostic subcommand without starting an older server.
+  # Check for file-based diagnostics without starting an older server.
   if [[ -x ./bin/server ]] &&
-    LC_ALL=C grep -aFq 'Usage: server diagnose-gapgpt <product URL>' ./bin/server; then
+    LC_ALL=C grep -aFq 'GapGPT trace file: %s' ./bin/server; then
     command=(./bin/server)
   elif [[ "${ENV_FILE##*/}" == .env.production || "${APP_ENV:-}" == production ]]; then
     echo "Build a server binary with GapGPT diagnostics using sudo ./deploy.sh build, then retry."
@@ -623,7 +623,7 @@ diagnose_gapgpt() {
   if [[ "${command[0]}" != ./bin/server ]]; then
     echo "Building the local diagnostic before it can send a request."
   fi
-  echo "The diagnostic sends a live request to GapGPT and prints the prompt and reply here."
+  echo "The diagnostic sends a live request to GapGPT and saves the full trace to a private file."
   "${command[@]}" diagnose-gapgpt "$url"
 }
 

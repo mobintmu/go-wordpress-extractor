@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -29,8 +28,8 @@ type diagnosticSnapshot struct{ snapshot *siteconfig.Snapshot }
 func (s diagnosticSnapshot) Snapshot() *siteconfig.Snapshot { return s.snapshot }
 
 // DiagnoseGapGPT runs the built-in GapGPT extraction rule for one URL and
-// prints the provider exchanges followed by the extraction result.
-func DiagnoseGapGPT(ctx context.Context, rawURL string, out io.Writer) error {
+// writes complete exchanges to out and concise status updates to progress.
+func DiagnoseGapGPT(ctx context.Context, rawURL string, out, progress io.Writer) error {
 	target, err := extract.ValidateURL(rawURL)
 	if err != nil {
 		return err
@@ -49,7 +48,8 @@ func DiagnoseGapGPT(ctx context.Context, rawURL string, out io.Writer) error {
 	if browser != nil {
 		defer browser.Stop(context.Background())
 	}
-	trace := &gapgptTrace{out: out, key: cfg.GapGPTAPIKey}
+	status := io.MultiWriter(out, progress)
+	trace := &gapgptTrace{out: out, status: status, key: cfg.GapGPTAPIKey}
 	settings := aiSettings(cfg, cfg.AICrawlerMinIntervalMS)
 	settings.Middleware = trace.exchange
 	client := gapgptClient(cfg, settings)
@@ -58,9 +58,9 @@ func DiagnoseGapGPT(ctx context.Context, rawURL string, out io.Writer) error {
 	snapshot.Default = siteconfig.DefaultAIEntry(config.EngineGapGPT, cfg.AICrawlerDefaultDelayMS)
 	svc := extract.NewServiceWith(diagnosticSnapshot{snapshot}, engine, lim, log)
 
-	fmt.Fprintf(out, "GapGPT diagnostic: model %s | per-attempt timeout %s | extraction limit %s\n",
+	fmt.Fprintf(status, "GapGPT diagnostic: model %s | per-attempt timeout %s | extraction limit %s\n",
 		cfg.GapGPTModel, settings.Timeout, cfg.MaxRequestDuration)
-	fmt.Fprintln(out, "Fetching and cleaning the product page before contacting GapGPT.")
+	fmt.Fprintln(status, "Fetching and cleaning the product page before contacting GapGPT.")
 	resp, err := svc.Run(ctx, "gapgpt-diagnostic", target)
 	if err != nil {
 		return err
@@ -70,17 +70,19 @@ func DiagnoseGapGPT(ctx context.Context, rawURL string, out io.Writer) error {
 		return err
 	}
 	if trace.attempt == 0 {
-		fmt.Fprintln(out, "\nThe extraction ended before calling GapGPT.")
+		fmt.Fprintln(status, "\nThe extraction ended before calling GapGPT.")
 	}
 	fmt.Fprintf(out, "\nExtraction result\n%s\n", trace.redact(string(result)))
 	if resp.Status == extract.StatusFailed {
-		return errors.New("GapGPT diagnostic extraction failed")
+		return fmt.Errorf("GapGPT diagnostic extraction failed (%s) after %d ms", resp.Error.Code, resp.DurationMS)
 	}
+	fmt.Fprintf(status, "\nExtraction succeeded in %d ms.\n", resp.DurationMS)
 	return nil
 }
 
 type gapgptTrace struct {
 	out     io.Writer
+	status  io.Writer
 	key     string
 	attempt int
 }
@@ -105,8 +107,8 @@ func (t *gapgptTrace) exchange(req *http.Request, next option.MiddlewareNext) (*
 	t.attempt++
 	endpoint := *req.URL
 	endpoint.User = nil
-	fmt.Fprintf(t.out, "\nGapGPT request %d: %s %s\nContent-Type: %q\nAuthorization: [redacted]\n",
-		t.attempt, req.Method, t.redact(endpoint.String()), req.Header.Get("Content-Type"))
+	fmt.Fprintf(t.status, "\nGapGPT request %d: %s %s\n", t.attempt, req.Method, t.redact(endpoint.String()))
+	fmt.Fprintf(t.out, "Content-Type: %q\nAuthorization: [redacted]\n", req.Header.Get("Content-Type"))
 	if req.GetBody != nil {
 		body, err := req.GetBody()
 		if err == nil {
@@ -131,11 +133,12 @@ func (t *gapgptTrace) exchange(req *http.Request, next option.MiddlewareNext) (*
 	res, err := next(req)
 	elapsed := time.Since(start).Round(time.Millisecond)
 	if res == nil {
-		fmt.Fprintf(t.out, "\nGapGPT response %d: no HTTP response after %s (connected=%t, request_written=%t)\n",
+		fmt.Fprintf(t.status, "\nGapGPT response %d: no HTTP response after %s (connected=%t, request_written=%t)\n",
 			t.attempt, elapsed, connected.Load(), written.Load())
 	} else {
-		fmt.Fprintf(t.out, "\nGapGPT response %d: HTTP %d (headers after %s)\nContent-Type: %q\nX-Request-Id: %q\n",
-			t.attempt, res.StatusCode, elapsed, t.redact(res.Header.Get("Content-Type")), t.redact(res.Header.Get("X-Request-Id")))
+		fmt.Fprintf(t.status, "\nGapGPT response %d: HTTP %d (headers after %s)\n", t.attempt, res.StatusCode, elapsed)
+		fmt.Fprintf(t.out, "Content-Type: %q\nX-Request-Id: %q\n",
+			t.redact(res.Header.Get("Content-Type")), t.redact(res.Header.Get("X-Request-Id")))
 		if res.Body != nil {
 			data, readErr := io.ReadAll(res.Body)
 			_ = res.Body.Close()

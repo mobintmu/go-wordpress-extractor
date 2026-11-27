@@ -2,10 +2,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -44,7 +47,7 @@ func main() {
 		}
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		config.LoadEnv()
-		err := app.DiagnoseGapGPT(ctx, os.Args[2], os.Stdout)
+		err := runGapGPTDiagnostic(ctx, os.Args[2])
 		stop()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -60,6 +63,30 @@ func main() {
 	}
 	config.LoadEnv()
 	os.Exit(run(app.NewApp(), log))
+}
+
+func runGapGPTDiagnostic(ctx context.Context, url string) error {
+	dir, err := filepath.Abs("secrets/gapgpt-diagnostics")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create GapGPT trace directory: %w", err)
+	}
+	file, err := os.CreateTemp(dir, "trace-*.log")
+	if err != nil {
+		return fmt.Errorf("create GapGPT trace file: %w", err)
+	}
+	fmt.Printf("GapGPT trace file: %s\n", file.Name())
+	trace := bufio.NewWriter(file)
+	runErr := app.DiagnoseGapGPT(ctx, url, trace, os.Stdout)
+	if runErr != nil {
+		fmt.Fprintln(trace, runErr)
+	}
+	if err := errors.Join(trace.Flush(), file.Close()); err != nil {
+		return errors.Join(runErr, fmt.Errorf("save GapGPT trace: %w", err))
+	}
+	return runErr
 }
 
 // run starts the app, waits for SIGINT/SIGTERM (or an fx shutdown), then

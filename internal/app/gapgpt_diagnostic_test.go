@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,8 +39,8 @@ func TestGapGPTDiagnosticTrace(t *testing.T) {
 	}))
 	defer server.Close()
 
-	var out bytes.Buffer
-	trace := &gapgptTrace{out: &out, key: key}
+	var out, progress bytes.Buffer
+	trace := &gapgptTrace{out: &out, status: io.MultiWriter(&out, &progress), key: key}
 	client := aicrawler.New(aicrawler.GapGPT(server.URL+"/v1", "test-model", key),
 		aicrawler.Settings{Middleware: trace.exchange, MaxOutputTokens: 2000})
 	result, callErr := client.Complete(context.Background(),
@@ -59,6 +60,14 @@ func TestGapGPTDiagnosticTrace(t *testing.T) {
 	if strings.Contains(out.String(), key) {
 		t.Error("trace contains the API key")
 	}
+	for _, payload := range []string{"Return an object", `"response_format"`, `"choices"`} {
+		if strings.Contains(progress.String(), payload) {
+			t.Errorf("terminal output contains payload %q", payload)
+		}
+	}
+	if !strings.Contains(progress.String(), "HTTP 200") {
+		t.Error("terminal output is missing the HTTP status")
+	}
 
 	req, err := http.NewRequest(http.MethodPost, server.URL, strings.NewReader("{}"))
 	if err != nil {
@@ -69,5 +78,8 @@ func TestGapGPTDiagnosticTrace(t *testing.T) {
 	})
 	if !strings.Contains(out.String(), "no HTTP response") || !strings.Contains(out.String(), "context deadline exceeded") {
 		t.Error("trace did not explain the missing HTTP response")
+	}
+	if !strings.Contains(progress.String(), "no HTTP response") {
+		t.Error("terminal output is missing the timeout summary")
 	}
 }
