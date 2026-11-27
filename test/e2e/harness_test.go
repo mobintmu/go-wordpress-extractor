@@ -61,6 +61,7 @@ type Env struct {
 type Options struct {
 	Env   map[string]string // extra APP_* variables
 	Fetch func(*fetch.Options)
+	Log   *zap.Logger // optional logger for assertions
 	// SearchEndpoints points search engines at the fake shop. It returns
 	// engine name -> base URL, built from the shop once it is listening.
 	SearchEndpoints func(*Shop) map[string]string
@@ -111,9 +112,13 @@ func Start(t *testing.T, o Options) *Env {
 		t.Setenv(k, v)
 	}
 
+	log := o.Log
+	if log == nil {
+		log = zap.NewNop()
+	}
 	e.app = app.NewApp(
 		fx.NopLogger,
-		fx.Decorate(func(*zap.Logger) *zap.Logger { return zap.NewNop() }),
+		fx.Decorate(func(*zap.Logger) *zap.Logger { return log }),
 		fx.Decorate(func(opts fetch.Options) fetch.Options {
 			opts.Resolver = shop.Resolve
 			opts.AllowedNets = shop.AllowedNets()

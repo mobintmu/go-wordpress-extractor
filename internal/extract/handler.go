@@ -61,9 +61,11 @@ func NewHandler(svc *Service, lim *limiter.Limiter, m *metrics.Metrics, d *drain
 	return &Handler{svc: svc, limiter: lim, metrics: m, drain: d, cfg: cfg, log: log}
 }
 
-func (h *Handler) reject(c *gin.Context, status int, code, msg, reason string) {
+func (h *Handler) reject(c *gin.Context, log *zap.Logger, status int, code, msg, reason string) {
 	h.metrics.Reject(reason)
 	c.AbortWithStatusJSON(status, APIError{Code: code, Message: msg})
+	log.Info("extraction rejected", zap.String("outcome", "rejected"), zap.Int("http_status", status),
+		zap.String("code", code), zap.String("reason", reason))
 }
 
 // Handle godoc
@@ -88,8 +90,10 @@ func (h *Handler) reject(c *gin.Context, status int, code, msg, reason string) {
 //	@Failure		503		{object}	APIError	"SHUTTING_DOWN: this instance is draining."
 //	@Router			/api/v1/extract [post]
 func (h *Handler) Handle(c *gin.Context) {
+	keyID, _ := c.Get(apikey.ContextKeyID)
+	log := h.log.With(zap.Any("key_id", keyID))
 	if h.drain.Draining() {
-		h.reject(c, http.StatusServiceUnavailable, CodeShuttingDown, "This instance is shutting down.", "shutting_down")
+		h.reject(c, log, http.StatusServiceUnavailable, CodeShuttingDown, "This instance is shutting down.", "shutting_down")
 		return
 	}
 
@@ -102,30 +106,35 @@ func (h *Handler) Handle(c *gin.Context) {
 		if errors.As(err, &tooBig) {
 			msg = fmt.Sprintf("The request body exceeds %d bytes.", MaxBodyBytes)
 		}
-		h.reject(c, http.StatusBadRequest, CodeInvalidRequest, msg, "invalid_request")
+		h.reject(c, log, http.StatusBadRequest, CodeInvalidRequest, msg, "invalid_request")
 		return
 	}
 	if strings.TrimSpace(req.URL) == "" {
-		h.reject(c, http.StatusBadRequest, CodeInvalidRequest, "The url field is required.", "invalid_request")
+		h.reject(c, log, http.StatusBadRequest, CodeInvalidRequest, "The url field is required.", "invalid_request")
 		return
 	}
 	if len(req.RequestID) > MaxRequestIDSize {
-		h.reject(c, http.StatusBadRequest, CodeInvalidRequest, fmt.Sprintf("request_id must be at most %d characters.", MaxRequestIDSize), "invalid_request")
+		h.reject(c, log, http.StatusBadRequest, CodeInvalidRequest, fmt.Sprintf("request_id must be at most %d characters.", MaxRequestIDSize), "invalid_request")
 		return
 	}
 	target, err := ValidateURL(req.URL)
 	if err != nil {
-		h.reject(c, http.StatusBadRequest, CodeInvalidURL, err.Error(), "invalid_url")
+		h.reject(c, log, http.StatusBadRequest, CodeInvalidURL, err.Error(), "invalid_url")
 		return
 	}
 	if req.RequestID == "" {
 		req.RequestID = newRequestID()
 	}
+	// Query parameters can contain credentials. Keep them on the fetch URL.
+	logURL := *target
+	logURL.RawQuery, logURL.ForceQuery = "", false
+	log = log.With(zap.String("request_id", req.RequestID), zap.String("url", logURL.String()))
+	log.Info("extraction started")
 
 	release, ok := h.limiter.TryAcquire()
 	if !ok {
 		c.Header("Retry-After", "1")
-		h.reject(c, http.StatusTooManyRequests, CodeTooManyRequests, "This instance is at capacity.", "capacity")
+		h.reject(c, log, http.StatusTooManyRequests, CodeTooManyRequests, "This instance is at capacity.", "capacity")
 		return
 	}
 	defer release()
@@ -136,47 +145,74 @@ func (h *Handler) Handle(c *gin.Context) {
 	resp, err := h.svc.Run(ctx, req.RequestID, target)
 	if errors.Is(err, ErrSiteBusy) {
 		c.Header("Retry-After", strconv.Itoa(int(math.Ceil(h.limiter.SiteWait().Seconds()))+1))
-		h.reject(c, http.StatusTooManyRequests, CodeTooManyRequests, "This site already has a running extraction.", "site_busy")
+		h.reject(c, log, http.StatusTooManyRequests, CodeTooManyRequests, "This site already has a running extraction.", "site_busy")
 		return
 	}
 
-	keyID, _ := c.Get(apikey.ContextKeyID)
-	fields := []zap.Field{
-		zap.String("request_id", resp.RequestID),
-		zap.String("site_id", resp.SiteID),
-		zap.String("config_version", resp.ConfigVersion),
-		zap.Any("key_id", keyID),
-		zap.String("url", resp.URL),
-		zap.String("outcome", resp.Status),
-		zap.Int64("duration_ms", resp.DurationMS),
-	}
+	fields := extractionResultFields(resp)
 	code, priceState := "", ""
 	if resp.Error != nil {
 		code = resp.Error.Code
-		fields = append(fields, zap.String("code", code), zap.String("stage", string(resp.Error.Stage)))
 	}
 	if resp.Product != nil {
 		priceState = resp.Product.Price.State
-		fields = append(fields, zap.String("price_state", priceState))
 	}
 
 	if c.Request.Context().Err() != nil && h.drain.Draining() {
 		// The drain limit was reached and the server cancelled this
 		// request; the client is probably still waiting, so tell it.
 		h.metrics.ObserveExtraction("cancelled", resp.SiteID, code, priceState, time.Duration(resp.DurationMS)*time.Millisecond)
-		h.log.Warn("extraction cancelled by shutdown", fields...)
 		c.AbortWithStatusJSON(http.StatusServiceUnavailable, APIError{Code: CodeShuttingDown, Message: "This instance shut down before the extraction finished. Retry on another instance."})
+		log.Warn("extraction cancelled by shutdown", append(fields,
+			zap.String("outcome", "cancelled"), zap.Int("http_status", http.StatusServiceUnavailable))...)
 		return
 	}
 	if c.Request.Context().Err() != nil {
 		// The client went away; the work is discarded.
 		h.metrics.ObserveExtraction("cancelled", resp.SiteID, code, priceState, time.Duration(resp.DurationMS)*time.Millisecond)
-		h.log.Info("extraction cancelled by client", fields...)
+		log.Info("extraction cancelled by client", append(fields, zap.String("outcome", "cancelled"))...)
 		return
 	}
 	h.metrics.ObserveExtraction(resp.Status, resp.SiteID, code, priceState, time.Duration(resp.DurationMS)*time.Millisecond)
-	h.log.Info("extraction finished", fields...)
 	c.JSON(http.StatusOK, resp)
+	log.Info("extraction finished", append(fields,
+		zap.String("outcome", resp.Status), zap.Int("http_status", c.Writer.Status()))...)
+}
+
+func extractionResultFields(resp *Response) []zap.Field {
+	fields := []zap.Field{
+		zap.String("site_id", resp.SiteID),
+		zap.String("config_version", resp.ConfigVersion),
+		zap.String("config_origin", resp.ConfigOrigin),
+		zap.Int64("duration_ms", resp.DurationMS),
+	}
+	if src := resp.Source; src != nil {
+		fields = append(fields, zap.String("engine", src.Engine), zap.Bool("site_contacted", src.SiteContacted),
+			zap.Bool("cached", src.Cached))
+		if src.Model != "" {
+			fields = append(fields, zap.String("model", src.Model), zap.String("fetched_with", src.FetchedWith))
+		}
+		if src.Tokens != nil {
+			fields = append(fields, zap.Int64("input_tokens", src.Tokens.Input), zap.Int64("output_tokens", src.Tokens.Output))
+		}
+	}
+	if failure := resp.Error; failure != nil {
+		fields = append(fields, zap.String("code", failure.Code), zap.String("stage", string(failure.Stage)),
+			zap.String("error_message", failure.Message), zap.Bool("retryable", failure.Retryable))
+	}
+	if evidence := resp.Evidence; evidence != nil {
+		fields = append(fields, zap.Int("site_http_status", evidence.HTTPStatus))
+		if ai := evidence.AI; ai != nil {
+			fields = append(fields, zap.String("ai_provider", ai.Provider), zap.Int("ai_http_status", ai.HTTPStatus),
+				zap.String("ai_request_id", ai.ProviderRequestID), zap.Int("ai_input_chars", ai.InputChars))
+		}
+	}
+	if product := resp.Product; product != nil {
+		fields = append(fields, zap.String("completeness", resp.Completeness), zap.String("price_state", product.Price.State),
+			zap.Int64p("price_current", product.Price.Current), zap.String("price_currency", product.Price.Currency),
+			zap.Int("warning_count", len(resp.Warnings)), zap.Int("unavailable_field_count", len(resp.UnavailableFields)))
+	}
+	return fields
 }
 
 // ValidateURL checks that raw is an absolute http(s) URL with a host.

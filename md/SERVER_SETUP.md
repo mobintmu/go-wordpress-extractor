@@ -102,6 +102,8 @@ sudo ./deploy.sh logs
 
 The command shows recent service logs and streams new entries as they arrive. Press `Ctrl+C` to stop watching. The service keeps running.
 
+Find `extraction started` and `extraction finished` by their shared `request_id`. The finish entry shows the outcome, duration, engine and model when available. It includes the price and completeness on success, or the error code and stage on failure. AI failures also include available upstream diagnostics such as `ai_http_status` and `ai_request_id`. A failed extraction can have `http_status: 200` because the extractor returns the failure in the response body. Logged product URLs omit query parameters.
+
 ### Fix `200/CHDIR` for a checkout under `/root`
 
 The systemd service runs as `gwp` and needs to enter the checkout directory. If the logs show `200/CHDIR` for `/root/go-wordpress-extractor`, run `relocate` from that checkout.
