@@ -36,13 +36,13 @@ COPY configs/ ./configs/
 RUN mkdir -p /app/secrets && chown appuser /app/secrets
 USER appuser
 ENV APP_ENV=production \
-    APP_HTTP_PORT=4000 \
+    APP_HTTP_PORT=80 \
     APP_SITE_CONFIG_DIR=/app/configs \
     APP_API_KEYS_FILE=/app/secrets/.env.apikeys \
     APP_BROWSER_ENABLED=true \
     APP_BROWSER_CHANNEL=chromium \
     PLAYWRIGHT_DRIVER_PATH=/opt/playwright-driver
-EXPOSE 4000
+EXPOSE 80
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD wget -qO- --no-check-certificate "$( [ -n "$APP_TLS_CERT_FILE" ] && echo https || echo http )://127.0.0.1:${APP_HTTP_PORT}/ready" >/dev/null || exit 1
@@ -62,10 +62,10 @@ COPY configs/ ./configs/
 RUN mkdir -p /app/secrets && chown appuser /app/secrets
 USER appuser
 ENV APP_ENV=production \
-    APP_HTTP_PORT=4000 \
+    APP_HTTP_PORT=80 \
     APP_SITE_CONFIG_DIR=/app/configs \
     APP_API_KEYS_FILE=/app/secrets/.env.apikeys
-EXPOSE 4000
+EXPOSE 80
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -qO- --no-check-certificate "$( [ -n "$APP_TLS_CERT_FILE" ] && echo https || echo http )://127.0.0.1:${APP_HTTP_PORT}/ready" >/dev/null || exit 1

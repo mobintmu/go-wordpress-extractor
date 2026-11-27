@@ -45,6 +45,7 @@ GO_BIN="$GO_ROOT/bin/go"
 SERVICE_NAME="go-wordpress-extractor"
 SERVICE_USER="gwp"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
+DEFAULT_HTTP_PORT=80
 # Browser fetch engine (Playwright + Chromium), outside the project folder
 # so the service user can always read it.
 PW_DIR="/opt/$SERVICE_NAME-playwright"
@@ -107,6 +108,13 @@ env_set() {
     cat "$ENV_FILE" >"$tmp"; printf '%s=%s\n' "$key" "$val" >>"$tmp"
   fi
   cat "$tmp" >"$ENV_FILE"; rm -f "$tmp"
+}
+
+normalize_http_port() {
+  [[ "$1" =~ ^0*([1-9][0-9]{0,4})$ ]] || return 1
+  local port="${BASH_REMATCH[1]}"
+  [ "$port" -le 65535 ] || return 1
+  printf '%s\n' "$port"
 }
 
 # Load pepper and key file into this shell so the apikey tool uses the
@@ -1022,11 +1030,12 @@ setup_env() {
     ok "keeping $ENV_FILE"; return
   fi
   title "Server settings"
-  local addr port proxy_host proxy_port
+  local addr port current_port proxy_host proxy_port
   addr="$(ask "Listen address (0.0.0.0 = all interfaces, 127.0.0.1 = behind a reverse proxy)" "$(env_get APP_HTTP_ADDRESS || true)")"
   [ -n "$addr" ] || addr="0.0.0.0"
-  port="$(ask "HTTP port" "$(v=$(env_get APP_HTTP_PORT); echo "${v:-4000}")")"
-  [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || die "invalid port: $port"
+  current_port="$(env_get APP_HTTP_PORT)"
+  port="$(ask "HTTP port" "${current_port:-$DEFAULT_HTTP_PORT}")"
+  port="$(normalize_http_port "$port")" || die "HTTP port must be between 1 and 65535"
   proxy_host="$(ask "Outbound HTTP proxy host (empty = fetch directly)" "$(env_get APP_PROXY_HOST)")"
   proxy_port=""
   [ -n "$proxy_host" ] && proxy_port="$(ask "Outbound HTTP proxy port" "$(env_get APP_PROXY_PORT)")"
@@ -1038,7 +1047,7 @@ setup_env() {
 
 # Server
 APP_ENV=production
-APP_HTTP_PORT=4000
+APP_HTTP_PORT=$DEFAULT_HTTP_PORT
 APP_HTTP_ADDRESS=0.0.0.0
 
 # Site configs and API keys
@@ -1363,6 +1372,18 @@ validate_sites() {
 }
 
 # ================================================================ 8. service
+sync_http_port_capability() {
+  local port="$1" drop_in="$SERVICE_FILE.d/10-extractor-http-port.conf"
+  local settings=$'[Service]\nAmbientCapabilities=CAP_NET_BIND_SERVICE'
+  if [ "$port" -lt 1024 ]; then
+    if [ -f "$drop_in" ] && [ "$(cat "$drop_in")" = "$settings" ]; then return 0; fi
+    mkdir -p "${drop_in%/*}" || return
+    printf '%s\n' "$settings" >"$drop_in" || return
+  elif [ -f "$drop_in" ]; then
+    rm -f "$drop_in" || return
+  fi
+}
+
 install_service() {
   need_root "service"
   command -v systemctl >/dev/null 2>&1 || { warn "systemd not found; start by hand: $0 run"; return; }
@@ -1379,8 +1400,10 @@ install_service() {
       sh "$BIN_DIR/server" "$ACTIVE_FILE" "$ENV_FILE" </dev/null 2>/dev/null; then
     warn "before starting, make sure $SERVICE_USER can execute $BIN_DIR/server and read $ACTIVE_FILE and $ENV_FILE"
   fi
-  local stop_timeout xvfb_unit="" xvfb_env=""
+  local stop_timeout port xvfb_unit="" xvfb_env=""
   stop_timeout="$(env_get APP_MAX_REQUEST_DURATION)"
+  port="$(env_get APP_HTTP_PORT)"
+  port="$(normalize_http_port "${port:-$DEFAULT_HTTP_PORT}")" || die "HTTP port must be between 1 and 65535"
   if browser_headful; then
     install_xvfb
     install_xvfb_service
@@ -1404,6 +1427,7 @@ Type=simple
 User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$APP_DIR
+Environment=APP_HTTP_PORT=$DEFAULT_HTTP_PORT
 EnvironmentFile=$ENV_FILE
 # A writable home for Chrome (the service user has none).
 StateDirectory=$SERVICE_NAME
@@ -1424,6 +1448,7 @@ LimitNOFILE=65536
 [Install]
 WantedBy=multi-user.target
 EOF
+  sync_http_port_capability "$port"
   systemctl daemon-reload
   systemctl enable "$SERVICE_NAME" >/dev/null
   ok "systemd service $SERVICE_NAME installed"
@@ -1466,25 +1491,152 @@ remove_xvfb_service() {
   ok "removed $XVFB_SERVICE (browser runs headless)"
 }
 
-restart() {
-  need_root "restart"
+restart_preflight() {
+  command -v systemctl >/dev/null 2>&1 && [ -f "$SERVICE_FILE" ] || die "service not installed. Run: $0 service"
+  [ -f "$ENV_FILE" ] || die "no $ENV_FILE yet. Run: $0 env"
   ai_migrate_default_rule
   ai_preflight
-  command -v systemctl >/dev/null 2>&1 && [ -f "$SERVICE_FILE" ] || die "service not installed. Run: $0 service"
-  browser_headful && [ -f "$XVFB_SERVICE_FILE" ] && systemctl restart "$XVFB_SERVICE"
-  systemctl restart "$SERVICE_NAME"
-  local port host url i
-  port="$(env_get APP_HTTP_PORT)"; port="${port:-4000}"
+}
+
+restart_service() {
+  local port="$1" host url i
+  sync_http_port_capability "$port" || return
+  systemctl daemon-reload || return
+  if browser_headful && [ -f "$XVFB_SERVICE_FILE" ]; then
+    systemctl restart "$XVFB_SERVICE" || return
+  fi
+  systemctl restart "$SERVICE_NAME" || return
   host="$(env_get APP_HTTP_ADDRESS)"
   case "$host" in ""|0.0.0.0|::) host=127.0.0.1 ;; *:*) host="[$host]" ;; esac
   [ -n "$(env_get APP_TLS_CERT_FILE)" ] && url="https://$host:$port/ready" || url="http://$host:$port/ready"
   info "waiting for $url"
   for i in $(seq 1 30); do
-    if curl -fsk -o /dev/null "$url"; then ok "service is up"; swagger_status; return; fi
+    if curl --noproxy '*' --max-time 2 -fsk -o /dev/null "$url" &&
+      systemctl is-active --quiet "$SERVICE_NAME"; then
+      ok "service is up"
+      swagger_status
+      return 0
+    fi
     sleep 1
   done
   journalctl -u "$SERVICE_NAME" -n 40 --no-pager || true
-  die "service did not become ready; log above"
+  return 1
+}
+
+restart() {
+  need_root restart
+  restart_preflight
+  local current port
+  current="$(env_get APP_HTTP_PORT)"
+  port="$(normalize_http_port "${current:-$DEFAULT_HTTP_PORT}")" || die "HTTP port must be between 1 and 65535"
+  if [ "$current" != "$port" ]; then env_set APP_HTTP_PORT "$port"; fi
+  restart_service "$port" || die "service did not become ready; check the service logs"
+}
+
+set_http_port() {
+  if [ "${1:-}" = --help ] || [ "${1:-}" = -h ]; then
+    printf 'Usage: sudo %s port [<1-65535>] (default: %s)\n' "$0" "$DEFAULT_HTTP_PORT"
+    return
+  fi
+  [ "$#" -le 1 ] || die "usage: sudo $0 port [<1-65535>]"
+  local port old_port
+  port="$(normalize_http_port "${1-$DEFAULT_HTTP_PORT}")" || die "HTTP port must be between 1 and 65535"
+  need_root port
+  restart_preflight
+  old_port="$(env_get APP_HTTP_PORT)"
+  env_set APP_HTTP_PORT "$port"
+  if restart_service "$port"; then
+    ok "HTTP port set to $port"
+    return
+  fi
+  warn "service failed on port $port; restoring the previous port setting"
+  if [ -z "$old_port" ]; then old_port="$DEFAULT_HTTP_PORT"; fi
+  env_set APP_HTTP_PORT "$old_port"
+  if port="$(normalize_http_port "$old_port")" && restart_service "$port"; then
+    die "port change failed; service restored on port $port"
+  fi
+  die "port change failed and the previous setting was restored, but the service is unavailable"
+}
+
+# Configure a dedicated Caddy service for Cloudflare Full (strict).
+setup_caddy() {
+  local domain="${1:-}" replace="${2:-}" caddyfile=/etc/caddy/Caddyfile
+  local cert=/etc/caddy/certs/extractor.pem key=/etc/caddy/certs/extractor.key
+  local marker='# Managed by go-wordpress-extractor deploy.sh caddy'
+  local label='[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?'
+  local stage backup="" existing=false
+  if [ "$#" -eq 0 ] || [ "$domain" = --help ] || [ "$domain" = -h ]; then
+    printf 'Usage: sudo %s caddy <hostname> [--replace]\n' "$0"
+    printf 'Start the extractor at http://127.0.0.1:80 and save the Cloudflare Origin CA files first.\n  Certificate: %s\n  Private key: %s\n' "$cert" "$key"
+    printf 'See md/CLOUDFLARE_HTTPS_SETUP.md for certificate permissions and Cloudflare settings.\n'
+    return
+  fi
+  [ "$#" -le 2 ] && [[ -z "$replace" || "$replace" = --replace ]] ||
+    die "usage: sudo $0 caddy <hostname> [--replace]"
+  [[ ${#domain} -le 253 && "$domain" =~ ^($label\.)+$label$ && "$domain" =~ [a-zA-Z] ]] ||
+    die "pass a DNS hostname such as extractor.example.com"
+  need_root caddy
+  command -v systemctl >/dev/null || die "Caddy setup requires systemd"
+  [[ -f "$cert" && -s "$cert" && ! -L "$cert" && -f "$key" && -s "$key" && ! -L "$key" ]] ||
+    die "save the Cloudflare Origin CA certificate to $cert and the private key to $key as regular files"
+  if [ -e "$caddyfile" ] || [ -L "$caddyfile" ]; then
+    existing=true
+    if [ "$replace" != --replace ] && ! grep -Fxq "$marker" "$caddyfile"; then
+      die "$caddyfile already exists. For a dedicated Caddy instance, rerun with --replace to back it up and replace it."
+    fi
+  fi
+  command -v curl >/dev/null || die "install curl before configuring Caddy"
+  curl --noproxy '*' -fsS --max-time 5 http://127.0.0.1:80/ready >/dev/null ||
+    die "start the extractor on HTTP port 80 before configuring Caddy"
+  if ! command -v caddy >/dev/null; then
+    info "installing Caddy"
+    if command -v apt-get >/dev/null; then
+      apt-get update -y
+      DEBIAN_FRONTEND=noninteractive apt-get install -y caddy
+    elif command -v dnf >/dev/null; then
+      dnf install -y caddy
+    else
+      die "install Caddy and its systemd service first: https://caddyserver.com/docs/install"
+    fi
+  fi
+  id caddy >/dev/null 2>&1 || die "the Caddy service user is missing"
+  command -v runuser >/dev/null || die "runuser is required to validate as the Caddy service user"
+  chown root:caddy "$cert" "$key"
+  chmod 0640 "$cert" "$key"
+  # The package may have just created its default Caddyfile.
+  [ -f "$caddyfile" ] && existing=true
+  stage="$(mktemp /etc/caddy/.extractor-caddyfile.XXXXXX)"
+  cat >"$stage" <<EOF
+$marker
+{
+    auto_https disable_redirects
+}
+
+https://$domain {
+    tls $cert $key
+    reverse_proxy 127.0.0.1:80
+}
+EOF
+  chmod 0644 "$stage"
+  if ! runuser -u caddy -- caddy validate --config "$stage" --adapter caddyfile; then
+    rm -f "$stage"
+    die "Caddy validation failed. Verify that user caddy can read the certificate and key."
+  fi
+  if [ "$existing" = true ]; then
+    backup="$(mktemp -d /etc/caddy/.extractor-backup.XXXXXX)/Caddyfile"
+    cp -a "$caddyfile" "$backup"
+    info "previous Caddyfile saved at $backup"
+  fi
+  mv -fT "$stage" "$caddyfile"
+  local action=start
+  if systemctl is-active --quiet caddy.service; then action=reload; fi
+  if ! systemctl "$action" caddy.service; then
+    if [ -n "$backup" ]; then mv -fT "$backup" "$caddyfile"; else rm -f "$caddyfile"; fi
+    die "Caddy failed to $action. Check: journalctl -u caddy.service -n 50 --no-pager"
+  fi
+  systemctl enable caddy.service
+  ok "Caddy serves https://$domain on port 443 and forwards to 127.0.0.1:80"
+  info "In Cloudflare, proxy the DNS record and use Full (strict). See md/CLOUDFLARE_HTTPS_SETUP.md."
 }
 
 # Relocate the standard root checkout and resume from /opt if setup needs a retry.
@@ -1592,6 +1744,9 @@ Setup
   build                Build bin/server, bin/apikey, bin/sitectl
   env                  Create or edit $ENV_FILE
   service              Install the systemd service
+  caddy <hostname> [--replace]
+                       Set up Caddy on port 443 with a Cloudflare Origin CA certificate
+                       and forward to HTTP port 80. Run caddy --help for prerequisites.
   relocate             Move /root/$SERVICE_NAME to /opt/$SERVICE_NAME and start the service
   update               Install latest Go, rebuild, update Playwright (if enabled), validate configs and restart
 
@@ -1649,6 +1804,7 @@ Swagger UI (off by default)
   swagger disable      Turn off
 
 Run
+  port [<port>]        Set the HTTP port and restart the service (default: $DEFAULT_HTTP_PORT)
   restart              Restart the service and wait until it is ready
   status               systemctl status
   logs                 Follow the service log
@@ -1667,6 +1823,7 @@ main() {
     env)      setup_env ;;
     pepper)   setup_pepper ;;
     service)  install_service ;;
+    caddy)    setup_caddy "$@" ;;
     relocate) relocate ;;
     update)   need_root update; install_go; build; install_playwright; validate_sites; restart ;;
     browser|playwright)
@@ -1708,6 +1865,7 @@ main() {
         disable|off) swagger_disable ;;
         *)           swagger_status ;;
       esac ;;
+    port)     set_http_port "$@" ;;
     restart)  restart ;;
     status)
       local status_code=0

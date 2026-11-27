@@ -5,7 +5,7 @@ One `POST /api/v1/extract` call for each of the 75 supported sites (see [website
 ## Setup
 
 ```bash
-export API=http://127.0.0.1:4000          # APP_HTTP_ADDRESS / APP_HTTP_PORT
+export API=http://127.0.0.1               # APP_HTTP_ADDRESS / APP_HTTP_PORT
 export KEY=gwp_..._...                    # a client key, see SETUP_KEYS.md
 ```
 
@@ -845,7 +845,7 @@ A failure through the gateway carries `evidence.ai.provider: "cloudflare"` and `
 
 ```bash
 #!/usr/bin/env bash
-# Usage: API=http://127.0.0.1:4000 KEY=gwp_... ./curl-all.sh
+# Usage: API=http://127.0.0.1 KEY=gwp_... ./curl-all.sh
 set -u
 urls=(
   "https://www.1000bulbs.com/product/37/STAG-FEP.html"

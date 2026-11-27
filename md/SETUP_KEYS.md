@@ -107,7 +107,7 @@ APP_TLS_CERT_FILE=secrets/tls.crt
 APP_TLS_KEY_FILE=secrets/tls.key
 ```
 
-In production, use a real certificate, for example from Let's Encrypt.
+For a public HTTPS domain with Cloudflare, follow the [Cloudflare HTTPS setup guide](CLOUDFLARE_HTTPS_SETUP.md).
 
 ### Step 6: Start and check
 
@@ -121,15 +121,15 @@ Check the startup log:
 - The `API keys loaded` line shows `keys: 1` (or more) and a `pepper_fingerprint` that **matches** step 3.
 - `✅ Swagger UI: ...` appears if you did step 4.
 
-Then call the API with your key:
+Then call the API with your key. The example uses HTTP on port 80. If you set a custom port, include it in the URL. If you enabled the test certificate in step 5, use an `https://` URL with the configured port and pass `--cacert secrets/tls.crt` to curl.
 
 ```bash
-curl -X POST http://127.0.0.1:4000/api/v1/extract \
+curl -X POST http://127.0.0.1/api/v1/extract \
   -H "X-API-Key: gwp_..." -H 'Content-Type: application/json' \
   -d '{"url": "https://hosseinibrothers.ir/کشمش/کشمش-پلویی-آفتابی"}'
 ```
 
-Open Swagger UI at http://127.0.0.1:4000/swagger/index.html and log in with `admin` and your password.
+Open Swagger UI at http://127.0.0.1/swagger/index.html and log in with `admin` and your password.
 
 ---
 

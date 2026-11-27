@@ -232,7 +232,7 @@ func (cfg *Config) AIModel(engine string) string {
 }
 
 const (
-	DefaultHTTPPort              = 4000
+	DefaultHTTPPort              = 80
 	DefaultSiteConfigDir         = "configs"
 	DefaultProdAPIKeysFile       = "secrets/.env.apikeys"
 	DefaultDevAPIKeysFile        = "secrets/api_keys.json"

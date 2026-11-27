@@ -13,7 +13,7 @@ func valid(t *testing.T) *Config {
 	keys := filepath.Join(dir, "keys.json")
 	os.WriteFile(keys, []byte(`{"version":1,"keys":[]}`), 0o600)
 	return &Config{
-		ENV: "test", HTTPPort: 4000, SiteConfigDir: dir, APIKeysFile: keys,
+		ENV: "test", HTTPPort: DefaultHTTPPort, SiteConfigDir: dir, APIKeysFile: keys,
 		APIKeyPepper: strings.Repeat("p", 32), MaxRequestDuration: 3 * time.Minute,
 		SiteWaitTimeout: 30 * time.Second, MaxConcurrentRequests: 20, MaxConcurrentPerSite: 1,
 		ReloadInterval: 30 * time.Second,
@@ -54,10 +54,11 @@ func TestValidateConfig(t *testing.T) {
 
 func TestDefaultsFromEnvironment(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
+	t.Setenv("APP_HTTP_PORT", "")
 	t.Setenv("APP_API_KEYS_FILE", "")
 	t.Setenv("APP_MAX_REQUEST_DURATION", "")
 	cfg := buildConfig(newViper())
-	if cfg.APIKeysFile != "secrets/.env.apikeys" || cfg.HTTPPort != 4000 || cfg.MaxRequestDuration != 3*time.Minute ||
+	if cfg.APIKeysFile != "secrets/.env.apikeys" || cfg.HTTPPort != 80 || cfg.MaxRequestDuration != 3*time.Minute ||
 		cfg.MaxConcurrentRequests != 20 || cfg.MaxConcurrentPerSite != 1 || cfg.SiteWaitTimeout != 30*time.Second {
 		t.Fatalf("defaults: %+v", cfg)
 	}
@@ -72,7 +73,7 @@ func TestEnvFileFillsEmptyButKeepsRealValues(t *testing.T) {
 	t.Setenv("APP_HTTP_PORT", "5000")     // real value
 	t.Setenv("APP_SITE_WAIT_TIMEOUT", "") // cleared by Setenv, restored after
 	os.Unsetenv("APP_SITE_WAIT_TIMEOUT")
-	applyEnvFile(map[string]string{"APP_OPS_USER": "admin", "APP_HTTP_PORT": "4000", "APP_SITE_WAIT_TIMEOUT": "10s"})
+	applyEnvFile(map[string]string{"APP_OPS_USER": "admin", "APP_HTTP_PORT": "80", "APP_SITE_WAIT_TIMEOUT": "10s"})
 	if os.Getenv("APP_OPS_USER") != "admin" || os.Getenv("APP_HTTP_PORT") != "5000" || os.Getenv("APP_SITE_WAIT_TIMEOUT") != "10s" {
 		t.Fatalf("got user=%q port=%q wait=%q", os.Getenv("APP_OPS_USER"), os.Getenv("APP_HTTP_PORT"), os.Getenv("APP_SITE_WAIT_TIMEOUT"))
 	}

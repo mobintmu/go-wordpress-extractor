@@ -24,6 +24,7 @@ GET  /swagger/index.html   operator credentials (HTTP Basic); off unless configu
 | File | What it covers |
 | --- | --- |
 | [SERVER_SETUP.md](md/SERVER_SETUP.md) | Deploy with `deploy.sh`, run locally with `menu.sh`, and check service health and logs. |
+| [CLOUDFLARE_HTTPS_SETUP.md](md/CLOUDFLARE_HTTPS_SETUP.md) | Publish the extractor over HTTPS using Cloudflare Flexible SSL, Caddy with Full (strict), or Cloudflare Tunnel. |
 | [BUILD_SMALL_SERVERS.md](md/BUILD_SMALL_SERVERS.md) | Build on a low-memory VPS using swap, build settings, or binaries compiled on another machine. |
 | [SETUP_KEYS.md](md/SETUP_KEYS.md) | Create the server pepper, client API keys, operator credentials, and TLS certificates. |
 | [CURL_EXAMPLES.md](md/CURL_EXAMPLES.md) | Try example extraction requests for individual websites or run them in bulk. |
@@ -78,6 +79,10 @@ sudo ./deploy.sh status
 
 The [server setup guide](md/SERVER_SETUP.md) walks through the individual deployment commands and the local `./menu.sh` workflow. For `compile: signal: killed` on a small VPS, see the [small-server build guide](md/BUILD_SMALL_SERVERS.md) for swap, build settings, and building on another machine.
 
+The extractor defaults to HTTP port 80. To change the port and restart an existing systemd deployment, run `sudo ./deploy.sh port <port>`. Run `sudo ./deploy.sh port` to set it back to 80.
+
+To give clients an HTTPS domain, follow the [Cloudflare HTTPS guide](md/CLOUDFLARE_HTTPS_SETUP.md). The [Flexible SSL quick setup](md/CLOUDFLARE_HTTPS_SETUP.md#quick-setup-with-cloudflare-flexible-ssl) serves HTTPS on port 443 at Cloudflare and forwards plaintext HTTP to the extractor on port 80.
+
 ### Recover from `200/CHDIR` under `/root`
 
 If `gwp` cannot enter `/root/go-wordpress-extractor`, run this from the existing checkout with an up-to-date `deploy.sh`.
@@ -113,10 +118,12 @@ xvfb-run -a go run ./cmd/server
 
 
 # 3. Call it
-curl --max-time 190 -X POST http://127.0.0.1:4000/api/v1/extract \
+curl --max-time 190 -X POST http://127.0.0.1/api/v1/extract \
   -H "X-API-Key: gwp_..." -H 'Content-Type: application/json' \
   -d '{"url": "https://badomjip.com/product/example/"}'
 ```
+
+If your user cannot bind to port 80, run `APP_HTTP_PORT=8080 go run ./cmd/server` and use port 8080 in the request URL.
 
 Both extraction outcomes return HTTP 200. Always read the `status` field. Only `HTTP_NOT_FOUND` means the product is gone.
 
@@ -414,7 +421,7 @@ func pick(nodes []Node, site string) *Node {
 | Variable | Default | Purpose |
 |---|---|---|
 | `APP_ENV` | none | `development`, `test`, or `production` |
-| `APP_HTTP_PORT` | `4000` | Listen port |
+| `APP_HTTP_PORT` | `80` | Listen port |
 | `APP_HTTP_ADDRESS` | all interfaces | Listen address |
 | `APP_SITE_CONFIG_DIR` | `configs` | Config root |
 | `APP_API_KEYS_FILE` | `secrets/.env.apikeys` in production, otherwise `secrets/api_keys.json` | Key file |
@@ -692,7 +699,7 @@ docker build --network=host \
 
 ## Swagger
 
-Swagger UI: http://127.0.0.1:4000/swagger/index.html (operator credentials required). The doc is generated from the `@` annotations on the handlers and the struct tags of the request and response types, as before:
+Swagger UI: http://127.0.0.1/swagger/index.html (operator credentials required). The doc is generated from the `@` annotations on the handlers and the struct tags of the request and response types, as before:
 
 ```bash
 go install github.com/swaggo/swag/cmd/swag@latest
@@ -729,7 +736,7 @@ The end-to-end suite starts the real Fx application on a free port with temporar
 
 ```bash
 export APP_API_KEY_PEPPER=...            # the pepper used to hash secrets/.env.apikeys
-docker compose up --build                 # service on :4000; configs/ and secrets/ are mounted read-only
+docker compose up --build                 # service on :80; configs/ and secrets/ are mounted read-only
 docker compose --profile tools up sonar   # optional SonarQube
 ```
 

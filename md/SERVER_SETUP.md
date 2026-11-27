@@ -32,7 +32,7 @@ The build creates `bin/server`, `bin/apikey`, and `bin/sitectl`.
 sudo ./deploy.sh env
 ```
 
-For a first setup, enter `127.0.0.1` as the listen address, `4000` as the port, and leave the outbound proxy host empty. This lets you check the server locally and put an HTTPS reverse proxy in front of it when clients need remote access.
+For a first setup, enter `127.0.0.1` as the listen address, accept the default port `80`, and leave the outbound proxy host empty. This lets you check the server locally and put an HTTPS reverse proxy in front of it when clients need remote access.
 
 ### 4. Create the pepper and your first API key
 
@@ -75,7 +75,7 @@ Choose `chromium` and answer `y` to Xvfb to keep window mode. Once the browser l
 sudo ./deploy.sh swagger enable
 ```
 
-Enter `admin` and type your own password of at least 12 characters twice. Once the service is running, open `http://127.0.0.1:4000/swagger/index.html` on the server and log in with those credentials. Skip this step if you only need the API.
+Enter `admin` and type your own password of at least 12 characters twice. Once the service is running, open `http://127.0.0.1/swagger/index.html` on the server and log in with those credentials. Skip this step if you only need the API.
 
 ### 7. Install and start the service
 
@@ -85,7 +85,13 @@ sudo ./deploy.sh restart
 sudo ./deploy.sh status
 ```
 
-`service` enables startup at boot. `restart` starts the service and waits for `/ready`. Look for `service is up` and `active (running)`. Then run the API checks below using port `4000`.
+`service` enables startup at boot. `restart` starts the service and waits for `/ready`. Look for `service is up` and `active (running)`. Then run the API checks below using the configured port.
+
+To make the API available on an HTTPS domain, follow the [Cloudflare HTTPS setup guide](CLOUDFLARE_HTTPS_SETUP.md).
+
+### Change the service port
+
+Run `sudo ./deploy.sh port 8080` to set a custom port, or `sudo ./deploy.sh port` to set port 80. The command updates `.env.production`, restarts the service, and checks `/ready`. If startup fails, it restores the previous port and attempts to restart on it. Ports below 1024 receive the systemd permission needed to bind without running the extractor as root. Update any reverse proxy that points to the previous port.
 
 ### Watch the service logs live
 
@@ -121,7 +127,7 @@ After putting the project under `/opt`, you can use the interactive installer in
 sudo ./deploy.sh install
 ```
 
-For the minimal setup, enter `127.0.0.1` and port `4000`, leave the outbound proxy host blank, and explicitly answer `n` to the browser, search and AI prompts. When asked for a key, enter `catalog-client` and `720h`, then save the printed key. Answer `n` to the extra key menu, confirm the website list or pick `badomjip.com`, and answer `n` to Swagger if you only need the API. The installer starts the service and checks readiness.
+For the minimal setup, enter `127.0.0.1` and accept port `80`, leave the outbound proxy host blank, and explicitly answer `n` to the browser, search and AI prompts. When asked for a key, enter `catalog-client` and `720h`, then save the printed key. Answer `n` to the extra key menu, confirm the website list or pick `badomjip.com`, and answer `n` to Swagger if you only need the API. The installer starts the service and checks readiness.
 
 ## Foreground setup with `./menu.sh`
 
@@ -133,7 +139,7 @@ Run as your normal user from the project root. `menu.sh` needs Go on `PATH` and 
 go version
 ```
 
-In a fresh checkout, create `.env` with the example below. If you already have a `.env` you want to keep, use it and check its port, key file, and engine settings before opening the menu. The example uses port `4001` so it can run alongside the production service on `4000`.
+In a fresh checkout, create `.env` with the example below. If you already have a `.env` you want to keep, use it and check its port, key file, and engine settings before opening the menu. The example uses port `4001` so it can run alongside the production service on port `80`.
 
 ```bash
 (
@@ -181,10 +187,10 @@ Choose `1` (**Run server**). Leave that terminal open and run the API checks bel
 
 ## Check that the server is ready
 
-Run these checks from the machine where the server is running. Use port `4000` for the production example or `4001` for the menu example.
+Run these checks from the machine where the server is running. Use port `80` for the production example or `4001` for the menu example.
 
 ```bash
-PORT=4000
+PORT=80
 curl -fsS "http://127.0.0.1:$PORT/health"
 curl -fsS "http://127.0.0.1:$PORT/ready"
 ```

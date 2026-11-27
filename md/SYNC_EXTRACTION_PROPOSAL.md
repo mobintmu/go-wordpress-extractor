@@ -1,5 +1,7 @@
 # Proposal: Stateless Synchronous Product Extraction Service
 
+The port setting and example URLs use the current HTTP default of 80. For current HTTPS deployment instructions, see the [Cloudflare HTTPS guide](CLOUDFLARE_HTTPS_SETUP.md).
+
 ## 1. Summary
 
 Replace the current whole-site crawler design with a single, stateless HTTP endpoint. That design is only partly built today: no crawl runs automatically, category discovery runs only from tests, and product scraping is never called.
@@ -790,7 +792,7 @@ testdata/sites/   HTML fixtures and expected output
 | Variable | Default | Purpose |
 |---|---|---|
 | `APP_ENV` | none | `development`, `test`, or `production` |
-| `APP_HTTP_PORT` | `4000` | Listen port |
+| `APP_HTTP_PORT` | `80` | Listen port |
 | `APP_SITE_CONFIG_DIR` | `configs` | Config root |
 | `APP_API_KEYS_FILE` | `secrets/.env.apikeys` in production, otherwise `secrets/api_keys.json` | Key file |
 | `APP_API_KEY_PEPPER` | none, required | HMAC secret |
@@ -877,8 +879,8 @@ This design still relies on the following assumptions:
 
 | Purpose | Address |
 |---|---|
-| Swagger UI | `http://127.0.0.1:4000/swagger/index.html` |
-| OpenAPI file for client generators | `http://127.0.0.1:4000/openapi.yaml` |
+| Swagger UI | `http://127.0.0.1/swagger/index.html` |
+| OpenAPI file for client generators | `http://127.0.0.1/openapi.yaml` |
 
 Both addresses ask for operator credentials ([§10](#protected-endpoints)). Inside Swagger UI, the **Authorize** button takes a client's `X-API-Key` value, and **Try it out** sends a real request and starts a real extraction.
 
@@ -928,7 +930,7 @@ Requirements for code using a generated client:
 
 ```bash
 curl --max-time 190 \
-  -X POST http://127.0.0.1:4000/api/v1/extract \
+  -X POST http://127.0.0.1/api/v1/extract \
   -H 'X-API-Key: gwp_k7f3a9c2_<secret>' \
   -H 'Content-Type: application/json' \
   -d '{"url": "https://badomjip.com/product/example/", "request_id": "client-generated-id-123"}'
@@ -948,7 +950,7 @@ info:
     Each request responds within 3 minutes. Both extraction results return
     HTTP 200, so clients must read the status field.
 servers:
-  - url: http://127.0.0.1:4000
+  - url: http://127.0.0.1
 tags:
   - name: Extraction
   - name: Operations

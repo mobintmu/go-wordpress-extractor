@@ -108,7 +108,7 @@ Plain `go run ./cmd/server` also works, but on a desktop Chrome then opens a vis
 **Stop:** press `Ctrl+C` in that terminal. The server finishes running requests, closes Chrome, and `xvfb-run` removes the hidden display. If the server was started in the background:
 
 ```bash
-pkill -f "exe/server"                # or find it: ss -ltnp | grep :4000, then kill <pid>
+pkill -f "exe/server"                # or find it: ss -ltnp '( sport = :80 )', then kill <pid>
 ```
 
 ### Server (systemd, installed by deploy.sh)
@@ -134,7 +134,7 @@ Foreground on a server, without systemd: `sudo ./deploy.sh run`. It uses `.env.p
 
 ```bash
 docker build --target runtime-browser -t go-wordpress-extractor:browser .
-docker run -p 4000:4000 ... go-wordpress-extractor:browser     # start
+docker run --sysctl net.ipv4.ip_unprivileged_port_start=80 -p 80:80 ... go-wordpress-extractor:browser
 docker stop <container>                                         # stop
 ```
 
@@ -156,7 +156,7 @@ Sites that still select `"browser"` then fail with `ENGINE_UNAVAILABLE` instead 
 ## Checking that it works
 
 ```bash
-curl -s -X POST http://127.0.0.1:4000/api/v1/extract \
+curl -s -X POST http://127.0.0.1/api/v1/extract \
   -H "X-API-Key: <your key>" -H "Content-Type: application/json" \
   -d '{"url":"https://www.hafele.com.de/de/product/universalverbinder-haefele-ixconnect-uc-16-64/P-01901571/"}'
 ```

@@ -2,6 +2,8 @@
 
 This document explains how the project is built, how each part works, and what is still unfinished or broken. It reflects commit `bb917fb` (2026-11-08).
 
+The current extractor defaults to HTTP port 80. See the [current server setup](SERVER_SETUP.md) and the [Cloudflare HTTPS guide](CLOUDFLARE_HTTPS_SETUP.md) for deployment.
+
 ## Contents
 
 1. [What the project is](#1-what-the-project-is)
