@@ -87,7 +87,9 @@ Then send a product URL to the extractor’s `POST /api/v1/extract` with your ex
 
 ## Diagnose a product URL
 
-On the server, run `./menu.sh .env.production`, select **7 → t**, and paste the product URL. For a local checkout, use `./menu.sh` with its usual `.env`.
+On the server, run `sudo ./deploy.sh build` once after updating the source. Then run `./menu.sh .env.production`, select **7 → t**, and paste the product URL. The production menu launches `bin/server` directly. For a local checkout, use `./menu.sh` with its usual `.env`. The local menu can build the diagnostic on demand.
+
+If a Go build reports `no space left on device`, check free space with `df -h /tmp /opt/go-wordpress-extractor` and free inodes with `df -i /tmp /opt/go-wordpress-extractor`. If another filesystem has room, set `GOTMPDIR` and `GOCACHE` to directories on that filesystem before running the build.
 
 The diagnostic uses the configured GapGPT endpoint, model, and timeouts. It runs the built-in GapGPT rule for the URL, including the usual page fetch and extraction prompt. It prints the outgoing Chat Completions JSON, the provider’s HTTP status, request ID and response body, and the final extraction result. If no HTTP response arrives, it reports whether the client connected and finished writing the request. The diagnostic redacts the GapGPT authorization header. Its output still contains the page content and model reply, so review it before sharing.
 

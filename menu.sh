@@ -602,16 +602,29 @@ preflight_default_engine() {
 diagnose_gapgpt() {
   local url go_cmd
   gapgpt_ok || { echo "Configure the GapGPT API key first (option g)."; return 1; }
+  local -a command
+  # Check for the diagnostic subcommand without starting an older server.
+  if [[ -x ./bin/server ]] &&
+    LC_ALL=C grep -aFq 'Usage: server diagnose-gapgpt <product URL>' ./bin/server; then
+    command=(./bin/server)
+  elif [[ "${ENV_FILE##*/}" == .env.production || "${APP_ENV:-}" == production ]]; then
+    echo "Build a server binary with GapGPT diagnostics using sudo ./deploy.sh build, then retry."
+    return 1
+  else
+    go_cmd="$(command -v go || true)"
+    if [[ -z "$go_cmd" && -x /usr/local/go/bin/go ]]; then
+      go_cmd=/usr/local/go/bin/go
+    fi
+    [[ -n "$go_cmd" ]] || { echo "Go is required to build the local diagnostic."; return 1; }
+    command=("$go_cmd" run -v ./cmd/server)
+  fi
   read -r -p "Product URL: " url || return 1
   [[ -n "$url" ]] || return 0
-  go_cmd="$(command -v go || true)"
-  if [[ -z "$go_cmd" && -x /usr/local/go/bin/go ]]; then
-    go_cmd=/usr/local/go/bin/go
+  if [[ "${command[0]}" != ./bin/server ]]; then
+    echo "Building the local diagnostic before it can send a request."
   fi
-  [[ -n "$go_cmd" ]] || { echo "Go is required to run the diagnostic."; return 1; }
   echo "The diagnostic sends a live request to GapGPT and prints the prompt and reply here."
-  load_env
-  "$go_cmd" run ./cmd/server diagnose-gapgpt "$url"
+  "${command[@]}" diagnose-gapgpt "$url"
 }
 
 # AI crawler submenu for providers and default engine.

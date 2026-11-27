@@ -60,6 +60,7 @@ func DiagnoseGapGPT(ctx context.Context, rawURL string, out io.Writer) error {
 
 	fmt.Fprintf(out, "GapGPT diagnostic: model %s | per-attempt timeout %s | extraction limit %s\n",
 		cfg.GapGPTModel, settings.Timeout, cfg.MaxRequestDuration)
+	fmt.Fprintln(out, "Fetching and cleaning the product page before contacting GapGPT.")
 	resp, err := svc.Run(ctx, "gapgpt-diagnostic", target)
 	if err != nil {
 		return err
