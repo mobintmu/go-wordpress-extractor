@@ -599,6 +599,21 @@ preflight_default_engine() {
   [[ "$(get_var APP_AI_CRAWLER_ENABLED)" == true ]] || { echo "APP_DEFAULT_ENGINE is $d, but APP_AI_CRAWLER_ENABLED is not true (menu 9)."; return 1; }
 }
 
+diagnose_gapgpt() {
+  local url go_cmd
+  gapgpt_ok || { echo "Configure the GapGPT API key first (option g)."; return 1; }
+  read -r -p "Product URL: " url || return 1
+  [[ -n "$url" ]] || return 0
+  go_cmd="$(command -v go || true)"
+  if [[ -z "$go_cmd" && -x /usr/local/go/bin/go ]]; then
+    go_cmd=/usr/local/go/bin/go
+  fi
+  [[ -n "$go_cmd" ]] || { echo "Go is required to run the diagnostic."; return 1; }
+  echo "The diagnostic sends a live request to GapGPT and prints the prompt and reply here."
+  load_env
+  "$go_cmd" run ./cmd/server diagnose-gapgpt "$url"
+}
+
 # AI crawler submenu for providers and default engine.
 setup_ai() {
   migrate_default_rule
@@ -610,6 +625,7 @@ setup_ai() {
     echo "  a) AvalAI (ai-crawler-avalai): set up and turn on"
     echo "  c) Cloudflare AI Gateway (ai-crawler-cloudflare): set up and turn on"
     echo "  g) GapGPT (ai-crawler-gapgpt): set up and turn on"
+    echo "  t) Diagnose GapGPT for a product URL"
     echo "  d) Set up the default engine (APP_DEFAULT_ENGINE), with the recommended list"
     echo "  x) Turn AvalAI off (clears its key setting)"
     echo "  y) Turn Cloudflare off (clears its account id)"
@@ -621,6 +637,7 @@ setup_ai() {
       a|A) setup_avalai ;;
       c|C) setup_cloudflare ;;
       g|G) setup_gapgpt ;;
+      t|T) diagnose_gapgpt ;;
       d|D) setup_default_engine ;;
       x|X) ai_off_engine ai-crawler-avalai ;;
       y|Y) ai_off_engine ai-crawler-cloudflare ;;

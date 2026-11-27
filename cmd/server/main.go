@@ -37,6 +37,21 @@ import (
 //	@description				Operator credentials (APP_OPS_USER and APP_OPS_PASSWORD_HASH) for Swagger UI.
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "diagnose-gapgpt" {
+		if len(os.Args) != 3 {
+			fmt.Fprintln(os.Stderr, "Usage: server diagnose-gapgpt <product URL>")
+			os.Exit(2)
+		}
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		config.LoadEnv()
+		err := app.DiagnoseGapGPT(ctx, os.Args[2], os.Stdout)
+		stop()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	// Set up the JSON logger before anything else logs.
 	log, err := logger.Init()
 	if err != nil {

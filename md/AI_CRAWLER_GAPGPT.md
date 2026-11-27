@@ -85,6 +85,14 @@ unset key
 
 Then send a product URL to the extractor’s `POST /api/v1/extract` with your extractor `X-API-Key`. A successful AI extraction reports `source.engine: ai-crawler-gapgpt` and the configured model in `source.model`. Provider failures may include `evidence.ai.provider: gapgpt` and the provider’s request ID when it returns one.
 
+## Diagnose a product URL
+
+On the server, run `./menu.sh .env.production`, select **7 → t**, and paste the product URL. For a local checkout, use `./menu.sh` with its usual `.env`.
+
+The diagnostic uses the configured GapGPT endpoint, model, and timeouts. It runs the built-in GapGPT rule for the URL, including the usual page fetch and extraction prompt. It prints the outgoing Chat Completions JSON, the provider’s HTTP status, request ID and response body, and the final extraction result. If no HTTP response arrives, it reports whether the client connected and finished writing the request. The diagnostic redacts the GapGPT authorization header. Its output still contains the page content and model reply, so review it before sharing.
+
+This is a live request that uses API tokens. It runs without starting a second server and bypasses the running service’s cache, per-site rules, and learned selectors.
+
 ## Run the tests
 
 The end-to-end tests start the extractor with a local product page and a mock GapGPT API. They check default and per-site routing, the Chat Completions request, the extracted product and redacted authentication errors.

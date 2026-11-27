@@ -42,6 +42,8 @@ type Settings struct {
 	ResponseFormat  string
 	// HTTPClient replaces the SDK's HTTP client, for tests. Optional.
 	HTTPClient *http.Client
+	// Middleware can inspect individual provider requests in local diagnostics.
+	Middleware option.Middleware
 	// Observe, when set, is called after every model call and cache hit,
 	// for the /metrics counters. Optional.
 	Observe func(Call)
@@ -168,6 +170,9 @@ func New(p Provider, s Settings) *Client {
 	}
 	if s.HTTPClient != nil {
 		opts = append(opts, option.WithHTTPClient(s.HTTPClient))
+	}
+	if s.Middleware != nil {
+		opts = append(opts, option.WithMiddleware(s.Middleware))
 	}
 	return &Client{oc: openai.NewClient(opts...), p: p, s: s}
 }

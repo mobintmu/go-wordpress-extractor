@@ -81,19 +81,22 @@ func fetchOptions(cfg *config.Config) fetch.Options {
 // at startup, so a missing driver or browser stops the app with a clear
 // error instead of failing requests later.
 func newBrowserFetcher(lc fx.Lifecycle, cfg *config.Config, opts fetch.Options, lim *limiter.Limiter, log *zap.Logger) *fetch.BrowserFetcher {
+	b := browserFetcher(cfg, opts, lim, log)
+	if b != nil {
+		lc.Append(fx.Hook{OnStart: b.Start, OnStop: b.Stop})
+	}
+	return b
+}
+
+func browserFetcher(cfg *config.Config, opts fetch.Options, lim *limiter.Limiter, log *zap.Logger) *fetch.BrowserFetcher {
 	if !cfg.BrowserEnabled {
 		return nil
 	}
-	b := fetch.NewBrowserFetcher(opts, fetch.BrowserOptions{
+	return fetch.NewBrowserFetcher(opts, fetch.BrowserOptions{
 		Channel:  cfg.BrowserChannel,
 		Headless: cfg.BrowserHeadless,
 		MaxPages: cfg.BrowserMaxPages,
 	}, lim, log)
-	lc.Append(fx.Hook{
-		OnStart: b.Start,
-		OnStop:  b.Stop,
-	})
-	return b
 }
 
 // newFetchRouter registers the fetch engines (strategies). The router picks
@@ -136,26 +139,31 @@ func (c aiClients) forEngine(engine string) *aicrawler.Client {
 // aiEngines are the configured AI fetch engines, in a fixed order.
 type aiEngines []*fetch.AIEngine
 
+func aiSettings(cfg *config.Config, minIntervalMS int) aicrawler.Settings {
+	return aicrawler.Settings{
+		Timeout:         cfg.AICrawlerTimeout,
+		MaxOutputTokens: cfg.AICrawlerMaxOutputTokens,
+		Temperature:     cfg.AICrawlerTemperature,
+		Retries:         cfg.AICrawlerRetries,
+		MinInterval:     time.Duration(minIntervalMS) * time.Millisecond,
+		ResponseFormat:  cfg.AICrawlerResponseFormat,
+	}
+}
+
 // newAIClients builds the OpenAI-compatible clients of the AI engines whose
 // settings are complete (APP_AI_CRAWLER_ENABLED plus the engine's own
 // settings). They share the limits and metrics.
 func newAIClients(cfg *config.Config, m *metrics.Metrics) aiClients {
 	shared := func(minIntervalMS int) aicrawler.Settings {
-		return aicrawler.Settings{
-			Timeout:         cfg.AICrawlerTimeout,
-			MaxOutputTokens: cfg.AICrawlerMaxOutputTokens,
-			Temperature:     cfg.AICrawlerTemperature,
-			Retries:         cfg.AICrawlerRetries,
-			MinInterval:     time.Duration(minIntervalMS) * time.Millisecond,
-			ResponseFormat:  cfg.AICrawlerResponseFormat,
-			Observe: func(c aicrawler.Call) {
-				if c.Cached {
-					m.ObserveAICacheHit(c.Engine, c.Model, c.Host)
-					return
-				}
-				m.ObserveAICall(c.Engine, c.Model, c.Purpose, c.Host, c.Outcome, c.InputTokens, c.OutputTokens, c.Duration)
-			},
+		settings := aiSettings(cfg, minIntervalMS)
+		settings.Observe = func(c aicrawler.Call) {
+			if c.Cached {
+				m.ObserveAICacheHit(c.Engine, c.Model, c.Host)
+				return
+			}
+			m.ObserveAICall(c.Engine, c.Model, c.Purpose, c.Host, c.Outcome, c.InputTokens, c.OutputTokens, c.Duration)
 		}
+		return settings
 	}
 	var out aiClients
 	if cfg.AvalAIConfigured() {
@@ -176,9 +184,13 @@ func newAIClients(cfg *config.Config, m *metrics.Metrics) aiClients {
 		}), shared(cfg.CloudflareMinIntervalMS))
 	}
 	if cfg.GapGPTConfigured() {
-		out.gapgpt = aicrawler.New(aicrawler.GapGPT(cfg.GapGPTEndpoint, cfg.GapGPTModel, cfg.GapGPTAPIKey), shared(cfg.AICrawlerMinIntervalMS))
+		out.gapgpt = gapgptClient(cfg, shared(cfg.AICrawlerMinIntervalMS))
 	}
 	return out
+}
+
+func gapgptClient(cfg *config.Config, settings aicrawler.Settings) *aicrawler.Client {
+	return aicrawler.New(aicrawler.GapGPT(cfg.GapGPTEndpoint, cfg.GapGPTModel, cfg.GapGPTAPIKey), settings)
 }
 
 // newAIEngines builds one AI engine per configured client. They fetch with

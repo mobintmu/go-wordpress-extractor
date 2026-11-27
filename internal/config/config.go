@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -292,6 +293,26 @@ func newViper() *viper.Viper {
 	v.SetEnvPrefix("APP")
 	v.AutomaticEnv()
 	return v
+}
+
+// NewGapGPTDiagnosticConfig validates the settings used by a one-off GapGPT extraction.
+func NewGapGPTDiagnosticConfig() (*Config, error) {
+	cfg := buildConfig(newViper())
+	for _, validate := range []func(*Config) error{
+		validateDurations, validateConcurrency, validateProxy, validateBrowser, validateAIShared,
+	} {
+		if err := validate(cfg); err != nil {
+			return nil, err
+		}
+	}
+	missing, err := validateGapGPT(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if missing != "" {
+		return nil, errors.New(missing)
+	}
+	return cfg, nil
 }
 
 func NewConfig() (*Config, error) {
